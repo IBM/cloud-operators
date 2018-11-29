@@ -1,0 +1,27 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# is this a good practice. Some say it is
+# e.g. https://getcomposer.org/doc/faqs/should-i-commit-the-dependencies-in-my-vendor-directory.md
+vendor/*
+!vendor/.gitkeep 
+.idea/ 
+*.zip
+launch.json
+package-lock.json
+node_modules
+logs
+**/*.log
+**/stderr_*
+**/stdout_*
+.DS_Store
+.history

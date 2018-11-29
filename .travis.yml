@@ -1,0 +1,16 @@
+language: go
+go:
+  - "1.10"
+dist: trusty
+sudo: required
+
+go_import_path: github.com/ibm/cloud-operators
+
+before_install:
+  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+  
+install:
+  - dep ensure -v
+
+script:
+  - go test ./... -v
