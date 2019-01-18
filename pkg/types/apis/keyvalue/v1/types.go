@@ -26,6 +26,7 @@ import (
 
 	rcontext "github.com/ibm/cloud-operators/pkg/context"
 	"github.com/ibm/cloud-operators/pkg/lib/secret"
+	"github.com/ibm/cloud-operators/pkg/util"
 )
 
 // KeyValue represents a key-value pair
@@ -74,8 +75,15 @@ func (v *KeyValue) ToJSON(ctx rcontext.Context) (interface{}, error) {
 				return nil, fmt.Errorf("Missing secret %s", valueFrom.SecretKeyRef.Name)
 			}
 			return toJSONFromString(string(data))
+		} else if valueFrom.ConfigMapKeyRef != nil {
+			data, err := util.GetConfigMapValue(ctx, valueFrom.ConfigMapKeyRef.Name, valueFrom.ConfigMapKeyRef.Key, true)
+			if err != nil {
+				// Recoverable
+				return nil, fmt.Errorf("Missing configmap %s", valueFrom.ConfigMapKeyRef.Name)
+			}
+			return toJSONFromString(data)
 		}
-		return nil, fmt.Errorf("Missing secretKeyRef for %s variable", v.Name)
+		return nil, fmt.Errorf("Missing secretKeyRef or configMapKeyRef for %s variable", v.Name)
 	}
 
 	if v.Value == nil {
