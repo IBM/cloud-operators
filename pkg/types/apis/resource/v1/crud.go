@@ -25,9 +25,18 @@ import (
 	rcontext "github.com/ibm/cloud-operators/pkg/context"
 )
 
-// PutAndEmit puts the resource on the server and emits an event (on the same server) recording current object state
+// PutAndEmit updates the object stus on the server and emits an event (on the same server) recording current object state
 func PutAndEmit(ctx rcontext.Context, obj runtime.Object) error {
-	if err := ctx.Client().Update(ctx, obj); err != nil {
+	if err := ctx.Client().Status().Update(ctx, obj); err != nil {
+		return err
+	}
+
+	return EmitStatusEvent(ctx, obj)
+}
+
+// PutStatusAndEmit updates the object status on the server and emits an event (on the same server) recording current object state
+func PutStatusAndEmit(ctx rcontext.Context, obj runtime.Object) error {
+	if err := ctx.Client().Status().Update(ctx, obj); err != nil {
 		return err
 	}
 
