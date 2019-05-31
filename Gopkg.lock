@@ -13,6 +13,7 @@
   packages = [
     ".",
     "api/account/accountv2",
+    "api/iam/iamv1",
     "api/mccp/mccpv2",
     "api/resource/resourcev1/catalog",
     "api/resource/resourcev1/controller",
@@ -746,6 +747,7 @@
     "pkg/client/apiutil",
     "pkg/client/config",
     "pkg/controller",
+    "pkg/controller/controllerutil",
     "pkg/envtest",
     "pkg/envtest/printer",
     "pkg/event",
@@ -815,6 +817,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "844ea2c8fb82f17921298102e4f7e98d36308a3d8d1a979578391bf6baaf063a"
+  inputs-digest = "3232590988b279ee4a111159de26a6ab1965e2ff2da5eb631eb36a521f8d2591"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -16,7 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	icv1 "github.com/ibm/ibm-cloud-operators/pkg/lib/ibmcloud/v1"
+	icv1 "github.com/ibm/cloud-operators/pkg/lib/ibmcloud/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

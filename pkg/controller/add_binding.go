@@ -16,7 +16,7 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/ibm/ibm-cloud-operators/pkg/controller/binding"
+	"github.com/ibm/cloud-operators/pkg/controller/binding"
 )
 
 func init() {

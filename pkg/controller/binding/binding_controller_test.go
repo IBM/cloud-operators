@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	ibmcloudv1alpha1 "github.com/ibm/ibm-cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"

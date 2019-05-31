@@ -18,8 +18,8 @@ package main
 import (
 	"log"
 
-	"github.com/ibm/ibm-cloud-operators/pkg/apis"
-	"github.com/ibm/ibm-cloud-operators/pkg/controller"
+	"github.com/ibm/cloud-operators/pkg/apis"
+	"github.com/ibm/cloud-operators/pkg/controller"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"

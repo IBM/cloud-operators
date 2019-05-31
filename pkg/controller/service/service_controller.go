@@ -23,7 +23,7 @@ import (
 
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
-	ibmcloudv1alpha1 "github.com/ibm/ibm-cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
