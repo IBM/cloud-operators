@@ -68,6 +68,7 @@ def ordered_dict_presenter(dumper, data):
 
 
 script_home=os.path.dirname(os.path.realpath(__file__))
+os.chdir(script_home)
 config = os.path.join(script_home,"..","config")
 releases=os.path.join(script_home,"..","releases",args.version)
 operatorhub=os.path.join(script_home,"..","operatorhub",args.version)
@@ -84,7 +85,7 @@ if not os.path.exists(operatorhub):
     os.makedirs(operatorhub)        
 if os.path.exists(latest):
     os.unlink(latest)
-os.symlink(releases, latest)      
+os.symlink(os.path.join("..","releases",args.version), os.path.join("..","releases","latest"))      
 
 ################################
 ## Generate Release Yaml
@@ -177,7 +178,6 @@ with open(os.path.join(config,"templates","template.clusterserviceversion.yaml")
     role_file = find_role(releases)
     with open(os.path.join(releases,role_file), 'r') as rolestream:
         role=yaml.safe_load(rolestream)
-        print(role)
 
     # set csv fields 
     containerImage = deploy['spec']['template']['spec']['containers'][0]['image']
