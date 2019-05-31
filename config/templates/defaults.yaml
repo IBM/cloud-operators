@@ -1,0 +1,33 @@
+# Constants used to package the operator for operator hub
+
+operator_name: ibmcloud-operator
+channel_name: alpha
+maturity: alpha
+image: registry.ng.bluemix.net/seed/cloud-operators
+crd:
+    - kind: Service
+      description: IT Represents an instance of a Service resource on IBM Cloud.
+      example: |-
+        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
+            "kind": "Service",
+            "metadata": {
+            "name": "myeventstreams"
+            },
+            "spec": {
+            "serviceClass": "messagehub",
+            "plan": "standard",
+            "externalName": "myeventstreams"
+            }
+        }
+    - kind: Binding
+      description: Represents an instance of a Service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
+      example: |-
+        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
+            "kind": "Binding",
+            "metadata": {
+            "name": "myeventstreams-binding"
+            },
+            "spec": {
+            "serviceName": "myeventstreams"
+            }
+        }                
