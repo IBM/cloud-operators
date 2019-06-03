@@ -123,6 +123,7 @@ type ReconcileBinding struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Binding instance
 	instance := &ibmcloudv1alpha1.Binding{}
