@@ -122,6 +122,7 @@ type ReconcileBinding struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch
 func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Binding instance
 	instance := &ibmcloudv1alpha1.Binding{}
