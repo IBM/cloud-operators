@@ -35,6 +35,10 @@ spec:
           type: object
         status:
           properties:
+            instanceId:
+              type: string
+            keyInstanceId:
+              type: string
             message:
               type: string
             state:
