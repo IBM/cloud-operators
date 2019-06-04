@@ -18,6 +18,7 @@ before_install:
   - source travis-env.sh
 
 script:
+  - make generate
   - make lintall
   # - make test
 
