@@ -1,5 +1,5 @@
 
-[![Build Status](https://travis.ibm.com/seed/cloud-operators.svg?token=bc6xtkRixk96zbXuAu7U&branch=master)](https://travis.ibm.com/seed/cloud-operators)
+[![Build Status](https://travis.ibm.com/seed/cloud-operators.svg?token=yqFBSmB3Szpa61sCrBEU&branch=master)](https://travis.ibm.com/seed/cloud-operators)
 
 # IBM Cloud Operator
 The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage the lifecycle of IBM public cloud services.
