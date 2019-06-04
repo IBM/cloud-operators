@@ -2,6 +2,14 @@
 # Image URL to use all building/pushing image targets
 IMG ?= registry.ng.bluemix.net/seed/cloud-operators
 TAG ?= 0.1.0
+GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+
+deps:
+	go get golang.org/x/lint/golint
+	go get -u github.com/apg/patter
+	go get -u github.com/wadey/gocovmerge
+	go get -u github.com/alecthomas/gometalinter
+	gometalinter --install
 
 all: test manager
 
@@ -52,3 +60,11 @@ docker-build:
 docker-push:
 	docker login -u token -p ${DOCKER_REGISTRY_TOKEN} registry.ng.bluemix.net
 	docker push ${IMG}:${TAG}
+
+.PHONY: lintall
+lintall: fmt lint vet
+
+lint: 
+	golint -set_exit_status=true pkg/
+
+

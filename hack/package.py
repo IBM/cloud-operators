@@ -247,3 +247,7 @@ with open(os.path.join(config,"templates","template.clusterserviceversion.yaml")
 
     with open(os.path.join(operatorhub,"ibmcloud_operator."+args.version+".clusterserviceversion.yaml"), "w") as outfile:
         yaml.dump(csv, outfile, default_flow_style=False)
+
+with open(os.path.join(script_home,"latest_tag"), "w") as f:
+    f.write("export TAG=%s" % (args.version[1:])) 
+    f.close()

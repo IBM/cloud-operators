@@ -1,0 +1,56 @@
+language: go
+go:
+  - "1.12"
+
+os:
+  - "linux"
+
+services:
+  - docker
+
+#before_script:
+#  - make deps
+#  - dep ensure
+
+before_install:
+  - source travis-env.sh
+  - make docker-login
+
+script:
+  - make copyright-check
+  - make lintall
+  - make test
+
+after_success:
+  - make push
+  - test "$TRAVIS_EVENT_TYPE" != "pull_request" && make release || echo "success"
+  - |
+      if [[ "$TRAVIS_EVENT_TYPE" != "pull_request" ]]; then
+        curl -Lo travis_after_all.py https://raw.github.com/dmakhno/travis_after_all/master/travis_after_all.py
+        python travis_after_all.py https://travis.ibm.com/api
+        export $(cat .to_export_back)
+        if [[ "$BUILD_LEADER" == "YES" ]]; then
+          if [[ "$BUILD_AGGREGATE_STATUS" == "others_succeeded" ]]; then
+            echo "All jobs succeeded! Creating multi arch image..."
+            make manifest-tool
+            make multi-arch
+          else
+            echo "Some jobs failed" && exit 1
+          fi
+        fi
+      fi
+#  build only master and tagged/branch releases.
+branches:
+  only: 
+    - master
+    - /^[0-9]+\..*$/
+    - /^v[0-9]+\..*$/
+    - /^release-[0-9]+\..*$/
+
+deploy:
+  skip_cleanup: true
+  provider: script
+  script: bash -c "make release"
+  on:
+    all_branches: true
+    condition: $TRAVIS_BRANCH =~ ^master|[0-9]+\..*|v[0-9]+\..*|release-[0-9]+\..*$
