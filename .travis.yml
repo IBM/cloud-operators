@@ -1,9 +1,12 @@
 language: go
 go:
   - "1.11"
-
 os:
   - "linux"
+dist: trusty
+sudo: required
+
+go_import_path: github.com/ibm/cloud-operators
 
 services:
   - docker
@@ -12,14 +15,12 @@ before_script:
   - make deps
 
 before_install:
-  #- mkdir -p ${GOPATH}/src/github.com/ibm
-  #- mv ${GOPATH}/src/github.ibm.com/seed/cloud-operators ${GOPATH}/src/github.com/ibm/cloud-operators
-  #- cd ${GOPATH}/src/github.com/ibm/cloud-operators
-  - source travis-env.sh
+  - source ./tools/travis/travis-env.sh
+  - ./tools/travis/k8s-tools.sh
 
 script:
   - make generate
-  #- make lintall
+  - make lintall
   # - make test
 
 after_success:
