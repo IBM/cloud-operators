@@ -193,6 +193,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		if ContainsFinalizer(instance) {
 			err := r.deleteCredentials(instance, ibmCloudInfo)
 			if err != nil {
+				logt.Info("Error deleting credentials", "in deletion", err.Error())
 				return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
 			}
 
@@ -213,6 +214,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			logt.Info("ServiceKey", "Service parent", "has changed")
 			err := r.deleteCredentials(instance, ibmCloudInfo)
 			if err != nil {
+				logt.Info("Error deleting credentials", "in deletion", err.Error())
 				return r.updateStatus(instance, "Failed", err)
 			}
 			instance.Status.InstanceID = serviceInstance.Status.InstanceID
@@ -280,6 +282,9 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 				if err != nil {
 					return r.updateStatus(instance, "Failed", err)
 				}
+				r.updateStatusOnline(instance, ibmCloudInfo)
+			}
+			if instance.Status.State != "Online" {
 				r.updateStatusOnline(instance, ibmCloudInfo)
 			}
 		}
@@ -458,20 +463,23 @@ func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding,
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
 		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
 		err := serviceKeys.Delete(instance.Status.KeyInstanceID)
-		if err != nil && !strings.Contains(err.Error(), "410") { // we do not propagate an error if the service no longer exists
+		if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
 			return err
 		}
 
 	} else { // service type is not CF
 		resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
 		err := resServiceKeyAPI.DeleteKey(instance.Status.KeyInstanceID)
-		if err != nil && !strings.Contains(err.Error(), "410") { // we do not propagate an error if the service no longer exists
+		if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
 			return err
 		}
 	}
 	secret := &corev1.Secret{}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil
+		}
 		return err
 	}
 	return r.deleteSecret(secret)

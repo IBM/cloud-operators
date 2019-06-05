@@ -232,6 +232,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			return r.updateStatus(instance, "Failed", err)
 		}
+		return r.updateStatusOnline(instance, ibmCloudInfo, instance.Status.InstanceID)
 
 	} else { // Resource is not CF
 		controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
@@ -292,7 +293,9 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 		}
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
-
+		if instance.Status.State != "Online" {
+			return r.updateStatusOnline(instance, ibmCloudInfo, instance.Status.InstanceID)
+		}
 	}
 
 	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 1}, nil
