@@ -1,0 +1,10 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Function
+metadata:
+  name: echo-string
+spec:
+  code: "const main = params => params || {}"
+  runtime: "nodejs:6"
+  parameters:
+  - name: data
+    value: "Paris"

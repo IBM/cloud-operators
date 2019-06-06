@@ -1,0 +1,8 @@
+
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Function
+metadata:
+  name: rule-hello
+spec:
+  code: "const main = params => ({payload:  'Hello, ' + params.name + ' from ' + params.place})"
+  runtime: "nodejs:6"

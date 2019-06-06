@@ -1,0 +1,27 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Package
+metadata:
+  name: trigger-kafka-binding
+spec:
+  bind: /whisk.system/messaging
+  parameters:
+  - name: kafka_brokers_sasl
+    valueFrom:
+      secretKeyRef:
+        name: trigger-kafka
+        key: kafka_brokers_sasl
+  - name: user
+    valueFrom:
+      secretKeyRef:
+        name: trigger-kafka
+        key: user
+  - name: password
+    valueFrom:
+      secretKeyRef:
+        name: trigger-kafka
+        key: password
+  - name: kafka_admin_url
+    valueFrom:
+      secretKeyRef:
+        name: trigger-kafka
+        key: kafka_admin_url

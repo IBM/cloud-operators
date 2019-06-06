@@ -1,0 +1,6 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Function
+metadata:
+  name: invalid-no-code-no-codeuri
+spec:
+  runtime: "nodejs:6"

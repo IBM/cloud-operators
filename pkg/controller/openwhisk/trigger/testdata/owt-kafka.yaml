@@ -1,0 +1,10 @@
+
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Trigger
+metadata:
+  name: trigger-kafka-1
+spec:
+  feed: trigger-kafka-binding/messageHubFeed
+  parameters:
+  - name: topic
+    value: openwhisk-test-topic1

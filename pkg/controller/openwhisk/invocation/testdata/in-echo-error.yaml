@@ -1,0 +1,6 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Invocation
+metadata:
+  name: invoke-echo-with-5-errors
+spec:
+  function: echo-with-5-errors

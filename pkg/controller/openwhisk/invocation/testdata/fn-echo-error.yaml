@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Function
+metadata:
+  name: echo-with-5-errors
+spec:
+  code: |
+    let count = 0
+    const main = params => {
+      count ++
+      if (count < 5) { return { error: 'notok' } }
+      count = 0
+      return params || {}
+    }
+  runtime: "nodejs:6"
