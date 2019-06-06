@@ -5,10 +5,3 @@ metadata:
 spec:
   plan: standard
   serviceClass: databases-for-elasticsearch
----
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Binding
-metadata:
-  name: binding-es
-spec:
-  serviceName: myes

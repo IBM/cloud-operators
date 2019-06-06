@@ -17,12 +17,14 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	"github.com/IBM-Cloud/bluemix-go/models"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -141,7 +143,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	ibmCloudInfo, err := GetIBMCloudInfo(r.Client, instance)
 	if err != nil {
-		return r.updateStatus(instance, "Failed", err)
+		return r.updateStatusError(instance, "Failed", err)
 	}
 
 	// Delete if necessary
@@ -210,13 +212,13 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				SpaceGUID: ibmCloudInfo.Space.GUID,
 			})
 			if err != nil {
-				return r.updateStatus(instance, "Failed", err)
+				return r.updateStatusError(instance, "Failed", err)
 			}
-			return r.updateStatusOnline(instance, ibmCloudInfo, serviceInstance.Metadata.GUID)
+			return r.updateStatus(instance, ibmCloudInfo, serviceInstance.Metadata.GUID, serviceInstance.Entity.LastOperation.State)
 		}
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
-		_, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
+		serviceInstance, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
 		if err != nil {
 			if strings.Contains(err.Error(), "doesn't exist") {
 				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
@@ -226,18 +228,21 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 					SpaceGUID: ibmCloudInfo.Space.GUID,
 				})
 				if err != nil {
-					return r.updateStatus(instance, "Failed", err)
+					return r.updateStatusError(instance, "Failed", err)
 				}
-				return r.updateStatusOnline(instance, ibmCloudInfo, serviceInstance.Metadata.GUID)
+				return r.updateStatus(instance, ibmCloudInfo, serviceInstance.Metadata.GUID, serviceInstance.Entity.LastOperation.State)
 			}
-			return r.updateStatus(instance, "Failed", err)
+			return r.updateStatusError(instance, "Failed", err)
 		}
-		return r.updateStatusOnline(instance, ibmCloudInfo, instance.Status.InstanceID)
+
+		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
+		// Verfication was successful, service exists, update the status if necessary
+		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.LastOperation.State)
 
 	} else { // Resource is not CF
 		controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
 		if err != nil {
-			return r.updateStatus(instance, "Pending", err)
+			return r.updateStatusError(instance, "Pending", err)
 		}
 
 		resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
@@ -258,27 +263,28 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 			if err != nil {
-				return r.updateStatus(instance, "Failed", err)
+				return r.updateStatusError(instance, "Failed", err)
 			}
-			return r.updateStatusOnline(instance, ibmCloudInfo, serviceInstance.ID)
+			return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
 		}
 
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
 
 		serviceInstanceQuery := bxcontroller.ServiceInstanceQuery{
+			// Warning: Do not add the ServiceID to this query
 			ResourceGroupID: ibmCloudInfo.ResourceGroupID,
-			//ServiceID:       instance.Status.InstanceID,
-			ServicePlanID: ibmCloudInfo.ServicePlanID,
-			Name:          instance.ObjectMeta.Name,
+			ServicePlanID:   ibmCloudInfo.ServicePlanID,
+			Name:            instance.ObjectMeta.Name,
 		}
 
 		serviceInstances, err := resServiceInstanceAPI.ListInstances(serviceInstanceQuery)
 		if err != nil {
-			return r.updateStatus(instance, "Pending", err)
+			return r.updateStatusError(instance, "Pending", err)
 		}
 
-		if len(serviceInstances) == 0 { // Need to recreate it!
+		serviceInstance, err := getServiceInstance(serviceInstances, instance.Status.InstanceID)
+		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
 			if err := r.Update(context.TODO(), instance); err != nil {
@@ -287,23 +293,32 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 			if err != nil {
-				return r.updateStatus(instance, "Failed", err)
+				return r.updateStatusError(instance, "Failed", err)
 			}
-			return r.updateStatusOnline(instance, ibmCloudInfo, serviceInstance.ID)
+			return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
 
 		}
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
-		if instance.Status.State != "Online" {
-			return r.updateStatusOnline(instance, ibmCloudInfo, instance.Status.InstanceID)
-		}
-	}
 
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 1}, nil
+		// Verfication was successful, service exists, update the status if necessary
+		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.State)
+
+	}
 }
 
-func (r *ReconcileService) updateStatusOnline(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *IBMCloudInfo, instanceID string) (reconcile.Result, error) {
-	instance.Status.State = "Online"
-	instance.Status.Message = "Online"
+func getServiceInstance(instances []models.ServiceInstance, ID string) (models.ServiceInstance, error) {
+	for _, instance := range instances {
+		if instance.ID == ID {
+			return instance, nil
+		}
+	}
+	return models.ServiceInstance{}, fmt.Errorf("not found")
+}
+
+func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *IBMCloudInfo, instanceID string, instanceState string) (reconcile.Result, error) {
+	state := getState(instanceState)
+	instance.Status.State = state
+	instance.Status.Message = state
 	instance.Status.InstanceID = instanceID
 	setStatusFieldsFromSpec(instance)
 	err := r.Update(context.TODO(), instance)
@@ -314,7 +329,14 @@ func (r *ReconcileService) updateStatusOnline(instance *ibmcloudv1alpha1.Service
 			logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
 		}
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 1}, nil
+}
+
+func getState(serviceInstanceState string) string {
+	if serviceInstanceState == "succeeded" || serviceInstanceState == "active" || serviceInstanceState == "provisioned" {
+		return "Online"
+	}
+	return serviceInstanceState
 }
 
 func setStatusFieldsFromSpec(instance *ibmcloudv1alpha1.Service) {
@@ -324,7 +346,7 @@ func setStatusFieldsFromSpec(instance *ibmcloudv1alpha1.Service) {
 	instance.Status.ServiceClassType = instance.Spec.ServiceClassType
 }
 
-func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, state string, err error) (reconcile.Result, error) {
+func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service, state string, err error) (reconcile.Result, error) {
 	message := err.Error()
 	logt.Info(message)
 	instance.Status.State = state
