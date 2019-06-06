@@ -17,24 +17,31 @@
 
 set -e
 
-
-if [ -z ${KUBECTL_VERSION+x} ]; then
-    KUBECTL_VERSION=v1.10.0
+if [ -z "${INSTALL_MINIKUBE}" ]; then
+    exit 0
 fi
 
-if [ -z ${MINIKUBE_VERSION+x} ]; then
-    MINIKUBE_VERSION=latest
-fi
+MINIKUBE_VERSION=${MINIKUBE_VERSION:-v1.1.0}
+BOOTSTRAPPER=${BOOTSTRAPPER:-kubeadm}
+KUBE_VERSION=${KUBE_VERSION:-v1.13.0}
 
 export MINIKUBE_WANTUPDATENOTIFICATION=false
 export MINIKUBE_WANTREPORTERRORPROMPT=false
 export CHANGE_MINIKUBE_NONE_USER=true
 export MINIKUBE_HOME=$HOME
 
-echo "installing kubectl"
-curl -LO https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
-chmod +x ./kubectl
-sudo mv ./kubectl /usr/local/bin/
+echo "installing nsenter"
+if ! which nsenter; then
+    curl -L https://github.com/minrk/git-crypt-bin/releases/download/trusty/nsenter > nsenter
+    chmod +x nsenter
+    sudo mv nsenter /usr/local/bin/
+fi
+
+# this is needed for kube > 1.11
+echo "installing crictl"
+curl -OL https://github.com/kubernetes-sigs/cri-tools/releases/download/${KUBE_VERSION}/crictl-${KUBE_VERSION}-linux-amd64.tar.gz 
+sudo tar zxvf crictl-${KUBE_VERSION}-linux-amd64.tar.gz -C /usr/local/bin
+rm -f crictl-${KUBE_VERSION}-linux-amd64.tar.gz
 
 echo "installing minikube"
 curl -Lo minikube https://storage.googleapis.com/minikube/releases/${MINIKUBE_VERSION}/minikube-linux-amd64
@@ -43,8 +50,7 @@ sudo mv minikube /usr/local/bin/
 
 echo "starting minikube"
 export KUBECONFIG=$HOME/.kube/config
-sudo -E minikube start --vm-driver=none --bootstrapper=localkube --kubernetes-version=${KUBECTL_VERSION}
-
+sudo -E minikube start --vm-driver=none --bootstrapper=${BOOTSTRAPPER} --extra-config apiserver.authorization-mode=RBAC --kubernetes-version ${KUBE_VERSION}
 echo "update context"
 # minikube update-context
 
@@ -54,4 +60,3 @@ JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.ty
 until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; 
 do 
   sleep 1; 
-done

@@ -1,22 +1,21 @@
 language: go
 go:
-  - "1.11"
-os:
-  - "linux"
-dist: trusty
+  - "1.11.x"
+dist: xenial
 sudo: required
-
-go_import_path: github.com/ibm/cloud-operators
-
 services:
   - docker
 
+go_import_path: github.com/ibm/cloud-operators
+
 before_script:
   - make deps
-
+ 
 before_install:
   - source ./tools/travis/travis-env.sh
+  - ./tools/travis/start-kubeadm-dind.sh
   - ./tools/travis/k8s-tools.sh
+  - ./tools/travis/minikube-install.sh
 
 script:
   - make generate
