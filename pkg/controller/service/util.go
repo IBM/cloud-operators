@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	bx "github.com/IBM-Cloud/bluemix-go"
 	"github.com/IBM-Cloud/bluemix-go/api/account/accountv2"
@@ -44,6 +45,7 @@ type IBMCloudInfo struct {
 	ServicePlanID    string
 	TargetCrn        string
 	Token            string
+	Context          icv1.ResourceContext
 }
 
 func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config, error) {
@@ -80,6 +82,11 @@ func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config
 }
 
 func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Service) (icv1.ResourceContext, error) {
+	// If the object already has the context set in its Status, then we don't read from the configmap
+	if !reflect.DeepEqual(instance.Status.Context, icv1.ResourceContext{}) {
+		return instance.Status.Context, nil
+	}
+
 	cm := &v1.ConfigMap{}
 	cmName := "seed-defaults"
 	cmNameSpace := "ibmcloud-operators"
@@ -87,7 +94,7 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 		cmNameSpace = instance.ObjectMeta.Namespace
 	}
 
-	err := r.Get(context.TODO(), types.NamespacedName{Namespace: cmNameSpace, Name: cmName}, cm)
+	err := r.Get(context.Background(), types.NamespacedName{Namespace: cmNameSpace, Name: cmName}, cm)
 	if err != nil {
 		logt.Info("Failed to find ConfigMap in namespace (in Service)", cmNameSpace, err)
 		return icv1.ResourceContext{}, err
@@ -236,6 +243,7 @@ func getIBMCloudInfoHelper(config *bx.Config, nctx icv1.ResourceContext, instanc
 			BxPlan:           servicePlan,
 			//ServicePlanID:    servicePlanID,
 			//TargetCrn:        supportedDeployments[0].CatalogCRN,
+			Context: useCtx,
 		}
 		return &ibmCloudInfo, nil
 
@@ -350,6 +358,7 @@ func getIBMCloudInfoHelper(config *bx.Config, nctx icv1.ResourceContext, instanc
 			ServicePlan:      serviceplan,
 			ServicePlanID:    servicePlanID,
 			TargetCrn:        supportedDeployments[0].CatalogCRN,
+			Context:          useCtx,
 		}
 		return &ibmCloudInfo, nil
 	}

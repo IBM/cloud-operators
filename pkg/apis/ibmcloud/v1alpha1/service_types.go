@@ -40,11 +40,12 @@ type ServiceStatus struct {
 	Message    string `json:"message,omitempty"`
 	Generation int64  `json:"generation,omitempty"`
 
-	ServiceClass     string `json:"serviceClass"`
-	ServiceClassType string `json:"serviceClassType"`
-	Plan             string `json:"plan"`
-	InstanceID       string `json:"instanceId,omitempty"`
-	ExternalName     string `json:"externalName,omitempty"`
+	ServiceClass     string               `json:"serviceClass"`
+	ServiceClassType string               `json:"serviceClassType"`
+	Plan             string               `json:"plan"`
+	InstanceID       string               `json:"instanceId,omitempty"`
+	ExternalName     string               `json:"externalName,omitempty"`
+	Context          icv1.ResourceContext `json:"context,omitempty"`
 }
 
 // +genclient

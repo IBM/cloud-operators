@@ -28,8 +28,6 @@ import (
 
 	context "github.com/ibm/cloud-operators/pkg/context"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
-
-	ow "github.com/ibm/openwhisk-operator/pkg/controller/common"
 )
 
 // StartTestManager starts the manager
@@ -96,10 +94,10 @@ func ActionInvocation(wskclient *whisk.Client, actionName string, payload interf
 }
 
 // CompositionInvocation invokes the given action
-func CompositionInvocation(client *ow.CompositionClient, name string, payload interface{}) (map[string]interface{}, error) {
-	result, _, err := client.Invoke(name, payload)
-	return result, err
-}
+// func CompositionInvocation(client *ow.CompositionClient, name string, payload interface{}) (map[string]interface{}, error) {
+// 	result, _, err := client.Invoke(name, payload)
+// 	return result, err
+// }
 
 // GetActivation tries to get activations for the action.
 func GetActivation(client *whisk.Client, actionName string) func() (*whisk.Activation, error) {

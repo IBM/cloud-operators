@@ -123,7 +123,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	if reflect.DeepEqual(instance.Status, ibmcloudv1alpha1.ServiceStatus{}) {
 		instance.Status.State = "Pending"
 		instance.Status.Message = "Processing Resource"
-		setStatusFieldsFromSpec(instance)
+		setStatusFieldsFromSpec(instance, nil)
 		if err := r.Update(context.TODO(), instance); err != nil {
 			return reconcile.Result{}, nil
 		}
@@ -320,7 +320,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 	instance.Status.State = state
 	instance.Status.Message = state
 	instance.Status.InstanceID = instanceID
-	setStatusFieldsFromSpec(instance)
+	setStatusFieldsFromSpec(instance, ibmCloudInfo)
 	err := r.Update(context.TODO(), instance)
 	if err != nil {
 		logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
@@ -339,16 +339,28 @@ func getState(serviceInstanceState string) string {
 	return serviceInstanceState
 }
 
-func setStatusFieldsFromSpec(instance *ibmcloudv1alpha1.Service) {
+func setStatusFieldsFromSpec(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *IBMCloudInfo) {
 	instance.Status.Plan = instance.Spec.Plan
 	instance.Status.ExternalName = instance.Spec.ExternalName
 	instance.Status.ServiceClass = instance.Spec.ServiceClass
 	instance.Status.ServiceClassType = instance.Spec.ServiceClassType
+	if ibmCloudInfo != nil {
+		instance.Status.Context = ibmCloudInfo.Context
+	}
 }
 
 func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service, state string, err error) (reconcile.Result, error) {
 	message := err.Error()
 	logt.Info(message)
+	if strings.Contains(message, "dial tcp: lookup iam.cloud.ibm.com: no such host") {
+		// This means that the IBM Cloud server is under too much pressure, we need to backup
+		instance.Status.Message = "Temporarily lost connection to server"
+		if err := r.Update(context.TODO(), instance); err != nil {
+			logt.Info("Error updating status", state, err.Error())
+		}
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 1}, nil
+	}
+
 	instance.Status.State = state
 	instance.Status.Message = message
 	if err := r.Update(context.TODO(), instance); err != nil {

@@ -33,8 +33,8 @@ import (
 	"github.com/apache/incubator-openwhisk-client-go/whisk"
 
 	context "github.com/ibm/cloud-operators/pkg/context"
-	"github.com/ibm/cloud-operators/pkg/lib/secret"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
+	"github.com/ibm/cloud-operators/pkg/lib/secret"
 
 	openwhiskv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	ow "github.com/ibm/cloud-operators/pkg/controller/openwhisk/common"
