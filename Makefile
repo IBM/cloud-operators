@@ -37,6 +37,7 @@ deploy: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 manifests:
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go all
+	hack/crd-fix.sh
 
 # Run go fmt against code
 fmt:
@@ -64,7 +65,7 @@ docker-push:
 .PHONY: lintall
 lintall: fmt lint vet
 
-lint: 
+lint:
 	golint -set_exit_status=true pkg/
 
 

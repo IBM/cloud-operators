@@ -1,0 +1,6 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Invocation
+metadata:
+  name: invoke-echo-no-args
+spec:
+  function: "/whisk.system/utils/echo"

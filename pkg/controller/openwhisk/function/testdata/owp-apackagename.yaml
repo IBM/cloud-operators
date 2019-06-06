@@ -1,0 +1,4 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Package
+metadata:
+  name: apackagename
