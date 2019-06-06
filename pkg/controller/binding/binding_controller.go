@@ -25,6 +25,7 @@ import (
 
 	iam "github.com/IBM-Cloud/bluemix-go/api/iam/iamv1"
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	"github.com/IBM-Cloud/bluemix-go/crn"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/utils"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
@@ -401,14 +402,26 @@ func (r *ReconcileBinding) createCredentials(instance *ibmcloudv1alpha1.Binding,
 			return "", nil, err
 		}
 
-		roleMatch, err := utils.FindRoleByName(roles, "Manager") // TODO - hardwired to Manager, need to take Role as a parameter in the Binding yaml
-		if err != nil {
-			return "", nil, err
+		logt.Info("roles", "are", roles)
+
+		var roleID crn.CRN
+
+		if instance.Spec.Role != "" {
+			roleMatch, err := utils.FindRoleByName(roles, instance.Spec.Role)
+			if err != nil {
+				return "", nil, err
+			}
+			roleID = roleMatch.ID
+		} else {
+			if len(roles) == 0 {
+				return "", nil, fmt.Errorf("The service has no roles defined for its bindings")
+			}
+			roleID = roles[0].ID
 		}
 
 		parameters := make(map[string]interface{})
 
-		parameters["role_crn"] = roleMatch.ID
+		parameters["role_crn"] = roleID
 
 		resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
 		params := bxcontroller.CreateServiceKeyRequest{

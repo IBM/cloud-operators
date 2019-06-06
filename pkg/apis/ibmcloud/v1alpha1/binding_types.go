@@ -25,6 +25,7 @@ import (
 // BindingSpec defines the desired state of Binding
 type BindingSpec struct {
 	ServiceName string `json:"serviceName"`
+	Role        string `json:"role"`
 }
 
 // BindingStatus defines the observed state of Binding
