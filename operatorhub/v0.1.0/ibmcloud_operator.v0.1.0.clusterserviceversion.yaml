@@ -3,12 +3,12 @@ kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: |-
-      [{"kind": "Service", "spec": {"externalName": "myeventstreams", "serviceClass": "messagehub", "plan": "standard"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams"}}, {"kind": "Binding", "spec": {"serviceName": "myeventstreams"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams-binding"}}]
+      [{"kind": "Service", "spec": {"externalName": "myeventstreams", "serviceClass": "messagehub", "plan": "standard"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams"}}, {"kind": "Binding", "spec": {"serviceName": "myeventstreams"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams-binding"}}, {"kind": "Function", "spec": {"codeURI": "https://raw.githubusercontent.com/apache/incubator-openwhisk-catalog/master/packages/utils/echo.js", "runtime": "nodejs:6", "parameters": [{"name": "message", "value": "Bonjour"}]}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "greetings"}}, {"kind": "Invocation", "spec": {"function": "/whisk.system/utils/echo", "finalizer": {"function": "/whisk.system/utils/echo", "parameters": [{"name": "message", "value": "Bye World"}]}, "parameters": [{"name": "message", "value": "Hello World"}]}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "echo-invocation"}}, {"kind": "Package", "spec": {"bind": "/whisk.system/messaging", "service": "message-hub"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "mh-publish"}}, {"kind": "Trigger", "spec": {"feed": "openwhisk-cloudant/changes"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "image-uploaded"}}, {"kind": "Rule", "spec": {"action": "hello-world", "trigger": "image-uploaded"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "my-rule"}}]
     capabilities: Full Lifecycle
     categories: Cloud Provider
     certified: 'false'
     containerImage: registry.ng.bluemix.net/seed/cloud-operators:0.1.0
-    createdAt: '2019-06-06T09:08:08Z'
+    createdAt: '2019-06-07T15:42:20Z'
     description: The IBM Cloud Service Operator provides a Kubernetes CRD-Based API
       to manage the lifecycle of IBM public cloud services.
     support: IBM
@@ -27,6 +27,31 @@ spec:
       displayName: Binding
       kind: Binding
       name: bindings.ibmcloud.ibm.com
+      version: v1alpha1
+    - description: Represents an IBM Cloud Function action.
+      displayName: Function
+      kind: Function
+      name: functions.ibmcloud.ibm.com
+      version: v1alpha1
+    - description: Represents an IBM Cloud Function activation.
+      displayName: Invocation
+      kind: Invocation
+      name: invocations.ibmcloud.ibm.com
+      version: v1alpha1
+    - description: Represents an IBM Cloud Function package.
+      displayName: Package
+      kind: Package
+      name: packages.ibmcloud.ibm.com
+      version: v1alpha1
+    - description: Represents an IBM Cloud Function trigger.
+      displayName: Trigger
+      kind: Trigger
+      name: triggers.ibmcloud.ibm.com
+      version: v1alpha1
+    - description: Represents an IBM Cloud Function rule.
+      displayName: Rule
+      kind: Rule
+      name: rules.ibmcloud.ibm.com
       version: v1alpha1
   description: "The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage\
     \ the lifecycle of IBM public cloud services. You can provision and bind to any\
@@ -116,6 +141,174 @@ spec:
           - patch
           - delete
         - apiGroups:
+          - ''
+          resources:
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ''
+          resources:
+          - secrets
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ''
+          resources:
+          - events
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - functions
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - functions/status
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - invocations
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - invocations/status
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - packages
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - packages/status
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - rules
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - rules/status
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - triggers
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - triggers/status
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
           - apps
           resources:
           - deployments
@@ -139,6 +332,17 @@ spec:
           - update
           - patch
           - delete
+        - apiGroups:
+          - ''
+          resources:
+          - secrets
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
         serviceAccountName: ibmcloud-operator
       deployments:
       - name: ibmcloud-operator

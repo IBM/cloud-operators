@@ -5,3 +5,4 @@ metadata:
 spec:
   plan: lite
   serviceClass: language-translator
+  role: Manager

@@ -79,8 +79,8 @@ type ReconcileTrigger struct {
 // Reconcile reads that state of the cluster for a Trigger object and makes changes based on the state read
 // and what is in the Trigger.Spec
 // Automatically generate RBAC triggers to allow the Controller to read and write Deployments
-// +kubebuilder:rbac:groups=openwhisk.seed.ibm.com,resources=triggers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=openwhisk.seed.ibm.com,resources=triggers/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=triggers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=triggers/status,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileTrigger) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	context := context.New(r.Client, request)
 
