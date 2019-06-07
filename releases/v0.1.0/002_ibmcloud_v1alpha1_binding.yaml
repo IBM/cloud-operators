@@ -35,10 +35,13 @@ spec:
           type: object
         spec:
           properties:
+            role:
+              type: string
             serviceName:
               type: string
           required:
           - serviceName
+          - role
           type: object
         status:
           properties:

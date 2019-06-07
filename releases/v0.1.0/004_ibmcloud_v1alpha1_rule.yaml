@@ -4,20 +4,15 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: bindings.ibmcloud.ibm.com
+  name: rules.ibmcloud.ibm.com
 spec:
-  additionalPrinterColumns:
-  - JSONPath: .status.state
-    name: Status
-    type: string
-  - JSONPath: .metadata.creationTimestamp
-    name: Age
-    type: date
   group: ibmcloud.ibm.com
   names:
-    kind: Binding
-    plural: bindings
+    kind: Rule
+    plural: rules
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -35,24 +30,38 @@ spec:
           type: object
         spec:
           properties:
-            role:
+            contextFrom:
+              description: 'Reference to a secret representing where to deploy this
+                entity Default is `seed-default-owprops` The secret must defines these
+                fields: apihost (string) : The OpenWhisk host auth (string): the authorization
+                key cert (string):  the client certificate (optional) insecure (bool):  Whether
+                or not to bypass certificate checking (optional, default is false)'
+              type: object
+            function:
+              description: Name of the action the rule applies to
               type: string
-            serviceName:
+            name:
+              description: Rule name. Override metadata.name.
+              type: string
+            trigger:
+              description: Name of the trigger the Rule applies to
               type: string
           required:
-          - serviceName
-          - role
+          - trigger
+          - function
           type: object
         status:
           properties:
-            instanceId:
-              type: string
-            keyInstanceId:
-              type: string
+            generation:
+              description: Last synced generation. Set by the system
+              format: int64
+              type: integer
             message:
               type: string
             state:
               type: string
+          required:
+          - generation
           type: object
   version: v1alpha1
 status:

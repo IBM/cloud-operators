@@ -81,8 +81,8 @@ type ReconcilePackage struct {
 // Reconcile reads that state of the cluster for a Package object and makes changes based on the state read
 // and what is in the Package.Spec
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
-// +kubebuilder:rbac:groups=openwhisk.seed.ibm.com,resources=packages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=openwhisk.seed.ibm.com,resources=packages/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=packages,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=packages/status,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcilePackage) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	context := context.New(r.Client, request)
 

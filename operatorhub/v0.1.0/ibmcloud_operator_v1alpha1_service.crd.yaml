@@ -69,6 +69,25 @@ spec:
           type: object
         status:
           properties:
+            context:
+              properties:
+                org:
+                  type: string
+                region:
+                  type: string
+                resourcegroup:
+                  type: string
+                resourcelocation:
+                  type: string
+                space:
+                  type: string
+              required:
+              - org
+              - space
+              - region
+              - resourcegroup
+              - resourcelocation
+              type: object
             externalName:
               type: string
             generation:

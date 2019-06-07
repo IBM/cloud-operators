@@ -30,4 +30,88 @@ crd:
             "spec": {
             "serviceName": "myeventstreams"
             }
-        }                
+        }
+    - kind: Function
+      description: Represents an IBM Cloud Function action. 
+      example: |-
+        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
+          "kind": "Function",
+          "metadata": {
+              "name": "greetings"
+          },
+          "spec": {
+              "codeURI": "https://raw.githubusercontent.com/apache/incubator-openwhisk-catalog/master/packages/utils/echo.js",
+              "runtime": "nodejs:6",
+              "parameters": [
+                {
+                    "name": "message",
+                    "value": "Bonjour"
+                }
+              ]
+          }
+        }
+    - kind: Invocation
+      description: Represents an IBM Cloud Function activation. 
+      example: |-
+        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
+          "kind": "Invocation",
+          "metadata": {
+              "name": "echo-invocation"
+          },
+          "spec": {
+              "finalizer": {
+                "function": "/whisk.system/utils/echo",
+                "parameters": [
+                    {
+                      "name": "message",
+                      "value": "Bye World"
+                    }
+                ]
+              },
+              "function": "/whisk.system/utils/echo",
+              "parameters": [
+                {
+                    "name": "message",
+                    "value": "Hello World"
+                }
+              ]
+          }
+        }
+    - kind: Package
+      description: Represents an IBM Cloud Function package. 
+      example: |-
+        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
+          "kind": "Package",
+          "metadata": {
+              "name": "mh-publish"
+          },
+          "spec": {
+              "bind": "/whisk.system/messaging",
+              "service": "message-hub"
+          }
+        }
+    - kind: Trigger
+      description: Represents an IBM Cloud Function trigger. 
+      example: |-
+          {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
+            "kind": "Trigger",
+            "metadata": {
+                "name": "image-uploaded"
+            },
+            "spec": {
+                "feed": "openwhisk-cloudant/changes"
+            }
+          }
+    - kind: Rule
+      description: Represents an IBM Cloud Function rule. 
+      example: |-
+        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
+          "kind": "Rule",
+          "metadata": {
+              "name": "my-rule"
+          },
+          "spec": {
+              "action": "hello-world",
+              "trigger": "image-uploaded"
+          }
+        }

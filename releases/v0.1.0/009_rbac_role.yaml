@@ -2,7 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: manager-role
+  name: ibmcloud-operator-manager-role
 rules:
 - apiGroups:
   - apps
@@ -29,7 +29,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   verbs:
@@ -41,7 +41,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - ''
   resources:
   - configmaps
   verbs:
@@ -53,7 +53,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - ''
   resources:
   - configmaps
   verbs:
@@ -65,7 +65,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   verbs:
@@ -77,7 +77,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - ''
   resources:
   - events
   verbs:
@@ -245,7 +245,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   verbs:

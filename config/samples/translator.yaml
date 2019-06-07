@@ -12,3 +12,4 @@ metadata:
   name: binding-translator
 spec:
   serviceName: mytranslator
+  role: Manager
