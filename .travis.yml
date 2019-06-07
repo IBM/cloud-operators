@@ -19,6 +19,7 @@ before_install:
 
 script:
   - make generate
+  - hack/update-codegen.sh
   - make lintall
   # - make test
 
