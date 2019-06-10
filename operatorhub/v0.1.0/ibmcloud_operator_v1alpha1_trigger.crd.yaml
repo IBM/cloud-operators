@@ -6,6 +6,13 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: triggers.ibmcloud.ibm.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: ibmcloud.ibm.com
   names:
     kind: Trigger
@@ -79,13 +86,13 @@ spec:
                   attributes:
                     description: A parameter may have attributes (e.g. message hub
                       topic might have partitions)
-                    type: object
+
                   name:
                     description: Name representing the key.
                     type: string
                   value:
                     description: Defaults to null.
-
+                    type: object
                   valueFrom:
                     description: Source for the value. Cannot be used if value is
                       not empty.

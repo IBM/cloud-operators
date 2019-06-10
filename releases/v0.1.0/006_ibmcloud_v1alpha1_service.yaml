@@ -18,6 +18,8 @@ spec:
     kind: Service
     plural: services
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -69,6 +71,8 @@ spec:
           type: object
         status:
           properties:
+            binding:
+              type: string
             context:
               properties:
                 org:
