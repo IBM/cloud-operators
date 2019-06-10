@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mytone
+spec:
+  plan: lite
+  serviceClass: tone-analyzer
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-tone
+spec:
+  serviceName: mytone

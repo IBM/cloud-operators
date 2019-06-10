@@ -1,0 +1,20 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mycos
+spec:
+  plan: lite
+  serviceClass: cloud-object-storage
+  context:
+    org: mvaziri@us.ibm.com
+    region: global
+    space: dev
+    resourcegroup: default
+    resourcelocation: global
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-mycos
+spec:
+  serviceName: mycos

@@ -1,0 +1,15 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: myiot
+spec:
+  plan: iotf-service-free
+  serviceClass: iotf-service
+  serviceClassType: CF
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-iot
+spec:
+  serviceName: myiot

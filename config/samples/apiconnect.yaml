@@ -1,0 +1,15 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: myapiconnect
+spec:
+  plan: Lite
+  serviceClass: APIConnect
+  serviceClassType: CF
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-apiconnect
+spec:
+  serviceName: myapiconnect

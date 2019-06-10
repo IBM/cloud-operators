@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mysqlquery
+spec:
+  plan: lite
+  serviceClass: sql-query
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-sqlquery
+spec:
+  serviceName: mysqlquery

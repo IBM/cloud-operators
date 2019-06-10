@@ -105,10 +105,11 @@ type ReconcileService struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=services/status,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Service instance
 	instance := &ibmcloudv1alpha1.Service{}
-	err := r.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Get(context.Background(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -124,7 +125,8 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		instance.Status.State = "Pending"
 		instance.Status.Message = "Processing Resource"
 		setStatusFieldsFromSpec(instance, nil)
-		if err := r.Update(context.TODO(), instance); err != nil {
+		if err := r.Status().Update(context.Background(), instance); err != nil {
+			logt.Info(err.Error())
 			return reconcile.Result{}, nil
 		}
 	}
@@ -136,7 +138,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		instance.Spec.ExternalName = instance.Status.ExternalName
 		instance.Spec.ServiceClass = instance.Status.ServiceClass
 		instance.Spec.ServiceClassType = instance.Status.ServiceClassType
-		if err := r.Update(context.TODO(), instance); err != nil {
+		if err := r.Update(context.Background(), instance); err != nil {
 			return reconcile.Result{}, nil
 		}
 	}
@@ -166,7 +168,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 			// remove our finalizer from the list and update it.
 			instance.ObjectMeta.Finalizers = DeleteFinalizer(instance)
-			if err := r.Update(context.TODO(), instance); err != nil {
+			if err := r.Update(context.Background(), instance); err != nil {
 				logt.Info("Error removing finalizers", "in deletion", err.Error())
 			}
 			return reconcile.Result{}, nil
@@ -257,7 +259,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			// Create the instance
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
-			if err := r.Update(context.TODO(), instance); err != nil {
+			if err := r.Status().Update(context.Background(), instance); err != nil {
 				logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
 				return reconcile.Result{}, nil
 			}
@@ -287,7 +289,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
-			if err := r.Update(context.TODO(), instance); err != nil {
+			if err := r.Status().Update(context.Background(), instance); err != nil {
 				logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
 				return reconcile.Result{}, nil
 			}
@@ -321,7 +323,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 	instance.Status.Message = state
 	instance.Status.InstanceID = instanceID
 	setStatusFieldsFromSpec(instance, ibmCloudInfo)
-	err := r.Update(context.TODO(), instance)
+	err := r.Status().Update(context.Background(), instance)
 	if err != nil {
 		logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
 		err = r.deleteService(ibmCloudInfo, instance)
@@ -329,7 +331,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 			logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
 		}
 	}
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 1}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 30}, nil
 }
 
 func getState(serviceInstanceState string) string {
@@ -352,21 +354,26 @@ func setStatusFieldsFromSpec(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *I
 func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service, state string, err error) (reconcile.Result, error) {
 	message := err.Error()
 	logt.Info(message)
-	if strings.Contains(message, "dial tcp: lookup iam.cloud.ibm.com: no such host") {
+	if strings.Contains(message, "dial tcp: lookup iam.cloud.ibm.com: no such host") || strings.Contains(message, "dial tcp: lookup login.ng.bluemix.net: no such host") {
 		// This means that the IBM Cloud server is under too much pressure, we need to backup
-		instance.Status.Message = "Temporarily lost connection to server"
-		if err := r.Update(context.TODO(), instance); err != nil {
-			logt.Info("Error updating status", state, err.Error())
+		if instance.Status.State != state {
+			instance.Status.Message = "Temporarily lost connection to server"
+			instance.Status.State = "Pending"
+			if err := r.Status().Update(context.Background(), instance); err != nil {
+				logt.Info("Error updating status", state, err.Error())
+			}
 		}
-		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 1}, nil
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 3}, nil
 	}
-
-	instance.Status.State = state
-	instance.Status.Message = message
-	if err := r.Update(context.TODO(), instance); err != nil {
-		logt.Info("Error updating status", state, err.Error())
+	if instance.Status.State != state {
+		instance.Status.State = state
+		instance.Status.Message = message
+		if err := r.Status().Update(context.Background(), instance); err != nil {
+			logt.Info("Error updating status", state, err.Error())
+			return reconcile.Result{}, nil
+		}
 	}
-	return reconcile.Result{}, err
+	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 3}, nil
 }
 
 func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *ibmcloudv1alpha1.Service) error {
@@ -376,10 +383,13 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 	if ibmCloudInfo.ServiceClassType == "CF" {
 		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
-		err := serviceInstanceAPI.Delete(instance.Status.InstanceID)
+		err := serviceInstanceAPI.Delete(instance.Status.InstanceID, true, true) // async, recursive (i.e. delete credentials)
 		if err != nil {
 			if strings.Contains(err.Error(), "could not be found") {
 				return nil // Nothing to do here, service not found
+			}
+			if strings.Contains(err.Error(), "410") {
+				return nil
 			}
 			return err
 		}
@@ -397,6 +407,9 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				return nil // Nothing to do here, service not found
+			}
+			if strings.Contains(err.Error(), "410") {
+				return nil
 			}
 			return err
 		}

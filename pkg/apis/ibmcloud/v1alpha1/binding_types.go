@@ -25,7 +25,8 @@ import (
 // BindingSpec defines the desired state of Binding
 type BindingSpec struct {
 	ServiceName string `json:"serviceName"`
-	Role        string `json:"role"`
+	// +optional
+	Role string `json:"role,omitempty"`
 }
 
 // BindingStatus defines the observed state of Binding
@@ -43,6 +44,7 @@ type BindingStatus struct {
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
 type Binding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

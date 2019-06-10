@@ -125,10 +125,11 @@ type ReconcileBinding struct {
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/status,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Binding instance
 	instance := &ibmcloudv1alpha1.Binding{}
-	err := r.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Get(context.Background(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -143,7 +144,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	if reflect.DeepEqual(instance.Status, ibmcloudv1alpha1.BindingStatus{}) {
 		instance.Status.State = "Pending"
 		instance.Status.Message = "Processing Resource"
-		if err := r.Update(context.TODO(), instance); err != nil {
+		if err := r.Status().Update(context.Background(), instance); err != nil {
 			return reconcile.Result{}, nil
 		}
 	}
@@ -158,12 +159,13 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			// the credentials do not exist on the cloud, since the service cannot be found.
 			// Also by removing the Binding instance, any correponding secret will also be deleted by Kubernetes.
 			instance.ObjectMeta.Finalizers = DeleteFinalizer(instance)
-			if err := r.Update(context.TODO(), instance); err != nil {
+			if err := r.Update(context.Background(), instance); err != nil {
 				logt.Info("Error removing finalizers", "in deletion", err.Error())
+				// No further action required, object was modified, another reconcile will finish the job.
 			}
 			return reconcile.Result{}, nil
 		}
-		return r.updateStatus(instance, "Failed", err)
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
 	if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
@@ -172,12 +174,12 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == "IN PROGRESS" {
 		// The parent service has not been initialized fully yet
-		return r.updateStatus(instance, "Pending", fmt.Errorf("Service not initialized yet"))
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
 	ibmCloudInfo, err := service.GetIBMCloudInfo(r.Client, serviceInstance)
 	if err != nil {
-		return r.updateStatus(instance, "Failed", err)
+		return r.updateStatusError(instance, "Failed", err)
 	}
 
 	// Delete if necessary
@@ -200,11 +202,15 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 			// remove our finalizer from the list and update it.
 			instance.ObjectMeta.Finalizers = DeleteFinalizer(instance)
-			if err := r.Update(context.TODO(), instance); err != nil {
+			if err := r.Update(context.Background(), instance); err != nil {
 				logt.Info("Error removing finalizers", "in deletion", err.Error())
 			}
 			return reconcile.Result{}, nil
 		}
+	}
+
+	if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	if instance.Status.InstanceID == "" { // The service Instance ID has not been initialized yet
@@ -216,7 +222,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			err := r.deleteCredentials(instance, ibmCloudInfo)
 			if err != nil {
 				logt.Info("Error deleting credentials", "in deletion", err.Error())
-				return r.updateStatus(instance, "Failed", err)
+				return r.updateStatusError(instance, "Failed", err)
 			}
 			instance.Status.InstanceID = serviceInstance.Status.InstanceID
 		}
@@ -225,14 +231,17 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	// Now instance.Status.IntanceID has been set properly
 	if instance.Status.KeyInstanceID == "" { // The KeyInstanceID has not been set, need to create the key
 		instance.Status.KeyInstanceID = "IN PROGRESS"
-		if err := r.Update(context.TODO(), instance); err != nil {
+		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
 			return reconcile.Result{}, nil
 		}
 
 		keyInstanceID, keyContents, err := r.createCredentials(instance, ibmCloudInfo)
 		if err != nil {
-			return r.updateStatus(instance, "Failed", err)
+			if strings.Contains(err.Error(), "still in progress") {
+				return r.updateStatusError(instance, "Pending", err)
+			}
+			return r.updateStatusError(instance, "Failed", err)
 		}
 
 		instance.Status.KeyInstanceID = keyInstanceID
@@ -240,10 +249,10 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		// Now create the secret
 		err = r.createSecret(instance, keyContents)
 		if err != nil {
-			return r.updateStatus(instance, "Failed", err)
+			return r.updateStatusError(instance, "Failed", err)
 		}
 
-		r.updateStatusOnline(instance, ibmCloudInfo)
+		return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 
 	} else { // The KeyInstanceID has been set, verify that the key and secret still exist
 		logt.Info("ServiceInstance Key", "should already exist, verifying", instance.ObjectMeta.Name)
@@ -254,49 +263,42 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
 			keyInstanceID, keyContents, err = r.createCredentials(instance, ibmCloudInfo)
 			if err != nil {
-				return r.updateStatus(instance, "Failed", err)
+				return r.updateStatusError(instance, "Failed", err)
 			}
 			instance.Status.KeyInstanceID = keyInstanceID
 		}
 
 		secret := &corev1.Secret{}
-		err = r.Get(context.TODO(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
+		err = r.Get(context.Background(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
 		if err != nil {
 			logt.Info("Secret does not exist", "Recreating", instance.ObjectMeta.Name)
 			err = r.createSecret(instance, keyContents)
 			if err != nil {
-				return r.updateStatus(instance, "Failed", err)
+				return r.updateStatusError(instance, "Failed", err)
 			}
-			r.updateStatusOnline(instance, ibmCloudInfo)
+			return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 		} else {
 			// The secret exists, make sure it has the right content
 			changed, err := keyContentsChanged(keyContents, secret)
 			if err != nil {
-				return r.updateStatus(instance, "Failed", err)
+				return r.updateStatusError(instance, "Failed", err)
 			}
 			if instance.Status.KeyInstanceID != secret.Annotations["service-key-id"] || changed { // Warning: the deep comparison may not be needed, the key is probably enough
 				err := r.deleteSecret(secret)
 				if err != nil {
-					return r.updateStatus(instance, "Failed", err)
+					return r.updateStatusError(instance, "Failed", err)
 				}
 				err = r.createSecret(instance, keyContents)
 				if err != nil {
-					return r.updateStatus(instance, "Failed", err)
+					return r.updateStatusError(instance, "Failed", err)
 				}
-				r.updateStatusOnline(instance, ibmCloudInfo)
+				return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 			}
-			if instance.Status.State != "Online" {
-				r.updateStatusOnline(instance, ibmCloudInfo)
-			}
+			return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 		}
 
 	}
 
-	if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 1}, nil
 }
 
 func keyContentsChanged(keyContents map[string]interface{}, secret *corev1.Secret) (bool, error) {
@@ -307,21 +309,35 @@ func keyContentsChanged(keyContents map[string]interface{}, secret *corev1.Secre
 	return !reflect.DeepEqual(newContent, secret.Data), nil
 }
 
-func (r *ReconcileBinding) updateStatus(instance *ibmcloudv1alpha1.Binding, state string, err error) (reconcile.Result, error) {
+func (r *ReconcileBinding) updateStatusError(instance *ibmcloudv1alpha1.Binding, state string, err error) (reconcile.Result, error) {
 	message := err.Error()
 	logt.Info(message)
-	instance.Status.State = state
-	instance.Status.Message = message
-	if err := r.Update(context.TODO(), instance); err != nil {
-		logt.Info("Error updating status", state, err.Error())
+	if strings.Contains(message, "dial tcp: lookup iam.cloud.ibm.com: no such host") || strings.Contains(message, "dial tcp: lookup login.ng.bluemix.net: no such host") {
+		// This means that the IBM Cloud server is under too much pressure, we need to back up
+		if instance.Status.State != state {
+			instance.Status.Message = "Temporarily lost connection to server"
+			instance.Status.State = "Pending"
+			if err := r.Status().Update(context.Background(), instance); err != nil {
+				logt.Info("Error updating status", state, err.Error())
+			}
+		}
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 3}, nil
 	}
-	return reconcile.Result{}, err
+	if instance.Status.State != state {
+		instance.Status.State = state
+		instance.Status.Message = message
+		if err := r.Status().Update(context.Background(), instance); err != nil {
+			logt.Info("Error updating status", state, err.Error())
+			return reconcile.Result{}, nil
+		}
+	}
+	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 3}, nil
 }
 
-func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (reconcile.Result, error) {
+func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding, serviceInstance *ibmcloudv1alpha1.Service, ibmCloudInfo *service.IBMCloudInfo) (reconcile.Result, error) {
 	instance.Status.State = "Online"
 	instance.Status.Message = "Online"
-	err := r.Update(context.TODO(), instance)
+	err := r.Status().Update(context.Background(), instance)
 	if err != nil {
 		logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
 		err = r.deleteCredentials(instance, ibmCloudInfo)
@@ -329,7 +345,8 @@ func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding
 			logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
 		}
 	}
-	return reconcile.Result{}, nil
+
+	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 30}, nil
 }
 
 func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding) (*ibmcloudv1alpha1.Service, error) {
@@ -337,7 +354,7 @@ func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding
 	serviceNameSpace := instance.ObjectMeta.Namespace
 
 	serviceInstance := &ibmcloudv1alpha1.Service{}
-	err := r.Get(context.TODO(), types.NamespacedName{Name: instance.Spec.ServiceName, Namespace: serviceNameSpace}, serviceInstance)
+	err := r.Get(context.Background(), types.NamespacedName{Name: instance.Spec.ServiceName, Namespace: serviceNameSpace}, serviceInstance)
 	if err != nil {
 		return &ibmcloudv1alpha1.Service{}, err
 	}
@@ -402,8 +419,6 @@ func (r *ReconcileBinding) createCredentials(instance *ibmcloudv1alpha1.Binding,
 			return "", nil, err
 		}
 
-		logt.Info("roles", "are", roles)
-
 		var roleID crn.CRN
 
 		if instance.Spec.Role != "" {
@@ -463,7 +478,7 @@ func (r *ReconcileBinding) createSecret(instance *ibmcloudv1alpha1.Binding, keyC
 	if err := controllerutil.SetControllerReference(instance, secret, r.scheme); err != nil {
 		return err
 	}
-	if err := r.Create(context.TODO(), secret); err != nil {
+	if err := r.Create(context.Background(), secret); err != nil {
 		return err
 	}
 	return nil
@@ -488,7 +503,7 @@ func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding,
 		}
 	}
 	secret := &corev1.Secret{}
-	err := r.Get(context.TODO(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
+	err := r.Get(context.Background(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil
@@ -500,7 +515,7 @@ func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding,
 
 func (r *ReconcileBinding) deleteSecret(secret *corev1.Secret) error {
 	logt.Info("Deleting ", "secret", secret.Name)
-	if err := r.Delete(context.TODO(), secret); err != nil {
+	if err := r.Delete(context.Background(), secret); err != nil {
 		return err
 	}
 	return nil
@@ -511,7 +526,7 @@ func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ib
 
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
 		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.KeyInstanceID, instance.ObjectMeta.Name)
+		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, instance.ObjectMeta.Name)
 		if err != nil {
 			return "", nil, err
 		}

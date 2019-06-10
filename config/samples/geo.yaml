@@ -1,8 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Service
-metadata:
-  name: mygeo
-spec:
-  plan: Standard
-  serviceClass: Geospatial Analytics
-  serviceClassType: CF

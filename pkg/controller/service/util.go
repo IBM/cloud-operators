@@ -49,15 +49,16 @@ type IBMCloudInfo struct {
 }
 
 func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config, error) {
+	c := bx.Config{
+		EndpointLocator: bxendpoints.NewEndpointLocator("us-south"), // TODO: hard wired to us-south!!
+	}
+
+	// There is no token so use seed-secret
 	// TODO - Fix this, need to go to namespace ibmcloud-operators if the base namespace doesn't have seed-secrets
 	secretName := "seed-secret"
 	secretNameSpace := "ibmcloud-operators"
 	if instance.ObjectMeta.Namespace != "" {
 		secretNameSpace = instance.ObjectMeta.Namespace
-	}
-
-	c := bx.Config{
-		EndpointLocator: bxendpoints.NewEndpointLocator("us-south"), // TODOMV: hard wired to us-south!!
 	}
 
 	secret := &v1.Secret{}
@@ -125,22 +126,22 @@ func getIBMCloudContext(instance *ibmcloudv1alpha1.Service, cm *v1.ConfigMap) ic
 	return instance.Spec.Context
 }
 
-// func getIamToken(r client.Client, instance *ibmcloudv1alpha1.Service) (string, error) {
-// 	secretName := "seed-secret-tokens"
-// 	secretNameSpace := "ibmcloud-operators"
-// 	if instance.ObjectMeta.Namespace != "" {
-// 		secretNameSpace = instance.ObjectMeta.Namespace
-// 	}
+func getIamToken(r client.Client, instance *ibmcloudv1alpha1.Service) (string, string, string, string, error) {
+	secretName := "seed-secret-tokens"
+	secretNameSpace := "ibmcloud-operators"
+	if instance.ObjectMeta.Namespace != "" {
+		secretNameSpace = instance.ObjectMeta.Namespace
+	}
 
-// 	secret := &v1.Secret{}
-// 	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
-// 	if err != nil {
-// 		logt.Info("Unable to get secret-secret-tokens", "Error", err)
-// 		return "", err
-// 	}
+	secret := &v1.Secret{}
+	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
+	if err != nil {
+		logt.Info("Unable to get secret-secret-tokens", "Error", err)
+		return "", "", "", "", err
+	}
 
-// 	return string(secret.Data["access_token"]), nil
-// }
+	return string(secret.Data["access_token"]), string(secret.Data["refresh_token"]), string(secret.Data["uaa_refresh_token"]), string(secret.Data["uaa_token"]), nil
+}
 
 // GetIBMCloudInfo initializes sessions and sets up a struct to faciliate making calls to bx
 func GetIBMCloudInfo(r client.Client, instance *ibmcloudv1alpha1.Service) (*IBMCloudInfo, error) {
@@ -155,15 +156,10 @@ func GetIBMCloudInfo(r client.Client, instance *ibmcloudv1alpha1.Service) (*IBMC
 		return nil, err
 	}
 
-	// TODO - REMOVE IF NOT NEEDED!!!!
-	// token, err := getIamToken(r, instance)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return getIBMCloudInfoHelper(&bxConfig, ibmCloudContext, instance)
+	return getIBMCloudInfoHelper(r, &bxConfig, ibmCloudContext, instance)
 }
 
-func getIBMCloudInfoHelper(config *bx.Config, nctx icv1.ResourceContext, instance *ibmcloudv1alpha1.Service) (*IBMCloudInfo, error) {
+func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.ResourceContext, instance *ibmcloudv1alpha1.Service) (*IBMCloudInfo, error) {
 	servicename := instance.Spec.ServiceClass
 	servicetype := instance.Spec.ServiceClassType
 	serviceplan := instance.Spec.Plan
@@ -248,6 +244,13 @@ func getIBMCloudInfoHelper(config *bx.Config, nctx icv1.ResourceContext, instanc
 		return &ibmCloudInfo, nil
 
 	} else {
+		IAMAccessToken, IAMRefreshToken, UAAAccessToken, UAARefreshToken, err := getIamToken(r, instance)
+		if err == nil {
+			config.IAMAccessToken = IAMAccessToken
+			config.IAMRefreshToken = IAMRefreshToken
+			config.UAAAccessToken = UAAAccessToken
+			config.UAARefreshToken = UAARefreshToken
+		}
 
 		controllerClient, err := controller.New(sess)
 

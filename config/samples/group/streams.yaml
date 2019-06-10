@@ -5,4 +5,10 @@ metadata:
 spec:
   plan: entry-container-lite
   serviceClass: streaming-analytics
-  
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-streams
+spec:
+  serviceName: mystreams

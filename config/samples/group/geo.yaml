@@ -1,15 +1,15 @@
 apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Service
 metadata:
-  name: mytranslator
+  name: mygeo
 spec:
-  plan: lite
-  serviceClass: language-translator
+  plan: Standard
+  serviceClass: Geospatial Analytics
+  serviceClassType: CF
 ---
 apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Binding
 metadata:
-  name: binding-translator
+  name: binding-geo
 spec:
-  serviceName: mytranslator
-  role: Manager
+  serviceName: mygeo

@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mydelivery
+spec:
+  plan: lite
+  serviceClass: continuous-delivery
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-delivery
+spec:
+  serviceName: mydelivery

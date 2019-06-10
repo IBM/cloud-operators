@@ -46,6 +46,7 @@ type ServiceStatus struct {
 	InstanceID       string               `json:"instanceId,omitempty"`
 	ExternalName     string               `json:"externalName,omitempty"`
 	Context          icv1.ResourceContext `json:"context,omitempty"`
+	Binding          string               `json:"binding,omitempty"`
 }
 
 // +genclient
@@ -55,6 +56,7 @@ type ServiceStatus struct {
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
 type Service struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
