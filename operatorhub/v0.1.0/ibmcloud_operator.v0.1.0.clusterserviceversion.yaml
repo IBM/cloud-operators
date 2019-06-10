@@ -8,7 +8,7 @@ metadata:
     categories: Cloud Provider
     certified: 'false'
     containerImage: registry.ng.bluemix.net/seed/cloud-operators:0.1.0
-    createdAt: '2019-06-07T16:24:34Z'
+    createdAt: '2019-06-10T10:06:27Z'
     description: The IBM Cloud Service Operator provides a Kubernetes CRD-Based API
       to manage the lifecycle of IBM public cloud services.
     support: IBM
@@ -132,6 +132,18 @@ spec:
           - ''
           resources:
           - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - bindings/status
           verbs:
           - get
           - list
@@ -324,6 +336,18 @@ spec:
           - ibmcloud.ibm.com
           resources:
           - services
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - services/status
           verbs:
           - get
           - list

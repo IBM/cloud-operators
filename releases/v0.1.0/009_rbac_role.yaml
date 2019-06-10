@@ -53,6 +53,18 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - bindings/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
   - ''
   resources:
   - configmaps
@@ -236,6 +248,18 @@ rules:
   - ibmcloud.ibm.com
   resources:
   - services
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - services/status
   verbs:
   - get
   - list

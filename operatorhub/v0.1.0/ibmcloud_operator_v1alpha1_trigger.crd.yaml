@@ -85,8 +85,8 @@ spec:
                 properties:
                   attributes:
                     description: A parameter may have attributes (e.g. message hub
+                      topic might have partitions)
 
-                    type: object
                   name:
                     description: Name representing the key.
                     type: string
