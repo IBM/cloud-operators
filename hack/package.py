@@ -112,7 +112,7 @@ shutil.copyfile(os.path.join(config,"templates",sa),os.path.join(releases,new_na
 ix += 1
 
 # copy rbac_role
-rbac_role_file = "rbac_role.yaml"
+rbac_role_file = "manager_role.yaml"
 new_name = "%03d_%s" % (ix,rbac_role_file)
 # load rbac_role from kubebuilder
 with open(os.path.join(config,"rbac",rbac_role_file), 'r') as rbacstream:
