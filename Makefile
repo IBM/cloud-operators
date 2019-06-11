@@ -1,7 +1,7 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= registry.ng.bluemix.net/seed/cloud-operators
-TAG ?= 0.1.0
+TAG ?= 0.1.1
 GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 deps:
