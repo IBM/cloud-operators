@@ -3,12 +3,12 @@ kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: |-
-      [{"kind": "Service", "spec": {"externalName": "myeventstreams", "serviceClass": "messagehub", "plan": "standard"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams"}}, {"kind": "Binding", "spec": {"serviceName": "myeventstreams"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams-binding"}}, {"kind": "Function", "spec": {"codeURI": "https://raw.githubusercontent.com/apache/incubator-openwhisk-catalog/master/packages/utils/echo.js", "runtime": "nodejs:6", "parameters": [{"name": "message", "value": "Bonjour"}]}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "greetings"}}, {"kind": "Invocation", "spec": {"function": "/whisk.system/utils/echo", "finalizer": {"function": "/whisk.system/utils/echo", "parameters": [{"name": "message", "value": "Bye World"}]}, "parameters": [{"name": "message", "value": "Hello World"}]}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "echo-invocation"}}, {"kind": "Package", "spec": {"bind": "/whisk.system/messaging", "service": "message-hub"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "mh-publish"}}, {"kind": "Trigger", "spec": {"feed": "openwhisk-cloudant/changes"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "image-uploaded"}}, {"kind": "Rule", "spec": {"action": "hello-world", "trigger": "image-uploaded"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "my-rule"}}]
+      [{"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Service", "metadata": {"name": "myeventstreams"}, "spec": {"externalName": "myeventstreams", "serviceClass": "messagehub", "plan": "standard"}}, {"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Binding", "metadata": {"name": "myeventstreams-binding"}, "spec": {"serviceName": "myeventstreams"}}, {"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Function", "metadata": {"name": "greetings"}, "spec": {"codeURI": "https://raw.githubusercontent.com/apache/incubator-openwhisk-catalog/master/packages/utils/echo.js", "parameters": [{"name": "message", "value": "Bonjour"}], "runtime": "nodejs:6"}}, {"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Invocation", "metadata": {"name": "echo-invocation"}, "spec": {"function": "/whisk.system/utils/echo", "parameters": [{"name": "message", "value": "Hello World"}], "finalizer": {"function": "/whisk.system/utils/echo", "parameters": [{"name": "message", "value": "Bye World"}]}}}, {"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Package", "metadata": {"name": "mh-publish"}, "spec": {"bind": "/whisk.system/messaging", "service": "message-hub"}}, {"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Trigger", "metadata": {"name": "image-uploaded"}, "spec": {"feed": "openwhisk-cloudant/changes"}}, {"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Rule", "metadata": {"name": "my-rule"}, "spec": {"trigger": "image-uploaded", "action": "hello-world"}}]
     capabilities: Full Lifecycle
     categories: Cloud Provider
     certified: 'false'
     containerImage: registry.ng.bluemix.net/seed/cloud-operators:0.1.1
-    createdAt: '2019-06-11T11:45:24Z'
+    createdAt: '2019-06-11T14:12:11Z'
     description: The IBM Cloud Service Operator provides a Kubernetes CRD-Based API
       to manage the lifecycle of IBM public cloud services.
     support: IBM
@@ -108,6 +108,18 @@ spec:
           - ibmcloud.ibm.com
           resources:
           - bindings
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ibmcloud.ibm.com
+          resources:
+          - services
           verbs:
           - get
           - list
