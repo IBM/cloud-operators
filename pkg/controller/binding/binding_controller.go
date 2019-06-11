@@ -154,6 +154,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	// Obtain the serviceInstance corresponding to this Binding object
 	serviceInstance, err := r.getServiceInstance(instance)
 	if err != nil {
+		logt.Info("Binding could not read service", instance.Name, instance.Spec.ServiceName)
 		// We could not find a parent service. However, if this instance is marked for deletion, delete it anyway
 		if !instance.ObjectMeta.DeletionTimestamp.IsZero() {
 			// In this case it is enough to simply remove the finalizer:
