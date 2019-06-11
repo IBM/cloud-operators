@@ -53,9 +53,12 @@ generate:
 
 # Build the docker image
 docker-build:
+	git rev-parse --short HEAD > git-rev
 	docker build . -t ${IMG}:${TAG}
+	rm git-rev
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}:${TAG}"'@' ./config/default/manager_image_patch.yaml
+
 
 # Push the docker image
 docker-push:

@@ -15,4 +15,5 @@ FROM ubuntu:latest
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /root/
 COPY --from=builder /go/src/github.com/ibm/cloud-operators/manager .
+COPY git-rev .
 ENTRYPOINT ["./manager"]

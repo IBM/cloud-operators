@@ -37,6 +37,14 @@ This will install the latest version of the operator.
 curl -sL https://${IBM_GITHUB_TOKEN}@raw.github.ibm.com/seed/cloud-operators/master/hack/uninstall-operators.sh | bash 
 ```
 
+## Troubleshooting
+
+To find the current git revision for the operator, type:
+
+```
+kubectl exec -n ibmcloud-operators $(kubectl get pod -l "app=ibmcloud-operator" -n ibmcloud-operators -o jsonpath='{.items[0].metadata.name}') -- cat git-rev
+```
+
 ## Learn more about how to contribute
 
 - [contributions](./CONTRIBUTING.md)
