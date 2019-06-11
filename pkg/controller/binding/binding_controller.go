@@ -128,6 +128,7 @@ type ReconcileBinding struct {
 // +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/status,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	logt.Info("In reconcile for binding")
 	// Fetch the Binding instance
 	instance := &ibmcloudv1alpha1.Binding{}
 	err := r.Get(context.Background(), request.NamespacedName, instance)
@@ -141,6 +142,8 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
+	logt.Info("In reconcile for binding2")
+
 	// Set the Status field for the first time
 	if reflect.DeepEqual(instance.Status, ibmcloudv1alpha1.BindingStatus{}) {
 		instance.Status.State = "Pending"
@@ -149,6 +152,8 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			return reconcile.Result{}, nil
 		}
 	}
+
+	logt.Info("In reconcile for binding3")
 
 	// First, make sure that there is a current service InstanceID
 	// Obtain the serviceInstance corresponding to this Binding object
@@ -170,19 +175,27 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
+	logt.Info("In reconcile for binding4")
+
 	if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+
+	logt.Info("In reconcile for binding5")
 
 	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == "IN PROGRESS" {
 		// The parent service has not been initialized fully yet
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
+	logt.Info("In reconcile for binding6")
+
 	ibmCloudInfo, err := service.GetIBMCloudInfo(r.Client, serviceInstance)
 	if err != nil {
 		return r.updateStatusError(instance, "Failed", err)
 	}
+
+	logt.Info("In reconcile for binding7")
 
 	// Delete if necessary
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -211,14 +224,14 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
-	if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
+	logt.Info("In reconcile for binding8")
 
 	if instance.Status.InstanceID == "" { // The service Instance ID has not been initialized yet
 		instance.Status.InstanceID = serviceInstance.Status.InstanceID
+		logt.Info("In reconcile for binding9")
 
 	} else { // The service Instance ID has been set, verify that it is current
+		logt.Info("In reconcile for binding10")
 		if instance.Status.InstanceID != serviceInstance.Status.InstanceID {
 			logt.Info("ServiceKey", "Service parent", "has changed")
 			err := r.deleteCredentials(instance, ibmCloudInfo)
@@ -230,16 +243,21 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
+	logt.Info("In reconcile for binding11")
+
 	// Now instance.Status.IntanceID has been set properly
 	if instance.Status.KeyInstanceID == "" { // The KeyInstanceID has not been set, need to create the key
+		logt.Info("In reconcile for binding12")
 		instance.Status.KeyInstanceID = "IN PROGRESS"
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
 			return reconcile.Result{}, nil
 		}
 
+		logt.Info("In reconcile for binding13")
 		keyInstanceID, keyContents, err := r.createCredentials(instance, ibmCloudInfo)
 		if err != nil {
+			logt.Info("In reconcile for binding14")
 			if strings.Contains(err.Error(), "still in progress") {
 				return r.updateStatusError(instance, "Pending", err)
 			}
@@ -248,8 +266,11 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 		instance.Status.KeyInstanceID = keyInstanceID
 
+		logt.Info("In reconcile for binding15")
 		// Now create the secret
 		err = r.createSecret(instance, keyContents)
+
+		logt.Info("In reconcile for binding16")
 		if err != nil {
 			return r.updateStatusError(instance, "Failed", err)
 		}
@@ -270,9 +291,12 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			instance.Status.KeyInstanceID = keyInstanceID
 		}
 
+		logt.Info("In reconcile for binding17")
 		secret := &corev1.Secret{}
+		logt.Info("In reconcile for binding18")
 		err = r.Get(context.Background(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
 		if err != nil {
+			logt.Info("In reconcile for binding19")
 			logt.Info("Secret does not exist", "Recreating", instance.ObjectMeta.Name)
 			err = r.createSecret(instance, keyContents)
 			if err != nil {
@@ -280,22 +304,27 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 		} else {
+			logt.Info("In reconcile for binding20")
 			// The secret exists, make sure it has the right content
 			changed, err := keyContentsChanged(keyContents, secret)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
 			}
+			logt.Info("In reconcile for binding21")
 			if instance.Status.KeyInstanceID != secret.Annotations["service-key-id"] || changed { // Warning: the deep comparison may not be needed, the key is probably enough
 				err := r.deleteSecret(secret)
 				if err != nil {
 					return r.updateStatusError(instance, "Failed", err)
 				}
+				logt.Info("In reconcile for binding22")
 				err = r.createSecret(instance, keyContents)
 				if err != nil {
 					return r.updateStatusError(instance, "Failed", err)
 				}
+				logt.Info("In reconcile for binding23")
 				return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 			}
+			logt.Info("In reconcile for binding24")
 			return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 		}
 
