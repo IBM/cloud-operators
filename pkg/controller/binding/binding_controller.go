@@ -199,16 +199,20 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Delete if necessary
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
+		logt.Info("In reconcile for binding71")
 		// Instance is not being deleted, add the finalizer if not present
 		if !ContainsFinalizer(instance) {
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, bindingFinalizer)
 			if err := r.Update(context.Background(), instance); err != nil {
+				logt.Info("Error adding finalizer", instance.Name, err.Error())
 				return reconcile.Result{}, nil
 			}
 		}
 	} else {
+		logt.Info("In reconcile for binding72")
 		// The object is being deleted
 		if ContainsFinalizer(instance) {
+
 			err := r.deleteCredentials(instance, ibmCloudInfo)
 			if err != nil {
 				logt.Info("Error deleting credentials", "in deletion", err.Error())
