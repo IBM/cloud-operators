@@ -32,6 +32,7 @@ kubectl delete --wait crd invocations.ibmcloud.ibm.com
 kubectl delete --wait crd packages.ibmcloud.ibm.com 
 kubectl delete --wait crd rules.ibmcloud.ibm.com 
 kubectl delete --wait crd triggers.ibmcloud.ibm.com
+kubectl delete --wait crd esindices.ibmcloud.ibm.com
 
 
 # Delete all clusterwide resources for the operator
