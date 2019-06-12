@@ -4,12 +4,19 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: esindices.ibmcloud.ibm.com
+  name: rules.ibmcloud.ibm.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: ibmcloud.ibm.com
   names:
-    kind: EsIndex
-    plural: esindices
+    kind: Rule
+    plural: rules
   scope: Namespaced
   subresources:
     status: {}
@@ -30,38 +37,35 @@ spec:
           type: object
         spec:
           properties:
-            bindOnly:
-              description: Bind to an existing topic if true, default value false
-              type: boolean
-            bindingFrom:
-              description: Secret name that holds the elastic search access credentials
+            contextFrom:
+              description: 'Reference to a secret representing where to deploy this
+                entity Default is `seed-default-owprops` The secret must defines these
+                fields: apihost (string) : The OpenWhisk host auth (string): the authorization
+                key cert (string):  the client certificate (optional) insecure (bool):  Whether
+                or not to bypass certificate checking (optional, default is false)'
               type: object
-            indexName:
-              description: Name of Index to be created on elastic search
+            function:
+              description: Name of the action the rule applies to
               type: string
-            numberOfReplicas:
-              description: Number of replicas, default value 1
-              format: int32
-              type: integer
-            numberOfShards:
-              description: Number of shards, default value 1
-              format: int32
-              type: integer
+            name:
+              description: Rule name. Override metadata.name.
+              type: string
+            trigger:
+              description: Name of the trigger the Rule applies to
+              type: string
           required:
-          - indexName
-          - bindingFrom
+          - trigger
+          - function
           type: object
         status:
           properties:
             generation:
+              description: Last synced generation. Set by the system
               format: int64
               type: integer
             message:
               type: string
             state:
-              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                of cluster Important: Run "make" to regenerate code after modifying
-                this file'
               type: string
           required:
           - generation

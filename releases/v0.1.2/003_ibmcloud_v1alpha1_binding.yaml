@@ -4,12 +4,19 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: esindices.ibmcloud.ibm.com
+  name: bindings.ibmcloud.ibm.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: ibmcloud.ibm.com
   names:
-    kind: EsIndex
-    plural: esindices
+    kind: Binding
+    plural: bindings
   scope: Namespaced
   subresources:
     status: {}
@@ -30,41 +37,23 @@ spec:
           type: object
         spec:
           properties:
-            bindOnly:
-              description: Bind to an existing topic if true, default value false
-              type: boolean
-            bindingFrom:
-              description: Secret name that holds the elastic search access credentials
-              type: object
-            indexName:
-              description: Name of Index to be created on elastic search
+            role:
               type: string
-            numberOfReplicas:
-              description: Number of replicas, default value 1
-              format: int32
-              type: integer
-            numberOfShards:
-              description: Number of shards, default value 1
-              format: int32
-              type: integer
+            serviceName:
+              type: string
           required:
-          - indexName
-          - bindingFrom
+          - serviceName
           type: object
         status:
           properties:
-            generation:
-              format: int64
-              type: integer
+            instanceId:
+              type: string
+            keyInstanceId:
+              type: string
             message:
               type: string
             state:
-              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                of cluster Important: Run "make" to regenerate code after modifying
-                this file'
               type: string
-          required:
-          - generation
           type: object
   version: v1alpha1
 status:
