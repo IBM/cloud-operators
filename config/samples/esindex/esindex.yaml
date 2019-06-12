@@ -1,0 +1,36 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: EsIndex
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: index13
+spec:
+  bindingFrom: 
+    name: es-test
+  indexName: index13
+  numberOfShards: 2
+  numberOfReplicas: 1
+#  bindOnly: true
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: es-test
+spec:
+  serviceName: es-test
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: es-test
+spec:
+  serviceClass: databases-for-elasticsearch
+  plan: standard
+  context:
+    org: seed-test
+    region: us-east
+    space: test
+    resourcegroup: "default"
+    resourcelocation: us-east
