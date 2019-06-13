@@ -17,7 +17,6 @@ package token
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -152,7 +151,6 @@ func (r *ReconcileToken) Reconcile(request reconcile.Request) (reconcile.Result,
 		logt.Info("authentication failed", "error", err)
 		return reconcile.Result{}, err // requeue
 	}
-	fmt.Println(config.UAAAccessToken)
 	tokensRef := secret.Name + "-tokens"
 	logt.Info("creating tokens secret", "name", tokensRef)
 
@@ -176,5 +174,5 @@ func (r *ReconcileToken) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 	logt.Info("secret created", "name", tokensRef)
-	return reconcile.Result{RequeueAfter: 1 * time.Hour}, nil
+	return reconcile.Result{RequeueAfter: 10 * time.Minute}, nil
 }
