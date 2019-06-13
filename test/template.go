@@ -24,33 +24,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	owv1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	v1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 
 	rcontext "github.com/ibm/cloud-operators/pkg/context"
 )
 
 // PostFunction creates a Function object
-func PostFunction(context rcontext.Context, name string, spec owv1.FunctionSpec, async bool) runtime.Object {
+func PostFunction(context rcontext.Context, name string, spec v1alpha1.FunctionSpec, async bool) runtime.Object {
 	obj := makeFunction(context.Namespace(), name, spec)
 	return post(context, &obj, async, 0)
 }
 
 // PostPackage creates a Package object
-func PostPackage(context rcontext.Context, name string, spec owv1.PackageSpec, async bool) runtime.Object {
+func PostPackage(context rcontext.Context, name string, spec v1alpha1.PackageSpec, async bool) runtime.Object {
 	obj := makePackage(context.Namespace(), name, spec)
 	return post(context, &obj, async, 0)
 }
 
 // PostInvocation creates a Function object
-func PostInvocation(context rcontext.Context, name string, spec owv1.InvocationSpec, async bool) runtime.Object {
+func PostInvocation(context rcontext.Context, name string, spec v1alpha1.InvocationSpec, async bool) runtime.Object {
 	obj := makeInvocation(context.Namespace(), name, spec)
 	return post(context, &obj, async, 0)
 }
 
-func makeFunction(namespace string, name string, spec owv1.FunctionSpec) owv1.Function {
-	return owv1.Function{
+func makeFunction(namespace string, name string, spec v1alpha1.FunctionSpec) v1alpha1.Function {
+	return v1alpha1.Function{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: owv1.SchemeGroupVersion.Group + "/" + owv1.SchemeGroupVersion.Version,
+			APIVersion: v1alpha1.SchemeGroupVersion.Group + "/" + v1alpha1.SchemeGroupVersion.Version,
 			Kind:       "Function",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,10 +61,10 @@ func makeFunction(namespace string, name string, spec owv1.FunctionSpec) owv1.Fu
 	}
 }
 
-func makePackage(namespace string, name string, spec owv1.PackageSpec) owv1.Package {
-	return owv1.Package{
+func makePackage(namespace string, name string, spec v1alpha1.PackageSpec) v1alpha1.Package {
+	return v1alpha1.Package{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: owv1.SchemeGroupVersion.Group + "/" + owv1.SchemeGroupVersion.Version,
+			APIVersion: v1alpha1.SchemeGroupVersion.Group + "/" + v1alpha1.SchemeGroupVersion.Version,
 			Kind:       "Package",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,10 +75,10 @@ func makePackage(namespace string, name string, spec owv1.PackageSpec) owv1.Pack
 	}
 }
 
-func makeInvocation(namespace string, name string, spec owv1.InvocationSpec) owv1.Invocation {
-	return owv1.Invocation{
+func makeInvocation(namespace string, name string, spec v1alpha1.InvocationSpec) v1alpha1.Invocation {
+	return v1alpha1.Invocation{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: owv1.SchemeGroupVersion.Group + "/" + owv1.SchemeGroupVersion.Version,
+			APIVersion: v1alpha1.SchemeGroupVersion.Group + "/" + v1alpha1.SchemeGroupVersion.Version,
 			Kind:       "Invocation",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,28 +133,38 @@ func deleteObject(context rcontext.Context, obj runtime.Object, async bool) {
 }
 
 // LoadFunction loads the YAML spec into obj
-func LoadFunction(filename string) owv1.Function {
-	return *LoadObject(filename, &owv1.Function{}).(*owv1.Function)
+func LoadFunction(filename string) v1alpha1.Function {
+	return *LoadObject(filename, &v1alpha1.Function{}).(*v1alpha1.Function)
 }
 
 // LoadTrigger loads the YAML spec into obj
-func LoadTrigger(filename string) owv1.Trigger {
-	return *LoadObject(filename, &owv1.Trigger{}).(*owv1.Trigger)
+func LoadTrigger(filename string) v1alpha1.Trigger {
+	return *LoadObject(filename, &v1alpha1.Trigger{}).(*v1alpha1.Trigger)
 }
 
 // LoadPackage loads the YAML spec into obj
-func LoadPackage(filename string) owv1.Package {
-	return *LoadObject(filename, &owv1.Package{}).(*owv1.Package)
+func LoadPackage(filename string) v1alpha1.Package {
+	return *LoadObject(filename, &v1alpha1.Package{}).(*v1alpha1.Package)
 }
 
 // LoadRule loads the YAML spec into obj
-func LoadRule(filename string) owv1.Rule {
-	return *LoadObject(filename, &owv1.Rule{}).(*owv1.Rule)
+func LoadRule(filename string) v1alpha1.Rule {
+	return *LoadObject(filename, &v1alpha1.Rule{}).(*v1alpha1.Rule)
 }
 
 // LoadInvocation loads the YAML spec into obj
-func LoadInvocation(filename string) owv1.Invocation {
-	return *LoadObject(filename, &owv1.Invocation{}).(*owv1.Invocation)
+func LoadInvocation(filename string) v1alpha1.Invocation {
+	return *LoadObject(filename, &v1alpha1.Invocation{}).(*v1alpha1.Invocation)
+}
+
+// LoadService loads the YAML spec into obj
+func LoadService(filename string) v1alpha1.Service {
+	return *LoadObject(filename, &v1alpha1.Service{}).(*v1alpha1.Service)
+}
+
+// LoadBinding loads the YAML spec into obj
+func LoadBinding(filename string) v1alpha1.Binding {
+	return *LoadObject(filename, &v1alpha1.Binding{}).(*v1alpha1.Binding)
 }
 
 // LoadObject loads the YAML spec into obj

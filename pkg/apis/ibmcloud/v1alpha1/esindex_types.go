@@ -16,6 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,11 +54,8 @@ type EsIndexSpec struct {
 
 // EsIndexStatus defines the observed state of EsIndex
 type EsIndexStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	State      string `json:"state,omitempty"`
-	Message    string `json:"message,omitempty"`
-	Generation int64  `json:"generation"`
+	resv1.ResourceStatus `json:",inline"`
+	Generation           int64 `json:"generation"`
 }
 
 // +genclient
@@ -65,6 +63,8 @@ type EsIndexStatus struct {
 
 // EsIndex is the Schema for the esindices API
 // +k8s:openapi-gen=true
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 type EsIndex struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -87,7 +87,7 @@ func init() {
 	SchemeBuilder.Register(&EsIndex{}, &EsIndexList{})
 }
 
-// GetStatus returns the function status
-func (r *EsIndex) GetStatus() *EsIndexStatus {
-	return &r.Status
+// GetStatus returns the binding status
+func (e *EsIndex) GetStatus() resv1.Status {
+	return &e.Status
 }

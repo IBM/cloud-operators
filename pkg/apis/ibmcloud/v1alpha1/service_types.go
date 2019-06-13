@@ -17,6 +17,7 @@ package v1alpha1
 
 import (
 	icv1 "github.com/ibm/cloud-operators/pkg/lib/ibmcloud/v1"
+	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,9 +37,8 @@ type ServiceSpec struct {
 
 // ServiceStatus defines the observed state of Service
 type ServiceStatus struct {
-	State      string `json:"state,omitempty"`
-	Message    string `json:"message,omitempty"`
-	Generation int64  `json:"generation,omitempty"`
+	resv1.ResourceStatus `json:",inline"`
+	Generation           int64 `json:"generation,omitempty"`
 
 	ServiceClass     string               `json:"serviceClass"`
 	ServiceClassType string               `json:"serviceClassType"`
@@ -72,6 +72,11 @@ type ServiceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Service `json:"items"`
+}
+
+// GetStatus returns the service status
+func (s *Service) GetStatus() resv1.Status {
+	return &s.Status
 }
 
 func init() {

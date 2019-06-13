@@ -1,80 +1,111 @@
-/*
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package service
 
 import (
+	"log"
+	"path/filepath"
 	"testing"
 	"time"
 
-	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
-	"github.com/onsi/gomega"
-	"golang.org/x/net/context"
-	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/gomega"
+
+	context "github.com/ibm/cloud-operators/pkg/context"
+	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
+
+	"github.com/ibm/cloud-operators/pkg/apis"
+	test "github.com/ibm/cloud-operators/test"
 )
 
-var c client.Client
+var (
+	c         client.Client
+	cfg       *rest.Config
+	namespace string
+	scontext  context.Context
+	t         *envtest.Environment
+	stop      chan struct{}
+)
 
-var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
-var depKey = types.NamespacedName{Name: "foo-deployment", Namespace: "default"}
+func TestService(t *testing.T) {
+	RegisterFailHandler(Fail)
+	SetDefaultEventuallyPollingInterval(1 * time.Second)
+	SetDefaultEventuallyTimeout(30 * time.Second)
 
-const timeout = time.Second * 5
+	RunSpecs(t, "Service Suite")
+}
 
-func TestReconcile(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-	instance := &ibmcloudv1alpha1.Service{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+var _ = BeforeSuite(func() {
+	logf.SetLogger(logf.ZapLoggerTo(GinkgoWriter, true))
 
-	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
-	// channel when it is finished.
+	t = &envtest.Environment{
+		CRDDirectoryPaths:        []string{filepath.Join("..", "..", "..", "config", "crds")},
+		ControlPlaneStartTimeout: 2 * time.Minute,
+	}
+	apis.AddToScheme(scheme.Scheme)
+
+	var err error
+	if cfg, err = t.Start(); err != nil {
+		log.Fatal(err)
+	}
+
 	mgr, err := manager.New(cfg, manager.Options{})
-	g.Expect(err).NotTo(gomega.HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
+
 	c = mgr.GetClient()
 
-	recFn, requests := SetupTestReconcile(newReconciler(mgr))
-	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
-	defer close(StartTestManager(mgr, g))
+	recFn := newReconciler(mgr)
+	Expect(add(mgr, recFn)).NotTo(HaveOccurred())
 
-	// Create the Service object and expect the Reconcile and Deployment to be created
-	err = c.Create(context.TODO(), instance)
-	// The instance object may not be a valid object because it might be missing some required fields.
-	// Please modify the instance object by adding required fields and then remove the following if statement.
-	if apierrors.IsInvalid(err) {
-		t.Logf("failed to create object, got an invalid object error: %v", err)
-		return
-	}
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer c.Delete(context.TODO(), instance)
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
+	stop = test.StartTestManager(mgr)
 
-	deploy := &appsv1.Deployment{}
-	g.Eventually(func() error { return c.Get(context.TODO(), depKey, deploy) }, timeout).
-		Should(gomega.Succeed())
+	namespace = test.SetupKubeOrDie(cfg, "ibmcloud-service-")
+	scontext = context.New(c, reconcile.Request{NamespacedName: types.NamespacedName{Name: "", Namespace: namespace}})
 
-	// Delete the Deployment and expect Reconcile to be called for Deployment deletion
-	g.Expect(c.Delete(context.TODO(), deploy)).NotTo(gomega.HaveOccurred())
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-	g.Eventually(func() error { return c.Get(context.TODO(), depKey, deploy) }, timeout).
-		Should(gomega.Succeed())
+	Expect(err).NotTo(HaveOccurred())
+})
 
-	// Manually delete Deployment since GC isn't enabled in the test control plane
-	g.Expect(c.Delete(context.TODO(), deploy)).To(gomega.Succeed())
+var _ = AfterSuite(func() {
+	close(stop)
+	t.Stop()
+})
 
-}
+var _ = Describe("service", func() {
+
+	DescribeTable("should be ready",
+		func(specfile string, pkgspec string, expected string) {
+			service := test.LoadService("testdata/" + specfile)
+			obj := test.PostInNs(scontext, &service, true, 0)
+
+			Eventually(test.GetState(scontext, obj)).Should(Equal(resv1.ResourceStateOnline))
+
+			//Eventually(test.GetAction(wskclient, function.Name)).ShouldNot(BeNil())
+
+			//Expect(test.InvokeAction(wskclient, function.Name, nil)).Should(MatchJSON(expected))
+		},
+
+		Entry("string param", "translator.yaml", "", `{"data":"Paris"}`),
+		//		Entry("object param", "owf-echo-object.yaml", "", `{"data":{"name": "John"}}`),
+
+	)
+
+	/*
+		DescribeTable("should fail",
+			func(specfile string) {
+				service := test.LoadService("testdata/" + specfile)
+				obj := test.PostInNs(scontext, &service, true, 0)
+				Eventually(test.GetState(scontext, obj)).Should(Equal(resv1.ResourceStateFailed))
+
+			},
+			Entry("missing code, codeURI or native", "owf-invalid-nocode-noURI.yaml"),
+		)
+	*/
+})

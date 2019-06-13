@@ -16,6 +16,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,8 +32,9 @@ type BindingSpec struct {
 
 // BindingStatus defines the observed state of Binding
 type BindingStatus struct {
-	State         string `json:"state,omitempty"`
-	Message       string `json:"message,omitempty"`
+	resv1.ResourceStatus `json:",inline"`
+	Generation           int64 `json:"generation,omitempty"`
+
 	InstanceID    string `json:"instanceId,omitempty"`
 	KeyInstanceID string `json:"keyInstanceId,omitempty"`
 }
@@ -60,6 +62,11 @@ type BindingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Binding `json:"items"`
+}
+
+// GetStatus returns the binding status
+func (s *Binding) GetStatus() resv1.Status {
+	return &s.Status
 }
 
 func init() {
