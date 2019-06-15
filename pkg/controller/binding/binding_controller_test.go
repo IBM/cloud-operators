@@ -1,80 +1,150 @@
-/*
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package binding
 
 import (
+	"log"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
-	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
-	"github.com/onsi/gomega"
-	"golang.org/x/net/context"
-	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/gomega"
+
+	context "github.com/ibm/cloud-operators/pkg/context"
+	svctr "github.com/ibm/cloud-operators/pkg/controller/service"
+	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
+
+	"github.com/ibm/cloud-operators/pkg/apis"
+	test "github.com/ibm/cloud-operators/test"
 )
 
-var c client.Client
+var (
+	c         client.Client
+	cfg       *rest.Config
+	namespace string
+	scontext  context.Context
+	t         *envtest.Environment
+	stop      chan struct{}
+)
 
-var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
-var depKey = types.NamespacedName{Name: "foo-deployment", Namespace: "default"}
+func TestBinding(t *testing.T) {
+	RegisterFailHandler(Fail)
+	SetDefaultEventuallyPollingInterval(1 * time.Second)
+	SetDefaultEventuallyTimeout(60 * time.Second)
 
-const timeout = time.Second * 5
+	RunSpecs(t, "Binding Suite")
+}
 
-func TestReconcile(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-	instance := &ibmcloudv1alpha1.Binding{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+var _ = BeforeSuite(func() {
+	logf.SetLogger(logf.ZapLoggerTo(GinkgoWriter, true))
 
-	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
-	// channel when it is finished.
+	t = &envtest.Environment{
+		CRDDirectoryPaths:        []string{filepath.Join("..", "..", "..", "config", "crds")},
+		ControlPlaneStartTimeout: 2 * time.Minute,
+	}
+	apis.AddToScheme(scheme.Scheme)
+
+	var err error
+	if cfg, err = t.Start(); err != nil {
+		log.Fatal(err)
+	}
+
 	mgr, err := manager.New(cfg, manager.Options{})
-	g.Expect(err).NotTo(gomega.HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
+
 	c = mgr.GetClient()
 
-	recFn, requests := SetupTestReconcile(newReconciler(mgr))
-	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
-	defer close(StartTestManager(mgr, g))
+	recFn := newReconciler(mgr)
+	Expect(add(mgr, recFn)).NotTo(HaveOccurred())
+	Expect(svctr.Add(mgr)).NotTo(HaveOccurred()) // add service controller
 
-	// Create the Binding object and expect the Reconcile and Deployment to be created
-	err = c.Create(context.TODO(), instance)
-	// The instance object may not be a valid object because it might be missing some required fields.
-	// Please modify the instance object by adding required fields and then remove the following if statement.
-	if apierrors.IsInvalid(err) {
-		t.Logf("failed to create object, got an invalid object error: %v", err)
-		return
+	stop = test.StartTestManager(mgr)
+
+	namespace = test.SetupKubeOrDie(cfg, "ibmcloud-binding-")
+	scontext = context.New(c, reconcile.Request{NamespacedName: types.NamespacedName{Name: "", Namespace: namespace}})
+
+	Expect(err).NotTo(HaveOccurred())
+})
+
+var _ = AfterSuite(func() {
+	close(stop)
+	t.Stop()
+})
+
+var _ = Describe("binding", func() {
+
+	DescribeTable("should be ready",
+		func(servicefile string, bindingfile string) {
+			service := test.LoadService("testdata/" + servicefile)
+			svcobj := test.PostInNs(scontext, &service, true, 0)
+
+			// make sure service is online
+			Eventually(test.GetState(scontext, svcobj)).Should(Equal(resv1.ResourceStateOnline))
+
+			// now test creation of binding
+			binding := test.LoadBinding("testdata/" + bindingfile)
+			bndobj := test.PostInNs(scontext, &binding, true, 0)
+
+			// check binding is online
+			Eventually(test.GetState(scontext, bndobj)).Should(Equal(resv1.ResourceStateOnline))
+
+			// check secret is created
+			clientset := test.GetClientsetOrDie(cfg)
+			_, err := clientset.CoreV1().Secrets(namespace).Get(binding.Name, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+		},
+
+		// TODO - add more entries
+		Entry("string param", "translator.yaml", "translator-binding.yaml"),
+	)
+
+	DescribeTable("should delete",
+		func(servicefile string, bindingfile string) {
+			svc := test.LoadService("testdata/" + servicefile)
+			svc.Namespace = namespace
+			bnd := test.LoadBinding("testdata/" + bindingfile)
+			bnd.Namespace = namespace
+
+			// delete binding
+			test.DeleteObject(scontext, &bnd, true)
+
+			// test secret is deleted
+			clientset := test.GetClientsetOrDie(cfg)
+			Eventually(isSecretDeleted(clientset, bnd.Name)).Should(Equal(true))
+
+			// delete service & return when done
+			test.DeleteObject(scontext, &svc, true)
+
+			Eventually(test.GetObject(scontext, &svc)).Should((BeNil()))
+		},
+
+		// TODO - add more entries
+		Entry("string param", "translator.yaml", "translator-binding.yaml"),
+	)
+
+})
+
+// check if secret is deleted
+func isSecretDeleted(clientset *kubernetes.Clientset, secretName string) func() bool {
+	return func() bool {
+		_, err := clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+		if err != nil && strings.Contains(err.Error(), "not found") {
+			return true
+		}
+		return false
 	}
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer c.Delete(context.TODO(), instance)
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-
-	deploy := &appsv1.Deployment{}
-	g.Eventually(func() error { return c.Get(context.TODO(), depKey, deploy) }, timeout).
-		Should(gomega.Succeed())
-
-	// Delete the Deployment and expect Reconcile to be called for Deployment deletion
-	g.Expect(c.Delete(context.TODO(), deploy)).NotTo(gomega.HaveOccurred())
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-	g.Eventually(func() error { return c.Get(context.TODO(), depKey, deploy) }, timeout).
-		Should(gomega.Succeed())
-
-	// Manually delete Deployment since GC isn't enabled in the test control plane
-	g.Expect(c.Delete(context.TODO(), deploy)).To(gomega.Succeed())
-
 }

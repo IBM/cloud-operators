@@ -81,31 +81,40 @@ var _ = AfterSuite(func() {
 var _ = Describe("service", func() {
 
 	DescribeTable("should be ready",
-		func(specfile string, pkgspec string, expected string) {
+		func(specfile string) {
 			service := test.LoadService("testdata/" + specfile)
 			obj := test.PostInNs(scontext, &service, true, 0)
 
 			Eventually(test.GetState(scontext, obj)).Should(Equal(resv1.ResourceStateOnline))
 
-			//Eventually(test.GetAction(wskclient, function.Name)).ShouldNot(BeNil())
+			// get instance directly from bx to make sure is there
+			bxsvc, err := GetServiceInstanceFronObj(scontext, obj)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(bxsvc.Name).Should(Equal(service.ObjectMeta.Name))
 
-			//Expect(test.InvokeAction(wskclient, function.Name, nil)).Should(MatchJSON(expected))
+			// test delete
+			objcopy := obj.DeepCopyObject()
+			test.DeleteObject(scontext, obj, true)
+			Eventually(test.GetObject(scontext, obj)).Should((BeNil()))
+
+			_, err = GetServiceInstanceFronObj(scontext, objcopy)
+			Expect(err).To(HaveOccurred())
 		},
 
-		Entry("string param", "translator.yaml", "", `{"data":"Paris"}`),
-		//		Entry("object param", "owf-echo-object.yaml", "", `{"data":{"name": "John"}}`),
-
+		// TODO - add more entries
+		Entry("string param", "translator.yaml"),
 	)
 
-	/*
-		DescribeTable("should fail",
-			func(specfile string) {
-				service := test.LoadService("testdata/" + specfile)
-				obj := test.PostInNs(scontext, &service, true, 0)
-				Eventually(test.GetState(scontext, obj)).Should(Equal(resv1.ResourceStateFailed))
+	DescribeTable("should fail",
+		func(specfile string) {
+			service := test.LoadService("testdata/" + specfile)
+			obj := test.PostInNs(scontext, &service, true, 0)
 
-			},
-			Entry("missing code, codeURI or native", "owf-invalid-nocode-noURI.yaml"),
-		)
-	*/
+			Eventually(test.GetState(scontext, obj)).Should(Equal(resv1.ResourceStateFailed))
+		},
+
+		// TODO - add more entries
+		Entry("string param", "translator-wrong-plan.yaml"),
+	)
+
 })

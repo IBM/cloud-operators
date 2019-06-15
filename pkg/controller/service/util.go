@@ -10,14 +10,17 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/catalog"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/management"
 	"github.com/IBM-Cloud/bluemix-go/crn"
 	bxendpoints "github.com/IBM-Cloud/bluemix-go/endpoints"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/session"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	rcontext "github.com/ibm/cloud-operators/pkg/context"
 	icv1 "github.com/ibm/cloud-operators/pkg/lib/ibmcloud/v1"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -365,4 +368,31 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 		}
 		return &ibmCloudInfo, nil
 	}
+}
+
+// GetServiceInstanceFronObj from bx given context and resource
+func GetServiceInstanceFronObj(scontext rcontext.Context, obj runtime.Object) (models.ServiceInstance, error) {
+	//service := test.GetObject(scontext, obj)().(*ibmcloudv1alpha1.Service)
+	service := obj.(*ibmcloudv1alpha1.Service)
+
+	ibmCloudInfo, err := GetIBMCloudInfo(scontext.Client(), service)
+	if err != nil {
+		return models.ServiceInstance{}, err
+	}
+
+	controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
+	if err != nil {
+		return models.ServiceInstance{}, err
+	}
+
+	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
+
+	serviceInstanceQuery := bxcontroller.ServiceInstanceQuery{
+		ResourceGroupID: ibmCloudInfo.ResourceGroupID,
+		ServicePlanID:   ibmCloudInfo.ServicePlanID,
+		Name:            service.ObjectMeta.Name,
+	}
+
+	instances, err := resServiceInstanceAPI.ListInstances(serviceInstanceQuery)
+	return GetServiceInstance(instances, service.Status.InstanceID)
 }

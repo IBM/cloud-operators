@@ -116,7 +116,8 @@ func post(context rcontext.Context, obj runtime.Object, async bool, delay time.D
 	return obj
 }
 
-func deleteObject(context rcontext.Context, obj runtime.Object, async bool) {
+// DeleteObject deletes an object
+func DeleteObject(context rcontext.Context, obj runtime.Object, async bool) {
 	done := make(chan bool)
 
 	go func() {

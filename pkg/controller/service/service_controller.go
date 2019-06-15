@@ -285,7 +285,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			return r.updateStatusError(instance, "Pending", err)
 		}
 
-		serviceInstance, err := getServiceInstance(serviceInstances, instance.Status.InstanceID)
+		serviceInstance, err := GetServiceInstance(serviceInstances, instance.Status.InstanceID)
 		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
@@ -308,7 +308,8 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	}
 }
 
-func getServiceInstance(instances []models.ServiceInstance, ID string) (models.ServiceInstance, error) {
+// GetServiceInstance gets the instance with given ID
+func GetServiceInstance(instances []models.ServiceInstance, ID string) (models.ServiceInstance, error) {
 	for _, instance := range instances {
 		if instance.ID == ID {
 			return instance, nil
