@@ -17,6 +17,8 @@
 
 set -e
 
+BLUEMIX_RESOURCE_GROUP="${BLUEMIX_RESOURCE_GROUP:-default}"
+
 if [ -z $BLUEMIX_API_KEY ]; then
     echo "missing BLUEMIX_API_KEY. Aborting"
     exit 1
@@ -42,7 +44,7 @@ bx login -a api.ng.bluemix.net --apikey ${BLUEMIX_API_KEY} -o $BLUEMIX_ORG
 if ! bx account space $BLUEMIX_SPACE ; then
     bx account space-create $BLUEMIX_SPACE
 fi
-bx target -s $BLUEMIX_SPACE
+bx target -s $BLUEMIX_SPACE -g $BLUEMIX_RESOURCE_GROUP
 
 # set +e
 

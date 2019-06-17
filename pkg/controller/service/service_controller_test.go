@@ -70,7 +70,6 @@ var _ = BeforeSuite(func() {
 	namespace = test.SetupKubeOrDie(cfg, "ibmcloud-service-")
 	scontext = context.New(c, reconcile.Request{NamespacedName: types.NamespacedName{Name: "", Namespace: namespace}})
 
-	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {

@@ -33,6 +33,7 @@ var (
 	org             = ""
 	space           = ""
 	region          = ""
+	resourceGroup   = ""
 	apikey          = os.Getenv("BLUEMIX_API_KEY")
 	auth            = os.Getenv("OW_AUTH")
 	apihost         = os.Getenv("OW_APIHOST")
@@ -54,6 +55,10 @@ func init() {
 			json.Unmarshal(raw, &config)
 
 			region = config["Region"].(string)
+			if rgfields, ok := config["ResourceGroup"]; ok {
+				resourceGroup = rgfields.(map[string]interface{})["Name"].(string)
+			}
+
 		}
 		raw2, err := ioutil.ReadFile(usr.HomeDir + "/.bluemix/.cf/config.json")
 		if err == nil {

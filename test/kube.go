@@ -94,9 +94,10 @@ func ConfigureSeedDefaults(configmaps corev1.ConfigMapInterface) {
 			Name: "seed-defaults",
 		},
 		Data: map[string]string{
-			"org":    org,
-			"space":  space,
-			"region": region,
+			"org":           org,
+			"space":         space,
+			"region":        region,
+			"resourceGroup": resourceGroup,
 		},
 	}
 	configmaps.Create(config)

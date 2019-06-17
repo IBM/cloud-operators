@@ -16,12 +16,14 @@ before_install:
   - ./tools/travis/start-kubeadm-dind.sh
   - ./tools/travis/k8s-tools.sh
   - ./tools/travis/minikube-install.sh
+  - ./tools/travis/bx-install.sh
+  - ./tools/travis/bx-setup.sh
 
 script:
   - make generate
   - hack/update-codegen.sh
   - make lintall
-  # - make test
+  - make test
 
 after_success:
   - make push
