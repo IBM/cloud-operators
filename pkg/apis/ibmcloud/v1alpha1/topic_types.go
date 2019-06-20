@@ -16,57 +16,51 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "github.com/ibm/cloud-operators/pkg/lib/ibmcloud/v1"
+	keyvaluev1 "github.com/ibm/cloud-operators/pkg/lib/keyvalue/v1"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// BindingSpec defines the desired state of Binding
-type BindingSpec struct {
-	ServiceName string `json:"serviceName"`
-	// +optional
-	SecretName string `json:"secretName,omitempty"`
-	Role       string `json:"role,omitempty"`
+// TopicSpec defines the desired state of Topic
+type TopicSpec struct {
+	TopicName         string                `json:"topicName"`
+	NumPartitions     int32                 `json:"numPartitions,omitempty"`
+	ReplicationFactor int32                 `json:"replicationFactor,omitempty"`
+	Configs           []keyvaluev1.KeyValue `json:"configs,omitempty"`
+	BindingFrom       v1.BindingFrom        `json:"bindingFrom,omitempty"`
 }
 
-// BindingStatus defines the observed state of Binding
-type BindingStatus struct {
+// TopicStatus defines the observed state of Topic
+type TopicStatus struct {
 	resv1.ResourceStatus `json:",inline"`
-	Generation           int64 `json:"generation,omitempty"`
-
-	InstanceID    string `json:"instanceId,omitempty"`
-	KeyInstanceID string `json:"keyInstanceId,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Binding is the Schema for the bindings API
+// Topic is the Schema for the topics API
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
-type Binding struct {
+type Topic struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BindingSpec   `json:"spec,omitempty"`
-	Status BindingStatus `json:"status,omitempty"`
+	Spec   TopicSpec   `json:"spec,omitempty"`
+	Status TopicStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// BindingList contains a list of Binding
-type BindingList struct {
+// TopicList contains a list of Topic
+type TopicList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Binding `json:"items"`
-}
-
-// GetStatus returns the binding status
-func (s *Binding) GetStatus() resv1.Status {
-	return &s.Status
+	Items           []Topic `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Binding{}, &BindingList{})
+	SchemeBuilder.Register(&Topic{}, &TopicList{})
 }

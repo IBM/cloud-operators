@@ -1,0 +1,13 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Topic
+metadata:
+  name: topicsample1
+spec:
+  bindingFrom:
+    name: binding-messagehubcf
+  topicName: exampleone
+  numPartitions: 3
+  replicationFactor : 3
+  configs :
+    - name: retentionMs
+      value: 2592000000

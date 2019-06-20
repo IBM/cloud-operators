@@ -4,7 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: bindings.ibmcloud.ibm.com
+  name: topics.ibmcloud.ibm.com
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.state
@@ -15,8 +15,8 @@ spec:
     type: date
   group: ibmcloud.ibm.com
   names:
-    kind: Binding
-    plural: bindings
+    kind: Topic
+    plural: topics
   scope: Namespaced
   subresources:
     status: {}
@@ -37,24 +37,56 @@ spec:
           type: object
         spec:
           properties:
-            role:
-              type: string
-            secretName:
-              type: string
-            serviceName:
+            bindingFrom:
+              properties:
+                name:
+                  type: string
+                namespace:
+                  type: string
+              required:
+              - name
+              type: object
+            configs:
+              items:
+                properties:
+                  attributes:
+                    description: A parameter may have attributes (e.g. message hub
+                      topic might have partitions)
+                    type: object
+                  name:
+                    description: Name representing the key.
+                    type: string
+                  value:
+                    description: Defaults to null.
+
+                  valueFrom:
+                    description: Source for the value. Cannot be used if value is
+                      not empty.
+                    properties:
+                      configMapKeyRef:
+                        description: Selects a key of a ConfigMap.
+                        type: object
+                      secretKeyRef:
+                        description: Selects a key of a secret in the resource namespace
+                        type: object
+                    type: object
+                required:
+                - name
+                type: object
+              type: array
+            numPartitions:
+              format: int32
+              type: integer
+            replicationFactor:
+              format: int32
+              type: integer
+            topicName:
               type: string
           required:
-          - serviceName
+          - topicName
           type: object
         status:
           properties:
-            generation:
-              format: int64
-              type: integer
-            instanceId:
-              type: string
-            keyInstanceId:
-              type: string
             message:
               type: string
             state:

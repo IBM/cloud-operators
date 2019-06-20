@@ -1,30 +1,18 @@
 package esindex
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"time"
 
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	common "github.com/ibm/cloud-operators/pkg/controller/common"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// RestResult is a struct for REST call result
-type RestResult struct {
-	StatusCode int
-	Body       string
-	ErrorType  string
-}
 
 // EsConnection is a struct for elastic search connection
 type EsConnection struct {
@@ -39,52 +27,11 @@ type EsHTTPS struct {
 // ErrorTypeEsURINotFound - elastic search uri is not found in binding secret
 const ErrorTypeEsURINotFound string = "EsUriNotFound"
 
-// restCallFunc : common rest call fun
-func restCallFunc(rsString string, postBody []byte, method string, header string, token string, expectReturn bool) (RestResult, error) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	restClient := http.Client{
-		Timeout:   time.Second * 300,
-		Transport: tr,
-	}
-	u, _ := url.ParseRequestURI(rsString)
-	urlStr := u.String()
-	var req *http.Request
-	if postBody != nil {
-
-		req, _ = http.NewRequest(method, urlStr, bytes.NewBuffer(postBody))
-	} else {
-		req, _ = http.NewRequest(method, urlStr, nil)
-	}
-
-	if token != "" {
-		if header == "" {
-			req.Header.Set("Authorization", token)
-		} else {
-			req.Header.Set(header, token)
-		}
-	}
-	req.Header.Set("Content-Type", "application/json")
-	res, err := restClient.Do(req)
-	if err != nil {
-		return RestResult{}, err
-	}
-	defer res.Body.Close()
-
-	if expectReturn {
-		body, err := ioutil.ReadAll(res.Body)
-		result := RestResult{StatusCode: res.StatusCode, Body: string(body[:])}
-		return result, err
-	}
-	return RestResult{}, nil
-}
-
 // createIndex : create an index on elastic search
-func (r *ReconcileEsIndex) createIndex(obj *ibmcloudv1alpha1.EsIndex) (RestResult, error) {
+func (r *ReconcileEsIndex) createIndex(obj *ibmcloudv1alpha1.EsIndex) (common.RestResult, error) {
 	uri, err := r.getESUri(obj)
 	if err != nil {
-		return RestResult{ErrorType: ErrorTypeEsURINotFound}, err
+		return common.RestResult{ErrorType: ErrorTypeEsURINotFound}, err
 	}
 	uri0 := uri + "/" + obj.Spec.IndexName
 	var indexObj IndexCreate
@@ -94,43 +41,43 @@ func (r *ReconcileEsIndex) createIndex(obj *ibmcloudv1alpha1.EsIndex) (RestResul
 
 	if obj.Spec.BindOnly {
 		// bind only, check if the index exists
-		resp, err := restCallFunc(uri0, putBody, "GET", "", "", true)
+		resp, err := common.RestCallFunc(uri0, putBody, "GET", "", "", true)
 		return resp, err
 	}
 	// create index on elastic search
-	resp, err := restCallFunc(uri0, putBody, "PUT", "", "", true)
+	resp, err := common.RestCallFunc(uri0, putBody, "PUT", "", "", true)
 	return resp, err
 
 }
 
 // getIndex : get index from elastic search
-func (r *ReconcileEsIndex) getIndex(obj *ibmcloudv1alpha1.EsIndex) (RestResult, error) {
+func (r *ReconcileEsIndex) getIndex(obj *ibmcloudv1alpha1.EsIndex) (common.RestResult, error) {
 	uri, err := r.getESUri(obj)
 	if err != nil {
-		return RestResult{ErrorType: ErrorTypeEsURINotFound}, err
+		return common.RestResult{ErrorType: ErrorTypeEsURINotFound}, err
 	}
 	uri0 := uri + "/" + obj.Spec.IndexName
 	var body []byte
-	resp, err := restCallFunc(uri0, body, "GET", "", "", true)
+	resp, err := common.RestCallFunc(uri0, body, "GET", "", "", true)
 	return resp, err
 }
 
 // deleteIndex : delete an index on elastic search
-func (r *ReconcileEsIndex) deleteIndex(obj *ibmcloudv1alpha1.EsIndex) (RestResult, error) {
+func (r *ReconcileEsIndex) deleteIndex(obj *ibmcloudv1alpha1.EsIndex) (common.RestResult, error) {
 
 	if obj.Spec.BindOnly || obj.Status.State == ResourceStateFailed {
 		//do nothing on remote
 		logt.Info("bindOnly and do nothing for deletion", "indexName", obj.Spec.IndexName)
-		return RestResult{StatusCode: 200}, nil
+		return common.RestResult{StatusCode: 200}, nil
 	}
 
 	uri, err := r.getESUri(obj)
 	if err != nil {
-		return RestResult{ErrorType: ErrorTypeEsURINotFound}, err
+		return common.RestResult{ErrorType: ErrorTypeEsURINotFound}, err
 	}
 	uri0 := uri + "/" + obj.Spec.IndexName
 	var body []byte
-	resp, err := restCallFunc(uri0, body, "DELETE", "", "", true)
+	resp, err := common.RestCallFunc(uri0, body, "DELETE", "", "", true)
 	return resp, err
 }
 

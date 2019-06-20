@@ -12,3 +12,17 @@ metadata:
   name: binding-messagehub
 spec:
   serviceName: mymessagehub
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Topic
+metadata:
+  name: mytopic
+spec:
+  bindingFrom:
+    name: binding-messagehub
+  topicName: mytopic
+  numPartitions: 3
+  replicationFactor : 3
+  configs :
+    - name: retentionMs
+      value: 2592000000

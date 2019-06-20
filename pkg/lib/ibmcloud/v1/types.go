@@ -29,3 +29,10 @@ type ResourceContext struct {
 	// +optional
 	ResourceLocation string `json:"resourcelocation"`
 }
+
+// BindingFrom specifies the binding object
+// Used by those objects that refer to Binding
+type BindingFrom struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+}
