@@ -21,9 +21,12 @@ if [ -z "${INSTALL_MINIKUBE}" ]; then
     exit 0
 fi
 
-MINIKUBE_VERSION=${MINIKUBE_VERSION:-v1.1.0}
+#MINIKUBE_VERSION=${MINIKUBE_VERSION:-v1.1.0}
+#BOOTSTRAPPER=${BOOTSTRAPPER:-kubeadm}
+#KUBE_VERSION=${KUBE_VERSION:-v1.13.0}
+MINIKUBE_VERSION=${MINIKUBE_VERSION:-v0.30.0}
 BOOTSTRAPPER=${BOOTSTRAPPER:-kubeadm}
-KUBE_VERSION=${KUBE_VERSION:-v1.13.0}
+KUBE_VERSION=${KUBE_VERSION:-v1.11.0}
 
 export MINIKUBE_WANTUPDATENOTIFICATION=false
 export MINIKUBE_WANTREPORTERRORPROMPT=false
@@ -59,4 +62,5 @@ JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.ty
 
 until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; 
 do 
-  sleep 1; 
+  sleep 1;
+done   

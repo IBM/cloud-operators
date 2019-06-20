@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright 2017-2018 IBM Corporation
 #
@@ -15,15 +15,12 @@
 # limitations under the License.
 #
 
-set -e
 
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)
-cd $ROOT
+if [ -z "${KUBECONFIG_B64}" ] || [ -z "${KUBECONFIG_CA_CERT_B64}" ] ; then
+    echo "KUBECONFIG_B64 or KUBECONFIG_CA_CERT_B64" are not set, skipping kube configuration
+    exit 0
+fi
 
-source hack/lib/utils.sh
-source hack/lib/object.sh
-
-kustomize build github.com/IBM/openwhisk-operator//config/crds | kubectl apply -f -
-kustomize build github.com/IBM/openwhisk-operator//config/default | kubectl apply -f -
-
-object::wait_operator_ready
+mkdir -p ~/.kube
+echo $KUBECONFIG_B64 | base64 --decode > ${HOME}/.kube/config
+echo $KUBECONFIG_CA_CERT_B64 | base64 --decode > ${HOME}/.kube/ca-hou02-iks1.pem

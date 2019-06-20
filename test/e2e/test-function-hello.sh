@@ -16,9 +16,9 @@
 #
 
 function th::run() {
-    u::begin_testcase "should deploy the action hello in a package"
+    u::begin_testcase "should deploy the function hello in a package"
 
-    kubectl apply -f hello.yaml >> /dev/null
+    kubectl apply -f function-hello.yaml >> /dev/null
     object::wait_function_online hello-world 10
 
     result=$(ibmcloud wsk action invoke -br hello-world-package/hello-world -p name John -p place Yorktown)

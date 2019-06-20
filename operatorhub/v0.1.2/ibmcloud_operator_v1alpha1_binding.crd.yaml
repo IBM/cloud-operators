@@ -46,6 +46,9 @@ spec:
           type: object
         status:
           properties:
+            generation:
+              format: int64
+              type: integer
             instanceId:
               type: string
             keyInstanceId:

@@ -10,6 +10,7 @@ deps:
 	go get -u github.com/wadey/gocovmerge
 	go get -u github.com/alecthomas/gometalinter
 	gometalinter --install
+	pip install --user PyYAML
 
 all: test manager
 

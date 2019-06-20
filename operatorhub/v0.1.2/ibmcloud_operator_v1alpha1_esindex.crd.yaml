@@ -6,6 +6,13 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: esindices.ibmcloud.ibm.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: ibmcloud.ibm.com
   names:
     kind: EsIndex
@@ -59,9 +66,6 @@ spec:
             message:
               type: string
             state:
-              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                of cluster Important: Run "make" to regenerate code after modifying
-                this file'
               type: string
           required:
           - generation

@@ -26,35 +26,47 @@ KUBE_ENV=${KUBE_ENV:=default}
 source hack/lib/object.sh
 source hack/lib/utils.sh
 
-if [ "${KUBE_ENV}" = "local" ]; then
-    u::header "building docker image"
-    docker build . -t local/openwhisk-operator
-fi
+if [ -z "$TRAVIS" ]
+then
+  u::header  "Not running in Travis, creating test branch..."
+  git checkout -b e2e-test
+fi  
+export TAG=e2e-test
+python hack/package.py v${TAG}
+make docker-build
+make docker-push
 
 u::header "installing CRDs, operators and secrets"
 
-kustomize build config/crds | kubectl apply -f -
-kustomize build config/${KUBE_ENV} | kubectl apply -f -
+hack/install-operators.sh
+object::wait_operator_ready
 
 cd $ROOT/test/e2e
 
-source ./test-hello.sh
-source ./test-doc.sh
+source ./test-function-hello.sh
+source ./test-function-doc.sh
+source ./test-service-translator.sh
+source ./test-binding-translator.sh
 
 function cleanup() {
   set +e
   u::header "cleaning up..."
 
-  # td::cleanup
-  kubectl delete secret seed-defaults-owprops
+  $ROOT/hack/uninstall-operators.sh
+  if [ -z "$TRAVIS" ]
+  then
+    u::header  "Not running in Travis, removing test branch..."
+    git checkout -
+    git branch -D e2e-test
+  fi  
 }
 trap cleanup EXIT
-
-. ./wskprops-secrets.sh
 
 u::header "running tests"
 
 td::run
 th::run
+ts::run
+tb::run
 
 u::report_and_exit

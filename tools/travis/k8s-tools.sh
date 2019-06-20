@@ -21,12 +21,8 @@ if [ -n "${SKIP_K8S_TOOLS}" ]; then
     exit 0
 fi
 
-if [ -z ${KUBECTL_VERSION+x} ]; then
-    KUBECTL_VERSION=v1.10.0
-fi
-
 if [ -z ${KB_VERSION+x} ]; then
-    KB_VERSION=1.0.5
+    KB_VERSION=1.0.8 
 fi
 
 if [ -z ${KUSTOMIZE_VERSION+x} ]; then
@@ -34,9 +30,10 @@ if [ -z ${KUSTOMIZE_VERSION+x} ]; then
 fi
 
 echo "installing kubectl"
-curl -LO https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
 chmod +x ./kubectl
 sudo mv ./kubectl /usr/local/bin/
+kubectl version --client
 
 echo "installing kubebuilder"
 curl -SL "https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KB_VERSION}/kubebuilder_${KB_VERSION}_linux_amd64.tar.gz" | tar xz
