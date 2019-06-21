@@ -23,4 +23,4 @@ fi
 
 mkdir -p ~/.kube
 echo $KUBECONFIG_B64 | base64 --decode > ${HOME}/.kube/config
-echo $KUBECONFIG_CA_CERT_B64 | base64 --decode > ${HOME}/.kube/ca-hou02-iks1.pem
+echo $KUBECONFIG_CA_CERT_B64 | base64 --decode > ${HOME}/.kube/ca.pem

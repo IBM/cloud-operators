@@ -56,8 +56,13 @@ function cleanup() {
   if [ -z "$TRAVIS" ]
   then
     u::header  "Not running in Travis, removing test branch..."
+    # do some cleanup
+    git checkout -f
     git checkout -
     git branch -D e2e-test
+    rm git-rev 2> /dev/null
+    rm  -r operatorhub/ve2e-test/ 2> /dev/null
+    rm -r releases/ve2e-test/ 2> /dev/null
   fi  
 }
 trap cleanup EXIT
