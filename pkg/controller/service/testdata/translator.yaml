@@ -1,0 +1,7 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: test-translator-1
+spec:
+  plan: lite
+  serviceClass: language-translator

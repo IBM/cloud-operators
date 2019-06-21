@@ -1,0 +1,7 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: test-translator-2
+spec:
+  plan: WRONG-PLAN
+  serviceClass: language-translator

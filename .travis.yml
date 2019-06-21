@@ -1,0 +1,46 @@
+language: go
+go:
+  - "1.11.x"
+dist: xenial
+sudo: required
+services:
+  - docker
+
+go_import_path: github.com/ibm/cloud-operators
+
+before_script:
+  - make deps
+ 
+before_install:
+  - source ./tools/travis/travis-env.sh
+  - ./tools/travis/k8s-tools.sh
+  - ./tools/travis/set-kube-config.sh
+  - ./tools/travis/bx-install.sh
+  - ./tools/travis/bx-setup.sh
+
+script:
+  - make generate
+  - hack/update-codegen.sh
+  - make lintall
+  - make test
+  - test/e2e/test.sh
+
+after_success:
+  - make push
+  - test "$TRAVIS_EVENT_TYPE" != "pull_request" && make docker-build || echo "success"
+
+#  build only master and tagged/branch releases.
+branches:
+  only: 
+    - master
+    - /^[0-9]+\..*$/
+    - /^v[0-9]+\..*$/
+    - /^release-[0-9]+\..*$/
+
+deploy:
+  skip_cleanup: true
+  provider: script
+  script: bash -c "make docker-push"
+  on:
+    all_branches: true
+    condition: $TRAVIS_BRANCH =~ ^master|[0-9]+\..*|v[0-9]+\..*|release-[0-9]+\..*$
