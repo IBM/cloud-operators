@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= cloud-operators/ibmcloud-operator
+IMG ?= cloudoperators/ibmcloud-operator
 TAG ?= 0.1.0
 GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
