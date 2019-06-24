@@ -38,7 +38,7 @@ make docker-push
 
 u::header "installing CRDs, operators and secrets"
 
-hack/install-operators.sh
+hack/install-operator.sh
 object::wait_operator_ready
 
 cd $ROOT/test/e2e
