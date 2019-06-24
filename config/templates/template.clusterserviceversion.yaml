@@ -37,53 +37,27 @@ spec:
 
     ## Requirements
 
-    You can install the operator in OpenShift V4+ or any Kubernetes cluster enabled with the 
-    Operator Lifecycle Manager and Operator Marketplace. You need to have an IBM Cloud account 
-    and the IBM Cloud CLI. 
+    The operator can be installed any Kubernetes cluster with version >= 1.11. You need to have an 
+    [IBM Cloud account](https://cloud.ibm.com/registration) and the 
+    [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started).
+    You need also to have the [kubectl CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl/)  
+    already configured to access your cluster. Before installing the operator, you need to login to 
+    IBM cloud with the IBM Cloud CLI:
     
-    Before installing the operator, you need to login to IBM cloud with the IBM Cloud CLI, set a target
-    environment with the `ibmcloud target` command and generate your IBM Cloud API key and 
-    setup your default cloud context with the following commands:
+        ibmcloud login
+    
+    and set a target environment for your resources with the command:
+   
+        ibmcloud target --cf
+      
+    you can then configure the operator running the following script:
 
-        IC_APIKEY=$(ibmcloud iam api-key-create icop-key -d "Key for IBM Cloud Operator" | grep "API Key" | awk '{ print $3 }')
-        IC_TARGET=$(ibmcloud target) \
-        IC_ORG=$(echo "$IC_TARGET" | grep Org | awk '{print $2}')  \
-        IC_SPACE=$(echo "$IC_TARGET" | grep Space | awk '{print $2}') \
-        IC_REGION=$(echo "$IC_TARGET" | grep Region | awk '{print $2}') \
-        IC_GROUP=$(echo "$IC_TARGET" | grep 'Resource' | awk '{print $3}')
-        B64_APIKEY=$(echo -n $IC_APIKEY | base64)
-        B64_REGION=$(echo -n $IC_REGION | base64)
-
-    Then, create a secret with your API key with the command:
-
-        cat <<EOF | kubectl create -f -
-        apiVersion: v1
-        kind: Secret
-        metadata:
-            name: seed-secret
-            labels:
-              seed.ibm.com/ibmcloud-token: "apikey"
-            namespace: default
-        type: Opaque
-        data:
-            api-key: $B64_APIKEY
-            region: $B64_REGION
-        EOF
-
-    Finally, create a config map to store your default context with the command:
-
-        cat <<EOF | kubectl create -f -
-        apiVersion: v1
-        kind: ConfigMap
-        metadata:
-          name: seed-defaults
-          namespace: default
-        data:
-          org: $IC_ORG
-          region: $IC_REGION
-          resourceGroup: $IC_GROUP
-          space: $IC_SPACE
-        EOF
+        curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/config-operator.sh | bash 
+    
+    The script above creates an IBM Cloud API Key and stores it in a Kubernetes secret that can be
+    accessed by the operator, and it sets defaults such as the default resource group and region 
+    used to provision IBM Cloud Services. For more information on using the operator, consult 
+    the [IBM Cloud Operaor documentation](https://github.com/IBM/cloud-operators).
 
   keywords: ['IBM','Cloud']
   version: PLACEHOLDER
