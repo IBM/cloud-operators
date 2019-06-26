@@ -6,14 +6,14 @@ as well as the guidelines we follow for how our documents are formatted.
 ## Table of Contents
 * [Reporting an Issue](#reporting-an-issue)
 * [Suggesting a Change](#suggesting-a-change)
-* [Spec Formatting Conventions](#spec-formatting-conventions)
+* [Code Style](#code-style)
 
 ## Reporting an Issue
 
 To report an issue, or to suggest an idea for a change that you haven't
 had time to write-up yet, open an
-[issue](https://github.com/IBM/kui/issues). It is best to check
-our existing [issues](https://github.com/IBM/kui/issues) first
+[issue](https://github.com/IBM/cloud-operators/issues). It is best to check
+our existing [issues](https://github.com/IBM/cloud-operators/issues) first
 to see if a similar one has already been opened and discussed.
 
 ## Suggesting a Change
@@ -21,14 +21,14 @@ to see if a similar one has already been opened and discussed.
 To suggest a change to this repository, submit a [pull
 request](https://github.com/IBM/kui/pulls)(PR) with the complete
 set of changes you'd like to see. See the
-[Spec Formatting Conventions](#spec-formatting-conventions) section for
+[Code Style](#code-style) section for
 the guidelines we follow for how documents are formatted.
 
 Each PR must be signed per the following section.
 
 ### Assigning and Owning work
 
-If you want to own and work on an issue, add a comment or “#dibs” it asking
+If you want to own and work on an issue, add a comment asking
 about ownership. A maintainer will then add the Assigned label and modify
 the first comment in the issue to include `Assigned to: @person`
 
@@ -44,7 +44,7 @@ type(component?): message
 
 *type* is one of: feat, fix, docs, chore, style, refactor, perf, test
 
-*component* optionally is the name of the module you are fixing; either "core" or a named module in `plugins/` directory. Note: Please specify the full name of the module (e.g. plugin-bash-like) instead of abbreviation. It helps us generate the correct CHANGELOG.md.
+*component* optionally is the name of the module you are fixing.
 
 #### Sign your work
 
@@ -116,9 +116,7 @@ Date:   Thu Feb 2 11:41:15 2018 -0800
 Notice the `Author` and `Signed-off-by` lines match. If they don't
 your PR will be rejected by the automated DCO check.
 
-## Spec Formatting Conventions
+## Code style
 
-Documents in this repository will adhere to the following rules:
-  * Lines are wrapped at 80 columns (when possible)
-  * Specifications will use [RFC2119](https://tools.ietf.org/html/rfc2119)
-    keywords to indicate normative requirements
+The coding style suggested by the Golang community is used in this project. 
+See the [style doc](https://github.com/golang/go/wiki/CodeReviewComments) for details.

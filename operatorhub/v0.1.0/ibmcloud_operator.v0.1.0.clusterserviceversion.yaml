@@ -3,14 +3,15 @@ kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: |-
-      [{"kind": "Service", "spec": {"externalName": "myeventstreams", "serviceClass": "messagehub", "plan": "standard"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams"}}, {"kind": "Binding", "spec": {"serviceName": "myeventstreams"}, "apiVersion": "ibmcloud.ibm.com/v1alpha1", "metadata": {"name": "myeventstreams-binding"}}]
+      [{"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Service", "metadata": {"name": "mytranslator"}, "spec": {"serviceClass": "language-translator", "plan": "lite"}}, {"apiVersion": "ibmcloud.ibm.com/v1alpha1", "kind": "Binding", "metadata": {"name": "mytranslator-binding"}, "spec": {"serviceName": "mytranslator"}}]
     capabilities: Basic Install
     categories: Cloud Provider
     certified: 'false'
     containerImage: cloudoperators/ibmcloud-operator:0.1.0
-    createdAt: '2019-06-24T08:45:38Z'
-    description: The IBM Cloud Service Operator provides a Kubernetes CRD-Based API
-      to manage the lifecycle of IBM public cloud services.
+    createdAt: '2019-06-25T20:39:26Z'
+    description: The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage
+      the lifecycle of IBM public cloud services.
+    repository: https://github.com/IBM/cloud-operators
     support: IBM
   name: ibmcloud-operator.v0.1.0
   namespace: placeholder
@@ -28,28 +29,53 @@ spec:
       kind: Binding
       name: bindings.ibmcloud.ibm.com
       version: v1alpha1
-  description: "The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage\
-    \ the lifecycle of  IBM public cloud services. This operator allows to provision\
-    \ and bind any of the 130+  IBM public cloud services from your Kubernetes cluster,\
-    \ using Custom Resource Definitions  (CRDs) for Services and Bindings.\n## Supported\
-    \ Features\n* **Supports both Resource Controller-enabled and legacy services**\
-    \ - You can provision any service available in the IBM Cloud catalog.\n* **Bindings\
-    \ Managment** - Automatically creates secrets with the credentail to bind to any\
-    \ provisioned service.\n* **Bind Only Mode** - You do not need to provision a\
-    \ service to bind it. A binding can be created for existing services.\n## Requirements\n\
-    The operator can be installed any Kubernetes cluster with version >= 1.11. You\
-    \ need to have an  [IBM Cloud account](https://cloud.ibm.com/registration) and\
-    \ the  [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started).\
+  description: "The IBM Cloud Operator provides a simple Kubernetes CRD-Based API\
+    \ to provision and bind  IBM public cloud services on your Kubernetes cluster.\
+    \ With this operator, you no longer need out-of-band processes to consume IBM\
+    \ Cloud Services in your application;  you can simply provide service and binding\
+    \ custom resources as part of your Kubernetes  application templates and let the\
+    \ operator reconciliation logic ensure that the required  resources are automatically\
+    \ created.\nThe IBM Cloud Operator is currently in preview. It will get updated\
+    \ as we release new versions of the [upstream repository](https://github.com/IBM/cloud-operators).\n\
+    ## Features\n* **Service Provisioning** - supports provisioning for any service\
+    \ and plan available in the IBM Cloud catalog.\n* **Bindings Management** - automatically\
+    \ creates secrets with the credentials to bind to any provisioned service.\n##\
+    \ Requirements\nThe operator can be installed on any OLM-enabled Kubernetes cluster\
+    \ with version >= 1.11.  You need an [IBM Cloud account](https://cloud.ibm.com/registration)\
+    \ and the  [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started).\
     \ You need also to have the [kubectl CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl/)\
     \   already configured to access your cluster. Before installing the operator,\
-    \ you need to login to  IBM cloud with the IBM Cloud CLI:\n\n    ibmcloud login\n\
-    \nand set a target environment for your resources with the command:\n\n    ibmcloud\
-    \ target --cf\n  \nyou can then configure the operator running the following script:\n\
-    \n    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/config-operator.sh\
+    \ you need to login to  your IBM cloud account with the IBM Cloud CLI:\n\n   \
+    \ ibmcloud login\n\nand set a default target environment for your resources with\
+    \ the command:\n\n    ibmcloud target --cf\n  \nyou can then configure the operator\
+    \ running the following script:\n\n    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/config-operator.sh\
     \ | bash \n\nThe script above creates an IBM Cloud API Key and stores it in a\
     \ Kubernetes secret that can be accessed by the operator, and it sets defaults\
     \ such as the default resource group and region  used to provision IBM Cloud Services.\
-    \ For more information on using the operator, consult  the [IBM Cloud Operaor\
+    \ You can always override the defaults in the `Service` custom resource. If you\
+    \ prefer to create the secret and the defaults manually, consult the [IBM Cloud\
+    \ Operator documentation](https://github.com/IBM/cloud-operators).\n## Using the\
+    \ IBM Cloud Operator\nYou can create an instance of an IBM public cloud service\
+    \ using the following custom resource:\n\n    apiVersion: ibmcloud.ibm.com/v1alpha1\n\
+    \    kind: Service\n    metadata:\n      name: myservice\n    spec:\n      plan:\
+    \ <PLAN>\n      serviceClass: <SERVICE_CLASS>\n\nto find the value for `<SERVICE_CLASS>`,\
+    \ you can list the names of all IBM public cloud  services with the command:\n\
+    \n    ibmcloud catalog service-marketplace\n\nonce you find the `<SERVICE_CLASS>`\
+    \ name, you can list the available plans to select a `<PLAN>` with the command:\n\
+    \n    ibmcloud catalog service <SERVICE_CLASS> | grep plan\n\nAfter creating a\
+    \ service, you can find its status with:\n\n    kubectl get services.ibmcloud\
+    \ \n    NAME           STATUS   AGE\n    myservice      Online   12s\n\nYou can\
+    \ bind to a service with name `myservice` using the following custom resource:\n\
+    \n    apiVersion: ibmcloud.ibm.com/v1alpha1\n    kind: Binding\n    metadata:\n\
+    \      name: mybinding\n    spec:\n      serviceName: myservice\n\nTo find the\
+    \ status of your binding, you can run the command:\n\n    kubectl get bindings.ibmcloud\
+    \ \n    NAME                 STATUS   AGE\n    mybinding            Online   25s\n\
+    \nA `Binding` generates a secret with the same name as the binding resource and\
+    \  contains service credentials that can be consumed by your application.\n\n\
+    \    kubectl get secrets\n    NAME                       TYPE                \
+    \                  DATA   AGE\n    mybinding                  Opaque         \
+    \                       6      102s\n\nFor additional configuration options, samples\
+    \ and more information on using the operator, consult  the [IBM Cloud Operator\
     \ documentation](https://github.com/IBM/cloud-operators).\n"
   displayName: IBM Cloud Operator
   icon:
