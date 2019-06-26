@@ -101,6 +101,42 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - buckets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - buckets/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - buckets/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
   - apps
   resources:
   - deployments
