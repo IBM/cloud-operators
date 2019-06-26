@@ -23,6 +23,7 @@ import shutil
 import yaml
 import datetime
 import json
+from collections import OrderedDict
 
 
 parser = argparse.ArgumentParser(description='Package bundle for OperatorHub')
@@ -237,7 +238,7 @@ with open(os.path.join(config,"templates","template.clusterserviceversion.yaml")
             owned['version'] = crd_version
             csv['spec']['customresourcedefinitions']['owned'].append(owned)
             # add examples
-            ex = json.loads(defs['crd'][i]['example'])
+            ex = json.loads(defs['crd'][i]['example'].decode('utf-8'), object_pairs_hook=OrderedDict)
             alm_examples.append(ex)
         else:
             print("WARNING: kind %s not found!" % kind)    
