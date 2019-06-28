@@ -12,6 +12,7 @@ before_script:
  
 before_install:
   - source ./tools/travis/travis-env.sh
+  - source ./hack/latest_tag
   - ./tools/travis/k8s-tools.sh
   - ./tools/travis/set-kube-config.sh
   - ./tools/travis/bx-install.sh
@@ -19,7 +20,6 @@ before_install:
 
 script:
   - make generate
-  - hack/update-codegen.sh
   - make lintall
   - make test
   - test/e2e/test.sh
