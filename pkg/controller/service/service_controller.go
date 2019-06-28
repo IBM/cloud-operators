@@ -41,6 +41,7 @@ import (
 var logt = logf.Log.WithName("service")
 
 const serviceFinalizer = "service.ibmcloud.ibm.com"
+const selfHealingKey = "ibmcloud.ibm.com/self-healing"
 
 // ContainsFinalizer checks if the instance contains service finalizer
 func ContainsFinalizer(instance *ibmcloudv1alpha1.Service) bool {
@@ -176,6 +177,20 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
+	// check is the self-healing annotation is declared
+	selfHealing := false
+	v, ok := instance.ObjectMeta.GetAnnotations()[selfHealingKey]
+	if ok {
+		if v == "enabled" {
+			logt.Info("Found annotation ", selfHealingKey, "=", v, " self healing is enabled")
+			selfHealing = true
+		} else {
+			logt.Info("Found annotation ", selfHealingKey, "=", v, " but self healing is NOT enabled")
+		}
+	} else {
+		logt.Info("Annotation ", selfHealingKey, " not found - self Healing is NOT enabled")
+	}
+
 	/*
 		There is a representation invariant that is maintained by this code.
 		When the Status.InstanceID is set, then the Plan, ServiceClass are also set in the Status,
@@ -223,7 +238,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
 		serviceInstance, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
 		if err != nil {
-			if strings.Contains(err.Error(), "doesn't exist") {
+			if strings.Contains(err.Error(), "doesn't exist") && selfHealing {
 				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 				serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
 					Name:      instance.ObjectMeta.Name,
@@ -287,7 +302,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		serviceInstance, err := GetServiceInstance(serviceInstances, instance.Status.InstanceID)
-		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
+		if err != nil && strings.Contains(err.Error(), "not found") && selfHealing { // Need to recreate it!
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
 			if err := r.Status().Update(context.Background(), instance); err != nil {

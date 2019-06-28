@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: mytranslator
   namespace: default
+  annotations:
+    ibmcloud.ibm.com/self-healing: enabled
 spec:
   plan: lite
   serviceClass: language-translator
