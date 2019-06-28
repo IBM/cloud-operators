@@ -59,7 +59,7 @@ function cleanup() {
     git checkout -
     git branch -D e2e-test
     rm git-rev 2> /dev/null
-    rm  -r operatorhub/ve2e-test/ 2> /dev/null
+    rm  -r olm/ve2e-test/ 2> /dev/null
     rm -r releases/ve2e-test/ 2> /dev/null
   fi  
 }

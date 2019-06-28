@@ -72,7 +72,7 @@ script_home=os.path.dirname(os.path.realpath(__file__))
 os.chdir(script_home)
 config = os.path.join(script_home,"..","config")
 releases=os.path.join(script_home,"..","releases",args.version)
-operatorhub=os.path.join(script_home,"..","operatorhub",args.version)
+olm=os.path.join(script_home,"..","olm",args.version)
 latest=os.path.join(script_home,"..","releases","latest")
 
 # load defaults 
@@ -82,8 +82,8 @@ with open(os.path.join(config,"templates","defaults.yaml"), 'r') as stream:
 # generate the directories for version if not already existing & create symlink for latest
 if not os.path.exists(releases):
     os.makedirs(releases)    
-if not os.path.exists(operatorhub):
-    os.makedirs(operatorhub)        
+if not os.path.exists(olm):
+    os.makedirs(olm)        
 if os.path.exists(latest):
     os.unlink(latest)
 os.symlink(os.path.join("..","releases",args.version), os.path.join("..","releases","latest"))      
@@ -154,7 +154,7 @@ for filename in os.listdir(releases):
     # we want only crds
     if (filename.find("v1alpha1")<0):
         continue
-    shutil.copyfile(os.path.join(releases,filename),os.path.join(operatorhub,rename_crd(filename)))
+    shutil.copyfile(os.path.join(releases,filename),os.path.join(olm,rename_crd(filename)))
 
 # copy package file
 with open(os.path.join(config,"templates","template.package.yaml"), 'r') as stream:
@@ -163,7 +163,7 @@ with open(os.path.join(config,"templates","template.package.yaml"), 'r') as stre
     pkg['channels'][0]['name'] = defs['channel_name']
     pkg['packageName'] = defs['operator_name']
 
-    with open(os.path.join(operatorhub,"ibmcloud_operator.package.yaml"), "w") as outfile:
+    with open(os.path.join(olm,"ibmcloud_operator.package.yaml"), "w") as outfile:
         yaml.dump(pkg, outfile, default_flow_style=False)
  
 # fill in cluster service version from template, deployment and roles
@@ -236,6 +236,9 @@ with open(os.path.join(config,"templates","template.clusterserviceversion.yaml")
             owned['kind'] = kind
             owned['name'] = crd_name
             owned['version'] = crd_version
+            owned['resources'] =  defs['crd'][i]['resources']
+            owned['specDescriptors'] =  defs['crd'][i]['specDescriptors']
+            owned['statusDescriptors'] =  defs['crd'][i]['statusDescriptors']
             csv['spec']['customresourcedefinitions']['owned'].append(owned)
             # add examples
             ex = json.loads(defs['crd'][i]['example'].decode('utf-8'), object_pairs_hook=OrderedDict)
@@ -246,7 +249,7 @@ with open(os.path.join(config,"templates","template.clusterserviceversion.yaml")
     csv['metadata']['annotations']['alm-examples'] = literal(json.dumps(alm_examples))
     
 
-    with open(os.path.join(operatorhub,"ibmcloud_operator."+args.version+".clusterserviceversion.yaml"), "w") as outfile:
+    with open(os.path.join(olm,"ibmcloud_operator."+args.version+".clusterserviceversion.yaml"), "w") as outfile:
         yaml.dump(csv, outfile, default_flow_style=False)
 
 with open(os.path.join(script_home,"latest_tag"), "w") as f:

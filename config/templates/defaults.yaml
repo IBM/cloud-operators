@@ -6,7 +6,7 @@ maturity: alpha
 image: cloudoperators/ibmcloud-operator
 crd:
     - kind: Service
-      description: IT Represents an instance of a Service resource on IBM Cloud.
+      description: Represents an instance of a Service resource on IBM Cloud.
       example: |-
         {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
             "kind": "Service",
@@ -18,8 +18,64 @@ crd:
             "plan": "lite"
             }
         }
+      resources:
+        - kind: Secret
+          version: v1
+        - kind: ConfigMap
+          version: v1
+        - kind: Binding
+          version: v1alpha1
+        - kind: Service
+          version: v1alpha1     
+      specDescriptors:        
+        - description: Service class is the name of the service from the IBM Cloud Catalog
+          displayName: Service Class
+          path: serviceClass
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+        - description: Plan for the service from the IBM Cloud Catalog
+          displayName: Plan
+          path: plan
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+      statusDescriptors:
+        - description: Detailed message on current status
+          displayName: Message
+          path: message
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Current plan for service
+          displayName: Plan
+          path: plan
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Current service class
+          displayName: Service Class
+          path: serviceClass
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Indicates if IAM type or legacy
+          displayName: Service Class Type
+          path: serviceClassType
+          x-descriptors:
+            - 'urn:alm:descriptor:text'  
+        - description: Current state for the service
+          displayName: State
+          path: state
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Current context for the service (resorce group, region, org, space)
+          displayName: Context
+          path: context
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Instance ID for the service
+          displayName: Instance ID
+          path: instanceId
+          x-descriptors:
+            - 'urn:alm:descriptor:text'      
     - kind: Binding
-      description: Represents an instance of a Service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
+      description: Represents an instance of a service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
       example: |-
         {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
             "kind": "Binding",
@@ -30,4 +86,30 @@ crd:
             "serviceName": "mytranslator"
             }
         }
+      resources:
+        - kind: Secret
+          version: v1
+        - kind: ConfigMap
+          version: v1
+        - kind: Binding
+          version: v1alpha1
+        - kind: Service
+          version: v1alpha1
+      specDescriptors:        
+        - description: Name of the service resource to bind
+          displayName: Service Name
+          path: serviceName
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+      statusDescriptors:
+        - description: Detailed message on current status
+          displayName: Message
+          path: message
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Current state for the binding
+          displayName: State
+          path: state
+          x-descriptors:
+            - 'urn:alm:descriptor:text'  
   
