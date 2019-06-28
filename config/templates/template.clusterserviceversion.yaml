@@ -21,11 +21,10 @@ spec:
     mediatype: image/png
   description: >
     The IBM Cloud Operator provides a simple Kubernetes CRD-Based API to provision and bind 
-    IBM public cloud services on your Kubernetes cluster. With this operator, you no longer need
-    out-of-band processes to consume IBM Cloud Services in your application; 
+    IBM public cloud services on your Kubernetes cluster. With this operator, 
     you can simply provide service and binding custom resources as part of your Kubernetes 
     application templates and let the operator reconciliation logic ensure that the required 
-    resources are automatically created.
+    services and credentials are automatically created and available for your application.
 
     The IBM Cloud Operator is currently in preview. It will get updated
     as we release new versions of the [upstream repository](https://github.com/IBM/cloud-operators).
@@ -57,7 +56,7 @@ spec:
         curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/config-operator.sh | bash 
     
     The script above creates an IBM Cloud API Key and stores it in a Kubernetes secret that can be
-    accessed by the operator, and it sets defaults such as the default resource group and region 
+    accessed by the operator, and it sets defaults such as the resource group and region 
     used to provision IBM Cloud Services. You can always override the defaults in the `Service` custom resource.
     If you prefer to create the secret and the defaults manually,
     consult the [IBM Cloud Operator documentation](https://github.com/IBM/cloud-operators).

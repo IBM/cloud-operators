@@ -8,7 +8,7 @@ metadata:
     categories: Cloud Provider
     certified: 'false'
     containerImage: cloudoperators/ibmcloud-operator:0.1.0
-    createdAt: '2019-06-25T20:39:26Z'
+    createdAt: '2019-06-28T11:56:22Z'
     description: The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage
       the lifecycle of IBM public cloud services.
     repository: https://github.com/IBM/cloud-operators
@@ -18,25 +18,107 @@ metadata:
 spec:
   customresourcedefinitions:
     owned:
-    - description: IT Represents an instance of a Service resource on IBM Cloud.
+    - description: Represents an instance of a Service resource on IBM Cloud.
       displayName: Service
       kind: Service
       name: services.ibmcloud.ibm.com
+      resources:
+      - kind: Secret
+        version: v1
+      - kind: ConfigMap
+        version: v1
+      - kind: Binding
+        version: v1alpha1
+      - kind: Service
+        version: v1alpha1
+      specDescriptors:
+      - description: Service class is the name of the service from the IBM Cloud Catalog
+        displayName: Service Class
+        path: serviceClass
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Plan for the service from the IBM Cloud Catalog
+        displayName: Plan
+        path: plan
+        x-descriptors:
+        - urn:alm:descriptor:text
+      statusDescriptors:
+      - description: Detailed message on current status
+        displayName: Message
+        path: message
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Current plan for service
+        displayName: Plan
+        path: plan
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Current service class
+        displayName: Service Class
+        path: serviceClass
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Indicates if IAM type or legacy
+        displayName: Service Class Type
+        path: serviceClassType
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Current state for the service
+        displayName: State
+        path: state
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Current context for the service (resorce group, region, org,
+          space)
+        displayName: Context
+        path: context
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Instance ID for the service
+        displayName: Instance ID
+        path: instanceId
+        x-descriptors:
+        - urn:alm:descriptor:text
       version: v1alpha1
-    - description: Represents an instance of a Service binding resource on IBM Cloud.
+    - description: Represents an instance of a service binding resource on IBM Cloud.
         A Binding creates a secret with the service instance credentials.
       displayName: Binding
       kind: Binding
       name: bindings.ibmcloud.ibm.com
+      resources:
+      - kind: Secret
+        version: v1
+      - kind: ConfigMap
+        version: v1
+      - kind: Binding
+        version: v1alpha1
+      - kind: Service
+        version: v1alpha1
+      specDescriptors:
+      - description: Name of the service resource to bind
+        displayName: Service Name
+        path: serviceName
+        x-descriptors:
+        - urn:alm:descriptor:text
+      statusDescriptors:
+      - description: Detailed message on current status
+        displayName: Message
+        path: message
+        x-descriptors:
+        - urn:alm:descriptor:text
+      - description: Current state for the binding
+        displayName: State
+        path: state
+        x-descriptors:
+        - urn:alm:descriptor:text
       version: v1alpha1
   description: "The IBM Cloud Operator provides a simple Kubernetes CRD-Based API\
     \ to provision and bind  IBM public cloud services on your Kubernetes cluster.\
-    \ With this operator, you no longer need out-of-band processes to consume IBM\
-    \ Cloud Services in your application;  you can simply provide service and binding\
-    \ custom resources as part of your Kubernetes  application templates and let the\
-    \ operator reconciliation logic ensure that the required  resources are automatically\
-    \ created.\nThe IBM Cloud Operator is currently in preview. It will get updated\
-    \ as we release new versions of the [upstream repository](https://github.com/IBM/cloud-operators).\n\
+    \ With this operator,  you can simply provide service and binding custom resources\
+    \ as part of your Kubernetes  application templates and let the operator reconciliation\
+    \ logic ensure that the required  services and credentials are automatically created\
+    \ and available for your application.\nThe IBM Cloud Operator is currently in\
+    \ preview. It will get updated as we release new versions of the [upstream repository](https://github.com/IBM/cloud-operators).\n\
     ## Features\n* **Service Provisioning** - supports provisioning for any service\
     \ and plan available in the IBM Cloud catalog.\n* **Bindings Management** - automatically\
     \ creates secrets with the credentials to bind to any provisioned service.\n##\
@@ -51,7 +133,7 @@ spec:
     \ running the following script:\n\n    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/config-operator.sh\
     \ | bash \n\nThe script above creates an IBM Cloud API Key and stores it in a\
     \ Kubernetes secret that can be accessed by the operator, and it sets defaults\
-    \ such as the default resource group and region  used to provision IBM Cloud Services.\
+    \ such as the resource group and region  used to provision IBM Cloud Services.\
     \ You can always override the defaults in the `Service` custom resource. If you\
     \ prefer to create the secret and the defaults manually, consult the [IBM Cloud\
     \ Operator documentation](https://github.com/IBM/cloud-operators).\n## Using the\
