@@ -41,6 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const aliasPlan = "Alias"
+
 // IBMCloudInfo kept all the needed client API resource and instance Info
 type IBMCloudInfo struct {
 	Session          *session.Session
@@ -230,16 +232,19 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 		// 	return nil, err
 		// }
 
-		serviceOfferingAPI := bxclient.ServiceOfferings()
-		myserviceOff, err := serviceOfferingAPI.FindByLabel(servicename)
-		if err != nil {
-			return nil, err
-		}
+		servicePlan := &mccpv2.ServicePlan{}
+		if instance.Spec.Plan != aliasPlan {
+			serviceOfferingAPI := bxclient.ServiceOfferings()
+			myserviceOff, err := serviceOfferingAPI.FindByLabel(servicename)
+			if err != nil {
+				return nil, err
+			}
 
-		servicePlanAPI := bxclient.ServicePlans()
-		servicePlan, err := servicePlanAPI.FindPlanInServiceOffering(myserviceOff.GUID, serviceplan)
-		if err != nil {
-			return nil, err
+			servicePlanAPI := bxclient.ServicePlans()
+			servicePlan, err = servicePlanAPI.FindPlanInServiceOffering(myserviceOff.GUID, serviceplan)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		ibmCloudInfo := IBMCloudInfo{

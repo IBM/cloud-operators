@@ -27,6 +27,7 @@ import (
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -162,10 +163,15 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	} else {
 		// The object is being deleted
 		if ContainsFinalizer(instance) {
-			err := r.deleteService(ibmCloudInfo, instance)
-			if err != nil {
-				logt.Info("Error deleting resource", instance.ObjectMeta.Name, err.Error())
-				return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
+			// service should only be deleted if NOT using plan `Alias`
+			if instance.Spec.Plan != aliasPlan {
+				err := r.deleteService(ibmCloudInfo, instance)
+				if err != nil {
+					logt.Info("Error deleting resource", instance.ObjectMeta.Name, err.Error())
+					return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
+				}
+			} else {
+				logt.Info("Service is using the `Alias` plan, since it is not managed by the operator it will not be deleted", "instance name:", instance.ObjectMeta.Name)
 			}
 
 			// remove our finalizer from the list and update it.
@@ -223,6 +229,19 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
 
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
+			// check if using the alias plan, in that case we need to use the existing instance
+			if instance.Spec.Plan == aliasPlan {
+				logt.Info("Using `Alias` plan, checking if instance exists")
+				// TODO - should use external name if defined
+				serviceInstance, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
+				if err != nil {
+					logt.Error(err, "Instance ", instance.ObjectMeta.Name, " with `Alias` plan does not exists")
+					return r.updateStatusError(instance, "Failed", err)
+				} else {
+					return r.updateStatus(instance, ibmCloudInfo, serviceInstance.GUID, resv1.ResourceStateOnline)
+				}
+			}
+
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
 				Name:      instance.ObjectMeta.Name,
@@ -236,6 +255,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
+		// TODO - should use external name if defined
 		serviceInstance, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
 		if err != nil {
 			if strings.Contains(err.Error(), "doesn't exist") && selfHealing {
