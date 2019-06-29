@@ -18,6 +18,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/ibm/cloud-operators/pkg/apis"
 	"github.com/ibm/cloud-operators/pkg/controller"
@@ -38,7 +39,8 @@ func main() {
 	}
 
 	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{})
+	syncPeriod := 30 * time.Second // set a sync period
+	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})
 	if err != nil {
 		log.Fatal(err)
 	}
