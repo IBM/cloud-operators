@@ -4,3 +4,4 @@ metadata:
   name: binding-translator
 spec:
   serviceName: mytranslator
+  secretName: translator-secret

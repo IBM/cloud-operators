@@ -272,10 +272,9 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			instance.Status.KeyInstanceID = keyInstanceID
 		}
 
-		secret := &corev1.Secret{}
-		err = r.Get(context.Background(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
+		secret, err := GetSecret(r, instance)
 		if err != nil {
-			logt.Info("Secret does not exist", "Recreating", instance.ObjectMeta.Name)
+			logt.Info("Secret does not exist", "Recreating", getSecretName(instance))
 			err = r.createSecret(instance, keyContents)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
@@ -469,7 +468,7 @@ func (r *ReconcileBinding) createSecret(instance *ibmcloudv1alpha1.Binding, keyC
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: instance.ObjectMeta.Name,
+			Name: getSecretName(instance),
 			Annotations: map[string]string{
 				"service-instance-id": instance.Status.InstanceID,
 				"service-key-id":      instance.Status.KeyInstanceID,
@@ -506,8 +505,7 @@ func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding,
 			return err
 		}
 	}
-	secret := &corev1.Secret{}
-	err := r.Get(context.Background(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
+	secret, err := GetSecret(r, instance)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil
@@ -523,6 +521,14 @@ func (r *ReconcileBinding) deleteSecret(secret *corev1.Secret) error {
 		return err
 	}
 	return nil
+}
+
+func getSecretName(instance *ibmcloudv1alpha1.Binding) string {
+	secretName := instance.ObjectMeta.Name
+	if instance.Spec.SecretName != "" {
+		secretName = instance.Spec.SecretName
+	}
+	return secretName
 }
 
 func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
