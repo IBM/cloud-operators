@@ -43,6 +43,7 @@ var logt = logf.Log.WithName("service")
 
 const serviceFinalizer = "service.ibmcloud.ibm.com"
 const selfHealingKey = "ibmcloud.ibm.com/self-healing"
+const instanceIDKey = "ibmcloud.ibm.com/instanceId"
 
 // ContainsFinalizer checks if the instance contains service finalizer
 func ContainsFinalizer(instance *ibmcloudv1alpha1.Service) bool {
@@ -151,6 +152,14 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		return r.updateStatusError(instance, "Failed", err)
 	}
 
+	// check is the self-healing annotation is declared
+	selfHealing := isSelfHealing(instance)
+
+	// Self healing cannot be used with Alias plan - if that is the case fail !
+	if selfHealing && strings.ToLower(instance.Spec.Plan) == aliasPlan {
+		return r.updateStatusError(instance, "Failed", fmt.Errorf("self healing annotation for instance %s cannot be used witb Alias plan", instance.ObjectMeta.Name))
+	}
+
 	// Delete if necessary
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// Instance is not being deleted, add the finalizer if not present
@@ -164,7 +173,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		// The object is being deleted
 		if ContainsFinalizer(instance) {
 			// service should only be deleted if NOT using plan `Alias`
-			if instance.Spec.Plan != aliasPlan {
+			if strings.ToLower(instance.Spec.Plan) != aliasPlan {
 				err := r.deleteService(ibmCloudInfo, instance)
 				if err != nil {
 					logt.Info("Error deleting resource", instance.ObjectMeta.Name, err.Error())
@@ -181,20 +190,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			return reconcile.Result{}, nil
 		}
-	}
-
-	// check is the self-healing annotation is declared
-	selfHealing := false
-	v, ok := instance.ObjectMeta.GetAnnotations()[selfHealingKey]
-	if ok {
-		if v == "enabled" {
-			logt.Info("Found annotation ", selfHealingKey, "=", v, " self healing is enabled")
-			selfHealing = true
-		} else {
-			logt.Info("Found annotation ", selfHealingKey, "=", v, " but self healing is NOT enabled")
-		}
-	} else {
-		logt.Info("Annotation ", selfHealingKey, " not found - self Healing is NOT enabled")
 	}
 
 	/*
@@ -230,7 +225,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
 			// check if using the alias plan, in that case we need to use the existing instance
-			if instance.Spec.Plan == aliasPlan {
+			if strings.ToLower(instance.Spec.Plan) == aliasPlan {
 				logt.Info("Using `Alias` plan, checking if instance exists")
 				// TODO - should use external name if defined
 				serviceInstance, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
@@ -277,7 +272,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		// Verfication was successful, service exists, update the status if necessary
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.LastOperation.State)
 
-	} else { // Resource is not CF
+	} else { // resource is not CF
 		controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
 		if err != nil {
 			return r.updateStatusError(instance, "Pending", err)
@@ -292,6 +287,41 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
+			// check if using the alias plan, in that case we need to use the existing instance
+			if strings.ToLower(instance.Spec.Plan) == aliasPlan {
+				logt.Info("Using `Alias` plan, checking if instance exists")
+				serviceInstanceQuery := bxcontroller.ServiceInstanceQuery{
+					// Warning: Do not add the ServiceID to this query
+					ResourceGroupID: ibmCloudInfo.ResourceGroupID,
+					ServicePlanID:   ibmCloudInfo.ServicePlanID,
+					Name:            instance.ObjectMeta.Name,
+				}
+
+				serviceInstances, err := resServiceInstanceAPI.ListInstances(serviceInstanceQuery)
+				if err != nil {
+					return r.updateStatusError(instance, "Pending", err)
+				}
+				// if only one instance with that name is found, then instanceID is not required
+				if len(serviceInstances) == 1 {
+					logt.Info("Found 1 service instance for `Alias` plan:", "Name", instance.ObjectMeta.Name, "InstanceID", serviceInstances[0].ID)
+					return r.updateStatus(instance, ibmCloudInfo, serviceInstances[0].ID, serviceInstances[0].State)
+				}
+
+				// if there is more then 1 service instance with the same name, then the instance ID annotation must be present
+				serviceID, ok := instance.ObjectMeta.GetAnnotations()[instanceIDKey]
+				logt.Info("Multiple service instances for `Alias` plan and instance", "Name", instance.ObjectMeta.Name)
+				if ok {
+					serviceInstance, err := GetServiceInstance(serviceInstances, serviceID)
+					if err != nil {
+						r.updateStatusError(instance, "Failed", err)
+					}
+					logt.Info("Found service instances for `Alias` plan and instance", "Name", instance.ObjectMeta.Name, "InstanceID", serviceID)
+					return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
+				} else {
+					return r.updateStatusError(instance, "Failed", fmt.Errorf("Plan `Alias` in use requires `ibmcloud.ibm.com/instanceId` annotation for service %s", instance.ObjectMeta.Name))
+				}
+			}
+
 			// Create the instance
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
@@ -338,7 +368,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
-		// Verfication was successful, service exists, update the status if necessary
+		// Verification was successful, service exists, update the status if necessary
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.State)
 
 	}
@@ -361,7 +391,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 	instance.Status.InstanceID = instanceID
 	setStatusFieldsFromSpec(instance, ibmCloudInfo)
 	err := r.Status().Update(context.Background(), instance)
-	if err != nil {
+	if err != nil && isSelfHealing(instance) {
 		logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
 		err = r.deleteService(ibmCloudInfo, instance)
 		if err != nil {
@@ -471,4 +501,21 @@ func specChanged(instance *ibmcloudv1alpha1.Service) bool {
 		return true
 	}
 	return false
+}
+
+// check if self healing is enabled
+func isSelfHealing(instance *ibmcloudv1alpha1.Service) bool {
+	selfHealing := false
+	v, ok := instance.ObjectMeta.GetAnnotations()[selfHealingKey]
+	if ok {
+		if v == "enabled" {
+			logt.Info("Found annotation ", selfHealingKey, "=", v, " self healing is enabled")
+			selfHealing = true
+		} else {
+			logt.Info("Found annotation ", selfHealingKey, "=", v, " but self healing is NOT enabled")
+		}
+	} else {
+		logt.Info("Annotation ", selfHealingKey, " not found - self Healing is NOT enabled")
+	}
+	return selfHealing
 }

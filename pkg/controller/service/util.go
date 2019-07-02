@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	bx "github.com/IBM-Cloud/bluemix-go"
 	"github.com/IBM-Cloud/bluemix-go/api/account/accountv2"
@@ -41,7 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const aliasPlan = "Alias"
+const aliasPlan = "alias"
 
 // IBMCloudInfo kept all the needed client API resource and instance Info
 type IBMCloudInfo struct {
@@ -233,7 +234,7 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 		// }
 
 		servicePlan := &mccpv2.ServicePlan{}
-		if instance.Spec.Plan != aliasPlan {
+		if strings.ToLower(instance.Spec.Plan) != aliasPlan {
 			serviceOfferingAPI := bxclient.ServiceOfferings()
 			myserviceOff, err := serviceOfferingAPI.FindByLabel(servicename)
 			if err != nil {
@@ -294,45 +295,50 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			return nil, err
 		}
 
-		servicePlanID, err := resCatalogAPI.GetServicePlanID(service[0], serviceplan)
-		if err != nil {
-			return nil, err
-		}
-		if servicePlanID == "" {
-			_, err := resCatalogAPI.GetServicePlan(serviceplan)
+		servicePlanID := ""
+		catalogCRN := ""
+		if strings.ToLower(instance.Spec.Plan) != aliasPlan {
+			servicePlanID, err = resCatalogAPI.GetServicePlanID(service[0], serviceplan)
 			if err != nil {
 				return nil, err
 			}
-			servicePlanID = serviceplan
-		}
+			if servicePlanID == "" {
+				_, err := resCatalogAPI.GetServicePlan(serviceplan)
+				if err != nil {
+					return nil, err
+				}
+				servicePlanID = serviceplan
+			}
 
-		deployments, err := resCatalogAPI.ListDeployments(servicePlanID)
-		if err != nil {
-			return nil, err
-		}
+			deployments, err := resCatalogAPI.ListDeployments(servicePlanID)
+			if err != nil {
+				return nil, err
+			}
 
-		if len(deployments) == 0 {
-			return nil, fmt.Errorf("Failed: No deployment found for service plan : %s", serviceplan)
-		}
+			if len(deployments) == 0 {
+				return nil, fmt.Errorf("Failed: No deployment found for service plan : %s", serviceplan)
+			}
 
-		supportedDeployments := []models.ServiceDeployment{}
-		supportedLocations := make(map[string]bool)
-		for _, d := range deployments {
-			if d.Metadata.RCCompatible {
-				deploymentLocation := d.Metadata.Deployment.Location
-				supportedLocations[deploymentLocation] = true
-				if deploymentLocation == useCtx.Region {
-					supportedDeployments = append(supportedDeployments, d)
+			supportedDeployments := []models.ServiceDeployment{}
+			supportedLocations := make(map[string]bool)
+			for _, d := range deployments {
+				if d.Metadata.RCCompatible {
+					deploymentLocation := d.Metadata.Deployment.Location
+					supportedLocations[deploymentLocation] = true
+					if deploymentLocation == useCtx.Region {
+						supportedDeployments = append(supportedDeployments, d)
+					}
 				}
 			}
-		}
 
-		if len(supportedDeployments) == 0 {
-			locationList := make([]string, 0, len(supportedLocations))
-			for l := range supportedLocations {
-				locationList = append(locationList, l)
+			if len(supportedDeployments) == 0 {
+				locationList := make([]string, 0, len(supportedLocations))
+				for l := range supportedLocations {
+					locationList = append(locationList, l)
+				}
+				return nil, fmt.Errorf("Failed: No deployment found for service plan %s at location %s. Valid location(s) are: %q.\nUse service instance example if the service is a Cloud Foundry service", serviceplan, useCtx.Region, locationList)
 			}
-			return nil, fmt.Errorf("Failed: No deployment found for service plan %s at location %s. Valid location(s) are: %q.\nUse service instance example if the service is a Cloud Foundry service", serviceplan, useCtx.Region, locationList)
+			catalogCRN = supportedDeployments[0].CatalogCRN
 		}
 
 		managementClient, err := management.New(sess)
@@ -384,7 +390,7 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			ServiceClassType: servicetype,
 			ServicePlan:      serviceplan,
 			ServicePlanID:    servicePlanID,
-			TargetCrn:        supportedDeployments[0].CatalogCRN,
+			TargetCrn:        catalogCRN,
 			Context:          useCtx,
 		}
 		return &ibmCloudInfo, nil

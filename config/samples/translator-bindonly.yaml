@@ -1,0 +1,8 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mytranslator
+  namespace: default
+spec:
+  plan: Alias
+  serviceClass: language-translator
