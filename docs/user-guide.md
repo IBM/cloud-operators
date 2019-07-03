@@ -95,8 +95,8 @@ spec:
   serviceClass: language-translator
 ```
 
-Note that self-healing cannot be used together with the `Alias` plan; such combination is invalid and 
-generates an error.
+Note that self-healing cannot be used together with the `Alias` plan. The `Alias` plan overrides
+and disables self healing, and generates a warning in the logs.
 
 For CF-type services, the name is unique within a context (org & space), therefore the name is sufficient
 to identify an existing service instance. 

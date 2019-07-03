@@ -301,24 +301,38 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				if err != nil {
 					return r.updateStatusError(instance, "Pending", err)
 				}
-				// if only one instance with that name is found, then instanceID is not required
+				if len(serviceInstances) == 0 {
+					return r.updateStatusError(instance, "Failed", fmt.Errorf("No service instances with name %s found for alias plan", instance.ObjectMeta.Name))
+				}
+
+				// check if there is an annotation for service ID
+				serviceID, annotationFound := instance.ObjectMeta.GetAnnotations()[instanceIDKey]
+
+				// if only one instance with that name is found, then instanceID is not required, but if present it should match the ID
 				if len(serviceInstances) == 1 {
 					logt.Info("Found 1 service instance for `Alias` plan:", "Name", instance.ObjectMeta.Name, "InstanceID", serviceInstances[0].ID)
+					if annotationFound { // check matches ID
+						if serviceID != serviceInstances[0].ID {
+							return r.updateStatusError(instance, "Failed", fmt.Errorf("service ID annotation %s for instance %s does not match instance ID %s found", serviceID, instance.ObjectMeta.Name, serviceInstances[0].ID))
+						}
+					}
 					return r.updateStatus(instance, ibmCloudInfo, serviceInstances[0].ID, serviceInstances[0].State)
 				}
 
 				// if there is more then 1 service instance with the same name, then the instance ID annotation must be present
-				serviceID, ok := instance.ObjectMeta.GetAnnotations()[instanceIDKey]
 				logt.Info("Multiple service instances for `Alias` plan and instance", "Name", instance.ObjectMeta.Name)
-				if ok {
+				if annotationFound {
 					serviceInstance, err := GetServiceInstance(serviceInstances, serviceID)
 					if err != nil {
 						r.updateStatusError(instance, "Failed", err)
 					}
+					if serviceInstance.ServiceID == "" {
+						return r.updateStatusError(instance, "Failed", fmt.Errorf("Could not find matching instance with name %s and serviceID %s", instance.ObjectMeta.Name, serviceID))
+					}
 					logt.Info("Found service instances for `Alias` plan and instance", "Name", instance.ObjectMeta.Name, "InstanceID", serviceID)
 					return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
 				} else {
-					return r.updateStatusError(instance, "Failed", fmt.Errorf("Plan `Alias` in use requires `ibmcloud.ibm.com/instanceId` annotation for service %s", instance.ObjectMeta.Name))
+					return r.updateStatusError(instance, "Failed", fmt.Errorf("multiple instance with same name found, and plan `Alias` requires `ibmcloud.ibm.com/instanceId` annotation for service %s", instance.ObjectMeta.Name))
 				}
 			}
 
@@ -516,6 +530,11 @@ func isSelfHealing(instance *ibmcloudv1alpha1.Service) bool {
 		}
 	} else {
 		logt.Info("Annotation ", selfHealingKey, " not found - self Healing is NOT enabled")
+	}
+	// check if using the alias plan - in this case self healing should be disabled but print a warning
+	if (strings.ToLower(instance.Spec.Plan) == aliasPlan) && selfHealing {
+		logt.Info("Warning: self healing annotation for cannot be used witb Alias plan. Setting self healing to false.", "instanceName", instance.ObjectMeta.Name)
+		selfHealing = false
 	}
 	return selfHealing
 }
