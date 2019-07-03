@@ -50,7 +50,7 @@ function cleanup() {
   set +e
   u::header "cleaning up..."
 
-  $ROOT/hack/uninstall-operators.sh
+  $ROOT/hack/uninstall-operator.sh
   if [ -z "$TRAVIS" ]
   then
     u::header  "Not running in Travis, removing test branch..."
