@@ -217,19 +217,6 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			return nil, err
 		}
 
-		// accClient, err := accountv2.New(sess)
-		// if err != nil {
-		// 	return nil, err
-		// }
-
-		// logt.Info("here4")
-
-		// accountAPI := accClient.Accounts()
-		// myAccount, err := accountAPI.FindByOrg(myorg.GUID, useCtx.Region)
-		// if err != nil {
-		// 	return nil, err
-		// }
-
 		serviceOfferingAPI := bxclient.ServiceOfferings()
 		myserviceOff, err := serviceOfferingAPI.FindByLabel(servicename)
 		if err != nil {
