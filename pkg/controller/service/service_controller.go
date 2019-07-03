@@ -155,11 +155,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	// check is the self-healing annotation is declared
 	selfHealing := isSelfHealing(instance)
 
-	// Self healing cannot be used with Alias plan - if that is the case fail !
-	if selfHealing && strings.ToLower(instance.Spec.Plan) == aliasPlan {
-		return r.updateStatusError(instance, "Failed", fmt.Errorf("self healing annotation for instance %s cannot be used witb Alias plan", instance.ObjectMeta.Name))
-	}
-
 	// Delete if necessary
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// Instance is not being deleted, add the finalizer if not present
