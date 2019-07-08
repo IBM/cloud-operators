@@ -214,10 +214,11 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		the updated spec.
 	*/
 
+	externalName := getExternalName(instance)
+
 	if ibmCloudInfo.ServiceClassType == "CF" {
 		logt.Info("ServiceInstance ", "is CF", instance.ObjectMeta.Name)
 		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
-
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
 			// check if using the alias plan, in that case we need to use the existing instance
 			if strings.ToLower(instance.Spec.Plan) == aliasPlan {
@@ -234,7 +235,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
-				Name:      instance.ObjectMeta.Name,
+				Name:      externalName,
 				PlanGUID:  ibmCloudInfo.BxPlan.GUID,
 				SpaceGUID: ibmCloudInfo.Space.GUID,
 			})
@@ -245,13 +246,12 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
-		// TODO - should use external name if defined
-		serviceInstance, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
+		serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
 		if err != nil {
 			if strings.Contains(err.Error(), "doesn't exist") && selfHealing {
 				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 				serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
-					Name:      instance.ObjectMeta.Name,
+					Name:      externalName,
 					PlanGUID:  ibmCloudInfo.BxPlan.GUID,
 					SpaceGUID: ibmCloudInfo.Space.GUID,
 				})
@@ -275,7 +275,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 		resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
 		var serviceInstancePayload = bxcontroller.CreateServiceInstanceRequest{
-			Name:            instance.ObjectMeta.Name,
+			Name:            externalName,
 			ServicePlanID:   ibmCloudInfo.ServicePlanID,
 			ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 			TargetCrn:       ibmCloudInfo.TargetCrn,
@@ -352,7 +352,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			// Warning: Do not add the ServiceID to this query
 			ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 			ServicePlanID:   ibmCloudInfo.ServicePlanID,
-			Name:            instance.ObjectMeta.Name,
+			Name:            externalName,
 		}
 
 		serviceInstances, err := resServiceInstanceAPI.ListInstances(serviceInstanceQuery)
@@ -381,6 +381,13 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.State)
 
 	}
+}
+
+func getExternalName(instance *ibmcloudv1alpha1.Service) string {
+	if instance.Spec.ExternalName != "" {
+		return instance.Spec.ExternalName
+	}
+	return instance.Name
 }
 
 // GetServiceInstance gets the instance with given ID
