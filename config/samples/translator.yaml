@@ -2,7 +2,6 @@ apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Service
 metadata:
   name: mytranslator
-  namespace: name1
   annotations:
     ibmcloud.ibm.com/self-healing: enabled
 spec:

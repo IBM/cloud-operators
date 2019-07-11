@@ -2,7 +2,6 @@ apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Binding
 metadata:
   name: binding-translator
-  namespace: name2
 spec:
   serviceName: mytranslator
   serviceNamespace: name1
