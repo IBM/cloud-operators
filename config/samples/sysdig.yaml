@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+    name: sysdiglite
+spec:
+    plan: lite
+    serviceClass: sysdig-monitor
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+    name: binding-sysdiglite
+spec:
+    serviceName: sysdiglite
