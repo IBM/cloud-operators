@@ -366,7 +366,7 @@ func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding
 func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 	ret := make(map[string][]byte)
 	for k, v := range keyContents {
-		keyString := strings.Replace(k, " ", "-SPACE-", -1)
+		keyString := strings.Replace(k, " ", "_", -1)
 		// need to re-marshal as json might have complex types, which need to be flattened in strings
 		jString, err := json.Marshal(v)
 		if err != nil {
