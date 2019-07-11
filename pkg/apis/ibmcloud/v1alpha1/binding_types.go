@@ -23,7 +23,8 @@ import (
 
 // BindingSpec defines the desired state of Binding
 type BindingSpec struct {
-	ServiceName string `json:"serviceName"`
+	ServiceName      string `json:"serviceName"`
+	ServiceNamespace string `json:"serviceNamespace,omitempty"`
 	// +optional
 	SecretName string `json:"secretName,omitempty"`
 	Role       string `json:"role,omitempty"`

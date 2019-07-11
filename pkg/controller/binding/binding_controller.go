@@ -98,8 +98,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create
-	// Uncomment watch a Deployment created by Binding - change this for objects you create
 	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &ibmcloudv1alpha1.Binding{},
@@ -353,9 +351,10 @@ func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding
 }
 
 func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding) (*ibmcloudv1alpha1.Service, error) {
-	// TODO - Assuming for now that Binding is being created in the same namespace as the service object
 	serviceNameSpace := instance.ObjectMeta.Namespace
-
+	if instance.Spec.ServiceNamespace != "" {
+		serviceNameSpace = instance.Spec.ServiceNamespace
+	}
 	serviceInstance := &ibmcloudv1alpha1.Service{}
 	err := r.Get(context.Background(), types.NamespacedName{Name: instance.Spec.ServiceName, Namespace: serviceNameSpace}, serviceInstance)
 	if err != nil {

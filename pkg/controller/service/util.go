@@ -43,6 +43,7 @@ import (
 )
 
 const aliasPlan = "alias"
+const defaultNamespace = "default"
 
 // IBMCloudInfo kept all the needed client API resource and instance Info
 type IBMCloudInfo struct {
@@ -75,19 +76,22 @@ func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config
 		EndpointLocator: bxendpoints.NewEndpointLocator("us-south"), // TODO: hard wired to us-south!!
 	}
 
-	// There is no token so use seed-secret
-	// TODO - Fix this, need to go to namespace ibmcloud-operators if the base namespace doesn't have seed-secrets
 	secretName := "seed-secret"
-	secretNameSpace := "ibmcloud-operators"
-	if instance.ObjectMeta.Namespace != "" {
-		secretNameSpace = instance.ObjectMeta.Namespace
-	}
+	secretNameSpace := instance.ObjectMeta.Namespace
 
 	secret := &v1.Secret{}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
 	if err != nil {
-		logt.Info("Unable to get secret", "Error", err)
-		return c, err
+		if strings.Contains(err.Error(), "not found") {
+			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: defaultNamespace}, secret)
+			if err != nil {
+				logt.Info("Unable to get secret in namespace", defaultNamespace, err)
+				return c, err
+			}
+		} else {
+			logt.Info("Unable to get secret", "Error", err)
+			return c, err
+		}
 	}
 
 	APIKey := string(secret.Data["api-key"])
@@ -112,15 +116,21 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 
 	cm := &v1.ConfigMap{}
 	cmName := "seed-defaults"
-	cmNameSpace := "ibmcloud-operators"
-	if instance.ObjectMeta.Namespace != "" {
-		cmNameSpace = instance.ObjectMeta.Namespace
-	}
+	cmNameSpace := instance.ObjectMeta.Namespace
 
 	err := r.Get(context.Background(), types.NamespacedName{Namespace: cmNameSpace, Name: cmName}, cm)
 	if err != nil {
-		logt.Info("Failed to find ConfigMap in namespace (in Service)", cmNameSpace, err)
-		return icv1.ResourceContext{}, err
+		if strings.Contains(err.Error(), "not found") {
+			err = r.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: defaultNamespace}, cm)
+			if err != nil {
+				logt.Info("Failed to find ConfigMap in namespace (in Service)", defaultNamespace, err)
+				return icv1.ResourceContext{}, err
+			}
+		} else {
+			logt.Info("Failed to find ConfigMap in namespace (in Service)", cmNameSpace, err)
+			return icv1.ResourceContext{}, err
+		}
+
 	}
 	ibmCloudContext := getIBMCloudContext(instance, cm)
 	return ibmCloudContext, nil
@@ -158,8 +168,16 @@ func getIamToken(r client.Client, instance *ibmcloudv1alpha1.Service) (string, s
 	secret := &v1.Secret{}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
 	if err != nil {
-		logt.Info("Unable to get secret-secret-tokens", "Error", err)
-		return "", "", "", "", err
+		if strings.Contains(err.Error(), "not found") {
+			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: defaultNamespace}, secret)
+			if err != nil {
+				logt.Info("Unable to get secret in namespace", defaultNamespace, err)
+				return "", "", "", "", err
+			}
+		} else {
+			logt.Info("Unable to get secret", "Error", err)
+			return "", "", "", "", err
+		}
 	}
 
 	return string(secret.Data["access_token"]), string(secret.Data["refresh_token"]), string(secret.Data["uaa_refresh_token"]), string(secret.Data["uaa_token"]), nil
