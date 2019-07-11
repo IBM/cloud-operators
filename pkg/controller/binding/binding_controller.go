@@ -155,7 +155,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	// Obtain the serviceInstance corresponding to this Binding object
 	serviceInstance, err := r.getServiceInstance(instance)
 	if err != nil {
-		logt.Info("Binding could not read service", instance.Name, instance.Spec.ServiceName)
+		logt.Info("Binding could not read service", instance.Spec.ServiceName, err.Error())
 		// We could not find a parent service. However, if this instance is marked for deletion, delete it anyway
 		if !instance.ObjectMeta.DeletionTimestamp.IsZero() {
 			// In this case it is enough to simply remove the finalizer:
@@ -366,6 +366,7 @@ func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding
 func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 	ret := make(map[string][]byte)
 	for k, v := range keyContents {
+		keyString := strings.Replace(k, " ", "-SPACE-", -1)
 		// need to re-marshal as json might have complex types, which need to be flattened in strings
 		jString, err := json.Marshal(v)
 		if err != nil {
@@ -374,7 +375,7 @@ func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 		// need to remove quotes from flattened objects
 		strVal := strings.TrimPrefix(string(jString), "\"")
 		strVal = strings.TrimSuffix(strVal, "\"")
-		ret[k] = []byte(strVal)
+		ret[keyString] = []byte(strVal)
 	}
 	return ret, nil
 }
