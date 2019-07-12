@@ -21,8 +21,8 @@ before_install:
 script:
   - make generate
   - make lintall
-  - make test
-  - test/e2e/test.sh
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then make test; fi
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then test/e2e/test.sh; fi
 
 after_success:
   - make push
