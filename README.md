@@ -132,3 +132,4 @@ You can find [additional samples](config/samples), and more information on
 The [troubleshooting](docs/troubleshooting.md) section provides info on how
 to debug your operator.
 
+## Testing section
