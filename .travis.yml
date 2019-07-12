@@ -14,9 +14,9 @@ before_install:
   - source ./tools/travis/travis-env.sh
   - source ./hack/latest_tag
   - ./tools/travis/k8s-tools.sh
-  - ./tools/travis/set-kube-config.sh
-  - ./tools/travis/bx-install.sh
-  - ./tools/travis/bx-setup.sh
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/set-kube-config.sh; fi
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-install.sh; fi
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-setup.sh; fi
 
 script:
   - make generate
