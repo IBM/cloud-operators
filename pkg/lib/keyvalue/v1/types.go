@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 IBM Corporation
+ * Copyright 2019 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,28 +68,33 @@ func (v *KeyValue) ToJSON(ctx rcontext.Context) (interface{}, error) {
 
 	valueFrom := v.ValueFrom
 	if valueFrom != nil {
-		if valueFrom.SecretKeyRef != nil {
-			data, err := secret.GetSecretValue(ctx, valueFrom.SecretKeyRef.Name, valueFrom.SecretKeyRef.Key, true)
-			if err != nil {
-				// Recoverable
-				return nil, fmt.Errorf("Missing secret %s", valueFrom.SecretKeyRef.Name)
-			}
-			return toJSONFromString(string(data))
-		} else if valueFrom.ConfigMapKeyRef != nil {
-			data, err := util.GetConfigMapValue(ctx, valueFrom.ConfigMapKeyRef.Name, valueFrom.ConfigMapKeyRef.Key, true)
-			if err != nil {
-				// Recoverable
-				return nil, fmt.Errorf("Missing configmap %s", valueFrom.ConfigMapKeyRef.Name)
-			}
-			return toJSONFromString(data)
-		}
-		return nil, fmt.Errorf("Missing secretKeyRef or configMapKeyRef for %s variable", v.Name)
+		return ValueToJSON(ctx, *valueFrom)
 	}
 
 	if v.Value == nil {
 		return nil, nil
 	}
 	return toJSONFromRaw(v.Value)
+}
+
+// ValueToJSON takes a KeyValueSource and resolves its value
+func ValueToJSON(ctx rcontext.Context, valueFrom KeyValueSource) (interface{}, error) {
+	if valueFrom.SecretKeyRef != nil {
+		data, err := secret.GetSecretValue(ctx, valueFrom.SecretKeyRef.Name, valueFrom.SecretKeyRef.Key, true)
+		if err != nil {
+			// Recoverable
+			return nil, fmt.Errorf("Missing secret %s", valueFrom.SecretKeyRef.Name)
+		}
+		return toJSONFromString(string(data))
+	} else if valueFrom.ConfigMapKeyRef != nil {
+		data, err := util.GetConfigMapValue(ctx, valueFrom.ConfigMapKeyRef.Name, valueFrom.ConfigMapKeyRef.Key, true)
+		if err != nil {
+			// Recoverable
+			return nil, fmt.Errorf("Missing configmap %s", valueFrom.ConfigMapKeyRef.Name)
+		}
+		return toJSONFromString(data)
+	}
+	return nil, fmt.Errorf("Missing secretKeyRef or configMapKeyRef")
 }
 
 func toJSONFromRaw(content *runtime.RawExtension) (interface{}, error) {

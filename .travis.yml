@@ -2,12 +2,8 @@ language: go
 go:
   - "1.11.x"
 dist: xenial
-sudo: required
 services:
   - docker
-
-env:
-  - INSTALL_MINIKUBE=1 
 
 go_import_path: github.com/ibm/cloud-operators
 
@@ -16,19 +12,17 @@ before_script:
  
 before_install:
   - source ./tools/travis/travis-env.sh
-  #- ./tools/travis/start-kubeadm-dind.sh
+  - source ./hack/latest_tag
   - ./tools/travis/k8s-tools.sh
-  #- ./tools/travis/minikube-install.sh
-  - ./tools/travis/set-kube-config.sh
-  - ./tools/travis/bx-install.sh
-  - ./tools/travis/bx-setup.sh
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/set-kube-config.sh; fi
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-install.sh; fi
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-setup.sh; fi
 
 script:
   - make generate
-  - hack/update-codegen.sh
   - make lintall
-  - make test
-  - test/e2e/test.sh
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then make test; fi
+  - if [ ! -z "$BLUEMIX_API_KEY" ]; then test/e2e/test.sh; fi
 
 after_success:
   - make push

@@ -1,7 +1,5 @@
-
 # Image URL to use all building/pushing image targets
-IMG ?= registry.ng.bluemix.net/seed/cloud-operators
-TAG ?= 0.1.2
+IMG ?= cloudoperators/ibmcloud-operator
 GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 deps:
@@ -38,7 +36,6 @@ deploy: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 manifests:
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go all
-	hack/crd-fix.sh
 
 # Run go fmt against code
 fmt:
@@ -51,20 +48,33 @@ vet:
 # Generate code
 generate:
 	go generate ./pkg/... ./cmd/...
+	hack/update-codegen.sh
 
 # Build the docker image
-docker-build:
+docker-build: check-tag
 	git rev-parse --short HEAD > git-rev
 	docker build . -t ${IMG}:${TAG}
 	rm git-rev
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}:${TAG}"'@' ./config/default/manager_image_patch.yaml
 
-
 # Push the docker image
-docker-push:
-	docker login -u token -p ${DOCKER_REGISTRY_TOKEN} registry.ng.bluemix.net
+docker-push: check-tag
+	echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
 	docker push ${IMG}:${TAG}
+
+# Run the operator-sdk scorecard on latest release
+scorecard:
+	hack/operator-scorecard.sh 
+
+# make a release for olm and releases
+release: check-tag
+	python hack/package.py v${TAG}
+
+# Push OLM metadata to private Quay registry
+push-olm: check-tag check-quaytoken check-quayns
+	operator-courier push olm/v${TAG} ${QUAY_NS} ibmcloud-operator ${TAG} "${QUAY_TOKEN}"
+	@echo Remember to make https://quay.io/application/${QUAY_NS}/ibmcloud-operator public
 
 .PHONY: lintall
 lintall: fmt lint vet
@@ -72,4 +82,17 @@ lintall: fmt lint vet
 lint:
 	golint -set_exit_status=true pkg/
 
+check-tag:
+ifndef TAG
+	$(error TAG is undefined! Please set TAG to the latest release tag, using the format x.y.z e.g. export TAG=0.1.1 ) 
+endif
 
+check-quayns:
+ifndef QUAY_NS
+	$(error QUAY_NS is undefined!) 
+endif
+
+check-quaytoken:
+ifndef QUAY_TOKEN
+	$(error QUAY_TOKEN is undefined!) 
+endif

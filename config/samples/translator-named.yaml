@@ -1,0 +1,11 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mytranslator-named
+  namespace: default
+  annotations:
+    ibmcloud.ibm.com/self-healing: enabled
+spec:
+  plan: lite
+  serviceClass: language-translator
+  externalName: "Translator Named"

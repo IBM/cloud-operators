@@ -20,3 +20,4 @@ bin
 *.swo
 *~
 *.code-workspace
+*cover.out

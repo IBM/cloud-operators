@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Copyright 2017-2018 IBM Corporation
+# Copyright 2019 IBM Corp. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,13 +38,11 @@ make docker-push
 
 u::header "installing CRDs, operators and secrets"
 
-hack/install-operators.sh
+hack/install-operator.sh
 object::wait_operator_ready
 
 cd $ROOT/test/e2e
 
-source ./test-function-hello.sh
-source ./test-function-doc.sh
 source ./test-service-translator.sh
 source ./test-binding-translator.sh
 
@@ -52,7 +50,7 @@ function cleanup() {
   set +e
   u::header "cleaning up..."
 
-  $ROOT/hack/uninstall-operators.sh
+  $ROOT/hack/uninstall-operator.sh
   if [ -z "$TRAVIS" ]
   then
     u::header  "Not running in Travis, removing test branch..."
@@ -61,7 +59,7 @@ function cleanup() {
     git checkout -
     git branch -D e2e-test
     rm git-rev 2> /dev/null
-    rm  -r operatorhub/ve2e-test/ 2> /dev/null
+    rm  -r olm/ve2e-test/ 2> /dev/null
     rm -r releases/ve2e-test/ 2> /dev/null
   fi  
 }
@@ -69,8 +67,6 @@ trap cleanup EXIT
 
 u::header "running tests"
 
-td::run
-th::run
 ts::run
 tb::run
 

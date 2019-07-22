@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 IBM Corporation
+ * Copyright 2019 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ func SetupKubeOrDie(restCfg *rest.Config, stem string) string {
 	namespace := CreateNamespaceOrDie(clientset.CoreV1().Namespaces(), stem)
 	ConfigureSeedDefaults(clientset.CoreV1().ConfigMaps(namespace))
 	ConfigureSeedSecret(clientset.CoreV1().Secrets(namespace))
-	ConfigurePrivateGithubSecret(clientset.CoreV1().Secrets(namespace))
 
 	return namespace
 }
@@ -125,36 +124,6 @@ func ConfigureSeedSecret(secrets corev1.SecretInterface) {
 		},
 	}
 	secrets.Create(config)
-}
-
-// ConfigurePrivateGithubSecret sets raw.github.ibm.com secret
-func ConfigurePrivateGithubSecret(secrets corev1.SecretInterface) {
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "raw.github.ibm.com",
-		},
-		Data: map[string][]byte{
-			"token": []byte("7a7c952e6232ac112f111b487245be1d21a14865"),
-		},
-	}
-	secrets.Create(secret)
-}
-
-// ConfigureOwprops sets seed-defaults-owprops
-func ConfigureOwprops(name string, secrets corev1.SecretInterface) {
-	if apihost == "" || auth == "" {
-		return
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Data: map[string][]byte{
-			"apihost": []byte(apihost),
-			"auth":    []byte(auth),
-		},
-	}
-	secrets.Create(secret)
 }
 
 // DeleteNamespace deletes a kube namespace. Wait for all resources to be really gone.

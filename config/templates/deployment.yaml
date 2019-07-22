@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion:  apps/v1
 kind: Deployment
 metadata:
   annotations:
@@ -28,6 +28,4 @@ spec:
         image: PLACEHOLDER
         imagePullPolicy: Always
         name: ibmcloud-controllers
-      imagePullSecrets:
-      - name: ibmcloud-operator-pullsecret
       serviceAccountName: ibmcloud-operator

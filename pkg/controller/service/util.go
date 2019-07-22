@@ -1,9 +1,26 @@
+/*
+ * Copyright 2019 IBM Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package service
 
 import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	bx "github.com/IBM-Cloud/bluemix-go"
 	"github.com/IBM-Cloud/bluemix-go/api/account/accountv2"
@@ -24,6 +41,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const aliasPlan = "alias"
+const defaultNamespace = "default"
 
 // IBMCloudInfo kept all the needed client API resource and instance Info
 type IBMCloudInfo struct {
@@ -56,19 +76,22 @@ func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config
 		EndpointLocator: bxendpoints.NewEndpointLocator("us-south"), // TODO: hard wired to us-south!!
 	}
 
-	// There is no token so use seed-secret
-	// TODO - Fix this, need to go to namespace ibmcloud-operators if the base namespace doesn't have seed-secrets
 	secretName := "seed-secret"
-	secretNameSpace := "ibmcloud-operators"
-	if instance.ObjectMeta.Namespace != "" {
-		secretNameSpace = instance.ObjectMeta.Namespace
-	}
+	secretNameSpace := instance.ObjectMeta.Namespace
 
 	secret := &v1.Secret{}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
 	if err != nil {
-		logt.Info("Unable to get secret", "Error", err)
-		return c, err
+		if strings.Contains(err.Error(), "not found") {
+			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: defaultNamespace}, secret)
+			if err != nil {
+				logt.Info("Unable to get secret in namespace", defaultNamespace, err)
+				return c, err
+			}
+		} else {
+			logt.Info("Unable to get secret", "Error", err)
+			return c, err
+		}
 	}
 
 	APIKey := string(secret.Data["api-key"])
@@ -93,15 +116,21 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 
 	cm := &v1.ConfigMap{}
 	cmName := "seed-defaults"
-	cmNameSpace := "ibmcloud-operators"
-	if instance.ObjectMeta.Namespace != "" {
-		cmNameSpace = instance.ObjectMeta.Namespace
-	}
+	cmNameSpace := instance.ObjectMeta.Namespace
 
 	err := r.Get(context.Background(), types.NamespacedName{Namespace: cmNameSpace, Name: cmName}, cm)
 	if err != nil {
-		logt.Info("Failed to find ConfigMap in namespace (in Service)", cmNameSpace, err)
-		return icv1.ResourceContext{}, err
+		if strings.Contains(err.Error(), "not found") {
+			err = r.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: defaultNamespace}, cm)
+			if err != nil {
+				logt.Info("Failed to find ConfigMap in namespace (in Service)", defaultNamespace, err)
+				return icv1.ResourceContext{}, err
+			}
+		} else {
+			logt.Info("Failed to find ConfigMap in namespace (in Service)", cmNameSpace, err)
+			return icv1.ResourceContext{}, err
+		}
+
 	}
 	ibmCloudContext := getIBMCloudContext(instance, cm)
 	return ibmCloudContext, nil
@@ -139,8 +168,16 @@ func getIamToken(r client.Client, instance *ibmcloudv1alpha1.Service) (string, s
 	secret := &v1.Secret{}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
 	if err != nil {
-		logt.Info("Unable to get secret-secret-tokens", "Error", err)
-		return "", "", "", "", err
+		if strings.Contains(err.Error(), "not found") {
+			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: defaultNamespace}, secret)
+			if err != nil {
+				logt.Info("Unable to get secret in namespace", defaultNamespace, err)
+				return "", "", "", "", err
+			}
+		} else {
+			logt.Info("Unable to get secret", "Error", err)
+			return "", "", "", "", err
+		}
 	}
 
 	return string(secret.Data["access_token"]), string(secret.Data["refresh_token"]), string(secret.Data["uaa_refresh_token"]), string(secret.Data["uaa_token"]), nil
@@ -214,16 +251,19 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 		// 	return nil, err
 		// }
 
-		serviceOfferingAPI := bxclient.ServiceOfferings()
-		myserviceOff, err := serviceOfferingAPI.FindByLabel(servicename)
-		if err != nil {
-			return nil, err
-		}
+		servicePlan := &mccpv2.ServicePlan{}
+		if strings.ToLower(instance.Spec.Plan) != aliasPlan {
+			serviceOfferingAPI := bxclient.ServiceOfferings()
+			myserviceOff, err := serviceOfferingAPI.FindByLabel(servicename)
+			if err != nil {
+				return nil, err
+			}
 
-		servicePlanAPI := bxclient.ServicePlans()
-		servicePlan, err := servicePlanAPI.FindPlanInServiceOffering(myserviceOff.GUID, serviceplan)
-		if err != nil {
-			return nil, err
+			servicePlanAPI := bxclient.ServicePlans()
+			servicePlan, err = servicePlanAPI.FindPlanInServiceOffering(myserviceOff.GUID, serviceplan)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		ibmCloudInfo := IBMCloudInfo{
@@ -273,45 +313,50 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			return nil, err
 		}
 
-		servicePlanID, err := resCatalogAPI.GetServicePlanID(service[0], serviceplan)
-		if err != nil {
-			return nil, err
-		}
-		if servicePlanID == "" {
-			_, err := resCatalogAPI.GetServicePlan(serviceplan)
+		servicePlanID := ""
+		catalogCRN := ""
+		if strings.ToLower(instance.Spec.Plan) != aliasPlan {
+			servicePlanID, err = resCatalogAPI.GetServicePlanID(service[0], serviceplan)
 			if err != nil {
 				return nil, err
 			}
-			servicePlanID = serviceplan
-		}
+			if servicePlanID == "" {
+				_, err := resCatalogAPI.GetServicePlan(serviceplan)
+				if err != nil {
+					return nil, err
+				}
+				servicePlanID = serviceplan
+			}
 
-		deployments, err := resCatalogAPI.ListDeployments(servicePlanID)
-		if err != nil {
-			return nil, err
-		}
+			deployments, err := resCatalogAPI.ListDeployments(servicePlanID)
+			if err != nil {
+				return nil, err
+			}
 
-		if len(deployments) == 0 {
-			return nil, fmt.Errorf("Failed: No deployment found for service plan : %s", serviceplan)
-		}
+			if len(deployments) == 0 {
+				return nil, fmt.Errorf("Failed: No deployment found for service plan : %s", serviceplan)
+			}
 
-		supportedDeployments := []models.ServiceDeployment{}
-		supportedLocations := make(map[string]bool)
-		for _, d := range deployments {
-			if d.Metadata.RCCompatible {
-				deploymentLocation := d.Metadata.Deployment.Location
-				supportedLocations[deploymentLocation] = true
-				if deploymentLocation == useCtx.Region {
-					supportedDeployments = append(supportedDeployments, d)
+			supportedDeployments := []models.ServiceDeployment{}
+			supportedLocations := make(map[string]bool)
+			for _, d := range deployments {
+				if d.Metadata.RCCompatible {
+					deploymentLocation := d.Metadata.Deployment.Location
+					supportedLocations[deploymentLocation] = true
+					if deploymentLocation == useCtx.Region {
+						supportedDeployments = append(supportedDeployments, d)
+					}
 				}
 			}
-		}
 
-		if len(supportedDeployments) == 0 {
-			locationList := make([]string, 0, len(supportedLocations))
-			for l := range supportedLocations {
-				locationList = append(locationList, l)
+			if len(supportedDeployments) == 0 {
+				locationList := make([]string, 0, len(supportedLocations))
+				for l := range supportedLocations {
+					locationList = append(locationList, l)
+				}
+				return nil, fmt.Errorf("Failed: No deployment found for service plan %s at location %s. Valid location(s) are: %q.\nUse service instance example if the service is a Cloud Foundry service", serviceplan, useCtx.Region, locationList)
 			}
-			return nil, fmt.Errorf("Failed: No deployment found for service plan %s at location %s. Valid location(s) are: %q.\nUse service instance example if the service is a Cloud Foundry service", serviceplan, useCtx.Region, locationList)
+			catalogCRN = supportedDeployments[0].CatalogCRN
 		}
 
 		managementClient, err := management.New(sess)
@@ -363,7 +408,7 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			ServiceClassType: servicetype,
 			ServicePlan:      serviceplan,
 			ServicePlanID:    servicePlanID,
-			TargetCrn:        supportedDeployments[0].CatalogCRN,
+			TargetCrn:        catalogCRN,
 			Context:          useCtx,
 		}
 		return &ibmCloudInfo, nil

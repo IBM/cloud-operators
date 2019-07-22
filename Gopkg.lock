@@ -38,17 +38,6 @@
   revision = "1a3d1697013ab07b8be368d88ef6d3d182e92686"
 
 [[projects]]
-  digest = "1:67a42520a64c631e1cb5d513dfea832a3a18dadea78458cc771ab3f286e98f58"
-  name = "github.com/apache/incubator-openwhisk-client-go"
-  packages = [
-    "whisk",
-    "wski18n",
-  ]
-  pruneopts = "T"
-  revision = "4286a8212a74c40d8950ee76681a67e12c9bf1a0"
-  version = "0.10.0-incubating"
-
-[[projects]]
   digest = "1:464aef731a5f82ded547c62e249a2e9ec59fbbc9ddab53cda7b9857852630a61"
   name = "github.com/appscode/jsonpatch"
   packages = ["."]
@@ -63,14 +52,6 @@
   pruneopts = "T"
   revision = "4b2b341e8d7715fae06375aa633dbb6e91b3fb46"
   version = "v1.0.0"
-
-[[projects]]
-  branch = "master"
-  digest = "1:42a44f8cd696c4fc86d5909cf08063bb8266b85819f674518861b14735a6587d"
-  name = "github.com/cloudfoundry/jibber_jabber"
-  packages = ["."]
-  pruneopts = "T"
-  revision = "bcc4c8345a21301bf47c032ff42dd1aae2fe3027"
 
 [[projects]]
   digest = "1:9f42202ac457c462ad8bb9642806d275af9ab4850cf0b1960b9c6f083d4a309a"
@@ -90,14 +71,6 @@
   pruneopts = "T"
   revision = "b993709ae1a4f6dd19cfa475232614441b11c9d5"
   version = "v2.9.5"
-
-[[projects]]
-  digest = "1:865079840386857c809b72ce300be7580cb50d3d3129ce11bf9aa6ca2bc1934a"
-  name = "github.com/fatih/color"
-  packages = ["."]
-  pruneopts = "T"
-  revision = "5b77d2a35fb0ede96d138fc9a99f5c9b6aef11b4"
-  version = "v1.7.0"
 
 [[projects]]
   digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
@@ -173,14 +146,6 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:a98aaa0376806017a5d6f88cb8c3b8206943bd16585f58b394ac62d6e8abbc73"
-  name = "github.com/google/go-querystring"
-  packages = ["query"]
-  pruneopts = "T"
-  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
-  version = "v1.0.0"
-
-[[projects]]
   digest = "1:a6181aca1fd5e27103f9a920876f29ac72854df7345a39f3b01e61c8c94cc8af"
   name = "github.com/google/gofuzz"
   packages = ["."]
@@ -229,14 +194,6 @@
   pruneopts = "T"
   revision = "7087cb70de9f7a8bc0a10c375cb0d2280a8edf9c"
   version = "v0.5.1"
-
-[[projects]]
-  branch = "master"
-  digest = "1:73c48ddef3aaf0990a427620bb7250187d7bf99d60351d3c1cd9b137fa78d793"
-  name = "github.com/hokaccha/go-prettyjson"
-  packages = ["."]
-  pruneopts = "T"
-  revision = "f579f869bbfea48a61fbea09207cadd1aaeceb83"
 
 [[projects]]
   digest = "1:8f20c8dd713564fa97299fbcb77d729c6de9c33f3222812a76e6ecfaef80fd61"
@@ -293,22 +250,6 @@
   version = "v1.0.4"
 
 [[projects]]
-  digest = "1:b168836ecd85a2d138391dbc464d2442ea9400c29cc0636f2c6056b996692e29"
-  name = "github.com/mattn/go-colorable"
-  packages = ["."]
-  pruneopts = "T"
-  revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
-  version = "v0.0.9"
-
-[[projects]]
-  digest = "1:9b90c7639a41697f3d4ad12d7d67dfacc9a7a4a6e0bbfae4fc72d0da57c28871"
-  name = "github.com/mattn/go-isatty"
-  packages = ["."]
-  pruneopts = "T"
-  revision = "1311e847b0cb909da63b5fecfb5370aa66236465"
-  version = "v0.0.8"
-
-[[projects]]
   digest = "1:a8e3d14801bed585908d130ebfc3b925ba642208e6f30d879437ddfc7bb9b413"
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
@@ -331,19 +272,6 @@
   pruneopts = "T"
   revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
   version = "1.0.1"
-
-[[projects]]
-  digest = "1:ee31743d724255cc8596ae5e77dc91a22ceb702f6f3713bb1f52b86a6ffab76a"
-  name = "github.com/nicksnyder/go-i18n"
-  packages = [
-    "i18n",
-    "i18n/bundle",
-    "i18n/language",
-    "i18n/translation",
-  ]
-  pruneopts = "T"
-  revision = "3c6ee9071cf061f4b0101e14412f74d6e7a8ada6"
-  version = "v2.0.0"
 
 [[projects]]
   digest = "1:a9d7e75bf5bf7434f26e9c3ce1292a8a78481478efc45558915d57847d6cd0f9"
@@ -403,14 +331,6 @@
   pruneopts = "T"
   revision = "adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1"
   version = "v1.2"
-
-[[projects]]
-  digest = "1:abc5966f690dedc4943d8bed4cdddb0c4fb6e4490ff7702fa4ce2a7c35efbaf7"
-  name = "github.com/pelletier/go-toml"
-  packages = ["."]
-  pruneopts = "T"
-  revision = "728039f679cbcd4f6a54e080d2219a4c4928c546"
-  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
@@ -1061,7 +981,6 @@
     "github.com/IBM-Cloud/bluemix-go/rest",
     "github.com/IBM-Cloud/bluemix-go/session",
     "github.com/IBM-Cloud/bluemix-go/utils",
-    "github.com/apache/incubator-openwhisk-client-go/whisk",
     "github.com/emicklei/go-restful",
     "github.com/ghodss/yaml",
     "github.com/onsi/ginkgo",
@@ -1069,7 +988,6 @@
     "github.com/onsi/gomega",
     "github.com/stretchr/testify/assert",
     "golang.org/x/net/context",
-    "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/errors",
@@ -1084,7 +1002,6 @@
     "k8s.io/client-go/plugin/pkg/client/auth/oidc",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/tools/clientcmd",
-    "k8s.io/client-go/util/jsonpath",
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/client/config",

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 IBM Corporation
+ * Copyright 2019 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
-	"strings"
 	"time"
 
-	"github.com/apache/incubator-openwhisk-client-go/whisk"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -87,41 +85,4 @@ func init() {
 		panic("set current bx target to run tests")
 	}
 
-	if apihost == "" || auth == "" {
-		// Trying ~/.wskprops
-		usr, err := user.Current()
-		if err == nil {
-			raw, err := ioutil.ReadFile(usr.HomeDir + "/.wskprops")
-			if err == nil {
-				lines := strings.Split(string(raw), "\n")
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					kv := strings.Split(line, "=")
-					if len(kv) != 2 {
-						// Invalid format; skip
-						continue
-					}
-					if kv[0] == "AUTH" {
-						auth = kv[1]
-					} else if kv[0] == "APIHOST" {
-						apihost = kv[1]
-					}
-				}
-			}
-		}
-	}
-}
-
-// InvokeAction invokes the given action
-func InvokeAction(wskclient *whisk.Client, actionName string, payload interface{}) (string, error) {
-	result, _, err := wskclient.Actions.Invoke(actionName, payload, true, true)
-	if err != nil {
-		rootErr := err.(*whisk.WskError).RootErr
-		return "", rootErr
-	}
-	bytes, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
 }

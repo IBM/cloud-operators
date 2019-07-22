@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mymessagehub
+spec:
+  plan: standard
+  serviceClass: messagehub
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-messagehub
+spec:
+  serviceName: mymessagehub

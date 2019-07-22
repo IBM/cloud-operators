@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mypersonality
+spec:
+  plan: lite
+  serviceClass: personality-insights
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-personality
+spec:
+  serviceName: mypersonality

@@ -1,0 +1,14 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mycos
+spec:
+  plan: lite
+  serviceClass: cloud-object-storage
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-mycos
+spec:
+  serviceName: mycos

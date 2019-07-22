@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 IBM Corporation
+ * Copyright 2019 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,66 +28,6 @@ import (
 
 	rcontext "github.com/ibm/cloud-operators/pkg/context"
 )
-
-// PostFunction creates a Function object
-func PostFunction(context rcontext.Context, name string, spec v1alpha1.FunctionSpec, async bool) runtime.Object {
-	obj := makeFunction(context.Namespace(), name, spec)
-	return post(context, &obj, async, 0)
-}
-
-// PostPackage creates a Package object
-func PostPackage(context rcontext.Context, name string, spec v1alpha1.PackageSpec, async bool) runtime.Object {
-	obj := makePackage(context.Namespace(), name, spec)
-	return post(context, &obj, async, 0)
-}
-
-// PostInvocation creates a Function object
-func PostInvocation(context rcontext.Context, name string, spec v1alpha1.InvocationSpec, async bool) runtime.Object {
-	obj := makeInvocation(context.Namespace(), name, spec)
-	return post(context, &obj, async, 0)
-}
-
-func makeFunction(namespace string, name string, spec v1alpha1.FunctionSpec) v1alpha1.Function {
-	return v1alpha1.Function{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1alpha1.SchemeGroupVersion.Group + "/" + v1alpha1.SchemeGroupVersion.Version,
-			Kind:       "Function",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: spec,
-	}
-}
-
-func makePackage(namespace string, name string, spec v1alpha1.PackageSpec) v1alpha1.Package {
-	return v1alpha1.Package{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1alpha1.SchemeGroupVersion.Group + "/" + v1alpha1.SchemeGroupVersion.Version,
-			Kind:       "Package",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: spec,
-	}
-}
-
-func makeInvocation(namespace string, name string, spec v1alpha1.InvocationSpec) v1alpha1.Invocation {
-	return v1alpha1.Invocation{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1alpha1.SchemeGroupVersion.Group + "/" + v1alpha1.SchemeGroupVersion.Version,
-			Kind:       "Invocation",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: spec,
-	}
-}
 
 // PostInNs the object
 func PostInNs(context rcontext.Context, obj runtime.Object, async bool, delay time.Duration) runtime.Object {
@@ -131,31 +71,6 @@ func DeleteObject(context rcontext.Context, obj runtime.Object, async bool) {
 	if !async {
 		<-done
 	}
-}
-
-// LoadFunction loads the YAML spec into obj
-func LoadFunction(filename string) v1alpha1.Function {
-	return *LoadObject(filename, &v1alpha1.Function{}).(*v1alpha1.Function)
-}
-
-// LoadTrigger loads the YAML spec into obj
-func LoadTrigger(filename string) v1alpha1.Trigger {
-	return *LoadObject(filename, &v1alpha1.Trigger{}).(*v1alpha1.Trigger)
-}
-
-// LoadPackage loads the YAML spec into obj
-func LoadPackage(filename string) v1alpha1.Package {
-	return *LoadObject(filename, &v1alpha1.Package{}).(*v1alpha1.Package)
-}
-
-// LoadRule loads the YAML spec into obj
-func LoadRule(filename string) v1alpha1.Rule {
-	return *LoadObject(filename, &v1alpha1.Rule{}).(*v1alpha1.Rule)
-}
-
-// LoadInvocation loads the YAML spec into obj
-func LoadInvocation(filename string) v1alpha1.Invocation {
-	return *LoadObject(filename, &v1alpha1.Invocation{}).(*v1alpha1.Invocation)
 }
 
 // LoadService loads the YAML spec into obj

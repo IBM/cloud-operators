@@ -1,17 +1,18 @@
 /*
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Copyright 2019 IBM Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package binding
 
@@ -97,8 +98,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create
-	// Uncomment watch a Deployment created by Binding - change this for objects you create
 	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &ibmcloudv1alpha1.Binding{},
@@ -156,7 +155,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	// Obtain the serviceInstance corresponding to this Binding object
 	serviceInstance, err := r.getServiceInstance(instance)
 	if err != nil {
-		logt.Info("Binding could not read service", instance.Name, instance.Spec.ServiceName)
+		logt.Info("Binding could not read service", instance.Spec.ServiceName, err.Error())
 		// We could not find a parent service. However, if this instance is marked for deletion, delete it anyway
 		if !instance.ObjectMeta.DeletionTimestamp.IsZero() {
 			// In this case it is enough to simply remove the finalizer:
@@ -271,10 +270,9 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			instance.Status.KeyInstanceID = keyInstanceID
 		}
 
-		secret := &corev1.Secret{}
-		err = r.Get(context.Background(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
+		secret, err := GetSecret(r, instance)
 		if err != nil {
-			logt.Info("Secret does not exist", "Recreating", instance.ObjectMeta.Name)
+			logt.Info("Secret does not exist", "Recreating", getSecretName(instance))
 			err = r.createSecret(instance, keyContents)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
@@ -353,9 +351,10 @@ func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding
 }
 
 func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding) (*ibmcloudv1alpha1.Service, error) {
-	// TODO - Assuming for now that Binding is being created in the same namespace as the service object
 	serviceNameSpace := instance.ObjectMeta.Namespace
-
+	if instance.Spec.ServiceNamespace != "" {
+		serviceNameSpace = instance.Spec.ServiceNamespace
+	}
 	serviceInstance := &ibmcloudv1alpha1.Service{}
 	err := r.Get(context.Background(), types.NamespacedName{Name: instance.Spec.ServiceName, Namespace: serviceNameSpace}, serviceInstance)
 	if err != nil {
@@ -367,6 +366,7 @@ func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding
 func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 	ret := make(map[string][]byte)
 	for k, v := range keyContents {
+		keyString := strings.Replace(k, " ", "_", -1)
 		// need to re-marshal as json might have complex types, which need to be flattened in strings
 		jString, err := json.Marshal(v)
 		if err != nil {
@@ -375,7 +375,7 @@ func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 		// need to remove quotes from flattened objects
 		strVal := strings.TrimPrefix(string(jString), "\"")
 		strVal = strings.TrimSuffix(strVal, "\"")
-		ret[k] = []byte(strVal)
+		ret[keyString] = []byte(strVal)
 	}
 	return ret, nil
 }
@@ -468,7 +468,7 @@ func (r *ReconcileBinding) createSecret(instance *ibmcloudv1alpha1.Binding, keyC
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: instance.ObjectMeta.Name,
+			Name: getSecretName(instance),
 			Annotations: map[string]string{
 				"service-instance-id": instance.Status.InstanceID,
 				"service-key-id":      instance.Status.KeyInstanceID,
@@ -505,8 +505,7 @@ func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding,
 			return err
 		}
 	}
-	secret := &corev1.Secret{}
-	err := r.Get(context.Background(), types.NamespacedName{Name: instance.ObjectMeta.Name, Namespace: instance.ObjectMeta.Namespace}, secret)
+	secret, err := GetSecret(r, instance)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil
@@ -522,6 +521,14 @@ func (r *ReconcileBinding) deleteSecret(secret *corev1.Secret) error {
 		return err
 	}
 	return nil
+}
+
+func getSecretName(instance *ibmcloudv1alpha1.Binding) string {
+	secretName := instance.ObjectMeta.Name
+	if instance.Spec.SecretName != "" {
+		secretName = instance.Spec.SecretName
+	}
+	return secretName
 }
 
 func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {

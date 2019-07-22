@@ -1,0 +1,15 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mydb2
+spec:
+  plan: Entry
+  serviceClass: dashDB
+  serviceClassType: CF
+---
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-db2
+spec:
+  serviceName: mydb2

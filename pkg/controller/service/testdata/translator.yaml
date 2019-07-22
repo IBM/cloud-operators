@@ -3,5 +3,5 @@ kind: Service
 metadata:
   name: test-translator-1
 spec:
-  plan: lite
+  plan: standard
   serviceClass: language-translator

@@ -3,115 +3,113 @@
 operator_name: ibmcloud-operator
 channel_name: alpha
 maturity: alpha
-image: registry.ng.bluemix.net/seed/cloud-operators
+image: cloudoperators/ibmcloud-operator
 crd:
     - kind: Service
-      description: IT Represents an instance of a Service resource on IBM Cloud.
+      description: Represents an instance of a Service resource on IBM Cloud.
       example: |-
         {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
             "kind": "Service",
             "metadata": {
-            "name": "myeventstreams"
+            "name": "mytranslator"
             },
             "spec": {
-            "serviceClass": "messagehub",
-            "plan": "standard",
-            "externalName": "myeventstreams"
+            "serviceClass": "language-translator",
+            "plan": "lite"
             }
         }
+      resources:
+        - kind: Secret
+          version: v1
+        - kind: ConfigMap
+          version: v1
+        - kind: Binding
+          version: v1alpha1
+        - kind: Service
+          version: v1alpha1     
+      specDescriptors:        
+        - description: Service class is the name of the service from the IBM Cloud Catalog
+          displayName: Service Class
+          path: serviceClass
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+        - description: Plan for the service from the IBM Cloud Catalog
+          displayName: Plan
+          path: plan
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+      statusDescriptors:
+        - description: Detailed message on current status
+          displayName: Message
+          path: message
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Current plan for service
+          displayName: Plan
+          path: plan
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Current service class
+          displayName: Service Class
+          path: serviceClass
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Indicates if IAM type or legacy
+          displayName: Service Class Type
+          path: serviceClassType
+          x-descriptors:
+            - 'urn:alm:descriptor:text'  
+        - description: Current state for the service
+          displayName: State
+          path: state
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Current context for the service (resorce group, region, org, space)
+          displayName: Context
+          path: context
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Instance ID for the service
+          displayName: Instance ID
+          path: instanceId
+          x-descriptors:
+            - 'urn:alm:descriptor:text'      
     - kind: Binding
-      description: Represents an instance of a Service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
+      description: Represents an instance of a service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
       example: |-
         {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
             "kind": "Binding",
             "metadata": {
-            "name": "myeventstreams-binding"
+            "name": "mytranslator-binding"
             },
             "spec": {
-            "serviceName": "myeventstreams"
+            "serviceName": "mytranslator"
             }
         }
-    - kind: Function
-      description: Represents an IBM Cloud Function action. 
-      example: |-
-        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
-          "kind": "Function",
-          "metadata": {
-              "name": "greetings"
-          },
-          "spec": {
-              "codeURI": "https://raw.githubusercontent.com/apache/incubator-openwhisk-catalog/master/packages/utils/echo.js",
-              "runtime": "nodejs:6",
-              "parameters": [
-                {
-                    "name": "message",
-                    "value": "Bonjour"
-                }
-              ]
-          }
-        }
-    - kind: Invocation
-      description: Represents an IBM Cloud Function activation. 
-      example: |-
-        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
-          "kind": "Invocation",
-          "metadata": {
-              "name": "echo-invocation"
-          },
-          "spec": {
-              "finalizer": {
-                "function": "/whisk.system/utils/echo",
-                "parameters": [
-                    {
-                      "name": "message",
-                      "value": "Bye World"
-                    }
-                ]
-              },
-              "function": "/whisk.system/utils/echo",
-              "parameters": [
-                {
-                    "name": "message",
-                    "value": "Hello World"
-                }
-              ]
-          }
-        }
-    - kind: Package
-      description: Represents an IBM Cloud Function package. 
-      example: |-
-        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
-          "kind": "Package",
-          "metadata": {
-              "name": "mh-publish"
-          },
-          "spec": {
-              "bind": "/whisk.system/messaging",
-              "service": "message-hub"
-          }
-        }
-    - kind: Trigger
-      description: Represents an IBM Cloud Function trigger. 
-      example: |-
-          {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
-            "kind": "Trigger",
-            "metadata": {
-                "name": "image-uploaded"
-            },
-            "spec": {
-                "feed": "openwhisk-cloudant/changes"
-            }
-          }
-    - kind: Rule
-      description: Represents an IBM Cloud Function rule. 
-      example: |-
-        {"apiVersion": "ibmcloud.ibm.com/v1alpha1",
-          "kind": "Rule",
-          "metadata": {
-              "name": "my-rule"
-          },
-          "spec": {
-              "action": "hello-world",
-              "trigger": "image-uploaded"
-          }
-        }
+      resources:
+        - kind: Secret
+          version: v1
+        - kind: ConfigMap
+          version: v1
+        - kind: Binding
+          version: v1alpha1
+        - kind: Service
+          version: v1alpha1
+      specDescriptors:        
+        - description: Name of the service resource to bind
+          displayName: Service Name
+          path: serviceName
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+      statusDescriptors:
+        - description: Detailed message on current status
+          displayName: Message
+          path: message
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Current state for the binding
+          displayName: State
+          path: state
+          x-descriptors:
+            - 'urn:alm:descriptor:text'  
+  
