@@ -118,10 +118,6 @@ spec:
   version: PLACEHOLDER
   maturity: PLACEHOLDER
   maintainers:
-<<<<<<< HEAD
-  - name: IBM
-    email: ibmcloud@ibm.com
-=======
   - name: Paolo Dettori
     email: dettori@us.ibm.com
   - name: Yew Huey Liu
@@ -132,7 +128,6 @@ spec:
     email: mvaziri@us.ibm.com
   - name: Lionel Villard
     email: villard@us.ibm.com
->>>>>>> c42a8c29e816ca4d368d1b39fcf0a430e7e39ed8
   provider:
     name: IBM
   labels:

@@ -46,3 +46,4 @@ if ! bx account space $BLUEMIX_SPACE ; then
 fi
 bx target -s $BLUEMIX_SPACE -g $BLUEMIX_RESOURCE_GROUP
 
+

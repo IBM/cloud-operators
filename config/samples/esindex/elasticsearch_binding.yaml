@@ -1,9 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Binding
-metadata:
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: es-test
-spec:
-  serviceName: es-test
-  role: Administrator
