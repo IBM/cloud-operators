@@ -1,9 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Invocation
-metadata:
-  name: echo-invocation-2
-spec:
-  function: "echo-delay"
-  parameters:
-  - name: message
-    value: Hello World

@@ -1,7 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Function
-metadata:
-  name: invalid-code-codeuri
-spec:
-  codeURI: "https://raw.githubusercontent.com/apache/incubator-openwhisk-catalog/master/packages/utils/echo.js"
-  code: "const main = params => params || {}"

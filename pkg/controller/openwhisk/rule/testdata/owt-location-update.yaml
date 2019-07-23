@@ -1,4 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Trigger
-metadata:
-  name: location-update-trigger

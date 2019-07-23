@@ -1,7 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Rule
-metadata:
-  name: location-update-rule
-spec:
-  trigger: location-update-trigger
-  function: rule-hello

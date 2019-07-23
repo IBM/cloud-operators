@@ -1,7 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Rule
-metadata:
-  name: trigger-kafka-echo
-spec:
-  trigger: trigger-kafka-1
-  function: /whisk.system/utils/echo

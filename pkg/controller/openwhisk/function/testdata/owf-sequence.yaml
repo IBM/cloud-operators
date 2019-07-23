@@ -1,7 +1,0 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Function
-metadata:
-  name: sequence-echo-echo-echo
-spec:
-  functions: /whisk.system/utils/echo,/whisk.system/utils/echo,/whisk.system/utils/echo
-  runtime: sequence
