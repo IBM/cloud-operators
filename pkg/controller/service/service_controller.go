@@ -469,9 +469,11 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 		err := serviceInstanceAPI.Delete(instance.Status.InstanceID, true, true) // async, recursive (i.e. delete credentials)
 		if err != nil {
 			if strings.Contains(err.Error(), "could not be found") {
+				logt.Info("Deletion error - not found", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
 			}
 			if strings.Contains(err.Error(), "410") {
+				logt.Info("Deletion error - 410", "ServiceInstance", err.Error())
 				return nil
 			}
 			return err
@@ -489,9 +491,11 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 		err = resServiceInstanceAPI.DeleteInstance(instance.Status.InstanceID, true)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
+				logt.Info("Deletion error - not found", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
 			}
 			if strings.Contains(err.Error(), "410") {
+				logt.Info("Deletion error - 410", "ServiceInstance", err.Error())
 				return nil
 			}
 			return err
