@@ -25,6 +25,7 @@ import (
 
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
@@ -468,13 +469,9 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
 		err := serviceInstanceAPI.Delete(instance.Status.InstanceID, true, true) // async, recursive (i.e. delete credentials)
 		if err != nil {
-			if strings.Contains(err.Error(), "could not be found") {
-				logt.Info("Deletion error - not found", "ServiceInstance", err.Error())
+			if strings.Contains(err.Error(), "Request failed with status code: 410") { // Not Found
+				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
-			}
-			if strings.Contains(err.Error(), "410") {
-				logt.Info("Deletion error - 410", "ServiceInstance", err.Error())
-				return nil
 			}
 			return err
 		}
@@ -490,13 +487,14 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 
 		err = resServiceInstanceAPI.DeleteInstance(instance.Status.InstanceID, true)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
-				logt.Info("Deletion error - not found", "ServiceInstance", err.Error())
+			bmxerr := err.(bmxerror.Error)
+			if bmxerr.Code() == "410" { // Not Found
+				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
 			}
-			if strings.Contains(err.Error(), "410") {
-				logt.Info("Deletion error - 410", "ServiceInstance", err.Error())
-				return nil
+			if strings.Contains(err.Error(), "Request failed with status code: 410") { // Not Found
+				logt.Info("Resource not found, empty code, nothing to to", "ServiceInstance", err.Error())
+				return nil // Nothing to do here, service not found
 			}
 			return err
 		}
