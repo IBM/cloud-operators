@@ -33,7 +33,12 @@ ibmcloud login
 and set a default target environment for your resources with the command:
 
 ```bash
-ibmcloud target --cf
+ibmcloud target --cf -g default
+```
+
+This will use the IBM Cloud ResourceGroup `default`. To specify a different ResourceGroup, use the following command:
+```bash
+ibmcloud target -g <resource-group>
 ```
 
 ## Installing the operator
