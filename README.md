@@ -33,7 +33,7 @@ ibmcloud login
 and set a default target environment for your resources with the command:
 
 ```bash
-ibmcloud target --cf
+ibmcloud target --cf -g default
 ```
 
 ## Installing the operator
