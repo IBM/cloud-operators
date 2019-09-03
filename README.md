@@ -36,6 +36,11 @@ and set a default target environment for your resources with the command:
 ibmcloud target --cf -g default
 ```
 
+This will use the IBM Cloud ResourceGroup `default`. To specify a different ResourceGroup, use the following command:
+```bash
+ibmcloud target -g <resource-group>
+```
+
 ## Installing the operator
 
 To install the latest release of the operator, run the following script:
