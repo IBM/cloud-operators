@@ -19,15 +19,15 @@ package v1
 // ResourceContext defines the CloudFoundry context and resource group
 type ResourceContext struct {
 	// +optional
-	Org string `json:"org"`
+	Org string `json:"org,omitempty"`
 	// +optional
-	Space string `json:"space"`
+	Space string `json:"space,omitempty"`
 	// +optional
-	Region string `json:"region"`
+	Region string `json:"region,omitempty"`
 	// +optional
-	ResourceGroup string `json:"resourcegroup"`
+	ResourceGroup string `json:"resourcegroup,omitempty"`
 	// +optional
-	ResourceLocation string `json:"resourcelocation"`
+	ResourceLocation string `json:"resourcelocation,omitempty"`
 }
 
 // BindingFrom specifies the binding object

@@ -3,8 +3,10 @@ kind: Service
 metadata:
   name: mycos
 spec:
-  plan: lite
+  plan: standard
   serviceClass: cloud-object-storage
+  context:
+    region: global
 ---
 apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Binding
