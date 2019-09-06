@@ -6,7 +6,8 @@ spec:
   plan: standard
   serviceClass: databases-for-elasticsearch
   parameters:
-  - members_disk_allocation_mb: 30720
+  - name: members_disk_allocation_mb
+    value: 30720
 ---
 apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Binding
