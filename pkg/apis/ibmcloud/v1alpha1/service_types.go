@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	icv1 "github.com/ibm/cloud-operators/pkg/lib/ibmcloud/v1"
+	keyvaluev1 "github.com/ibm/cloud-operators/pkg/lib/keyvalue/v1"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,9 +32,9 @@ type ServiceSpec struct {
 	Plan             string `json:"plan"`
 	ServiceClassType string `json:"serviceClassType,omitempty"`
 	// +optional
-	ExternalName string `json:"externalName,omitempty"`
-	// Parameters []keyvaluev1.KeyValue `json:"parameters,omitempty"`
-	Context icv1.ResourceContext `json:"context,omitempty"`
+	ExternalName string                `json:"externalName,omitempty"`
+	Parameters   []keyvaluev1.KeyValue `json:"parameters,omitempty"`
+	Context      icv1.ResourceContext  `json:"context,omitempty"`
 }
 
 // ServiceStatus defines the observed state of Service
