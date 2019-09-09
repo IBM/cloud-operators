@@ -216,6 +216,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	*/
 
 	externalName := getExternalName(instance)
+	params := getParams(instance)
 
 	if ibmCloudInfo.ServiceClassType == "CF" {
 		logt.Info("ServiceInstance ", "is CF", instance.ObjectMeta.Name)
@@ -239,6 +240,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				Name:      externalName,
 				PlanGUID:  ibmCloudInfo.BxPlan.GUID,
 				SpaceGUID: ibmCloudInfo.Space.GUID,
+				Params:    params,
 			})
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
@@ -255,6 +257,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 					Name:      externalName,
 					PlanGUID:  ibmCloudInfo.BxPlan.GUID,
 					SpaceGUID: ibmCloudInfo.Space.GUID,
+					Params:    params,
 				})
 				if err != nil {
 					return r.updateStatusError(instance, "Failed", err)
@@ -280,6 +283,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			ServicePlanID:   ibmCloudInfo.ServicePlanID,
 			ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 			TargetCrn:       ibmCloudInfo.TargetCrn,
+			Parameters:      params,
 		}
 
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
@@ -541,4 +545,12 @@ func isSelfHealing(instance *ibmcloudv1alpha1.Service) bool {
 		selfHealing = false
 	}
 	return selfHealing
+}
+
+func getParams(instance *ibmcloudv1alpha1.Service) map[string]interface{} {
+	params := make(map[string]interface{})
+	for _, p := range instance.Spec.Parameters {
+		params[p.Name] = p.Value
+	}
+	return params
 }
