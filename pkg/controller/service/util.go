@@ -415,29 +415,39 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 	}
 }
 
-// GetServiceInstanceFronObj from bx given context and resource
-func GetServiceInstanceFronObj(scontext rcontext.Context, obj runtime.Object) (models.ServiceInstance, error) {
-	//service := test.GetObject(scontext, obj)().(*ibmcloudv1alpha1.Service)
+// GetServiceInstanceFromObj from bx given context and resource
+func GetServiceInstanceFromObj(scontext rcontext.Context, obj runtime.Object) (models.ServiceInstance, error) {
 	service := obj.(*ibmcloudv1alpha1.Service)
+	externalName := getExternalName(service)
 
 	ibmCloudInfo, err := GetIBMCloudInfo(scontext.Client(), service)
 	if err != nil {
 		return models.ServiceInstance{}, err
 	}
 
-	controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
-	if err != nil {
-		return models.ServiceInstance{}, err
-	}
-
+	// Service instance is not CF
+	controllerClient := ibmCloudInfo.ResourceClient
 	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
-
 	serviceInstanceQuery := bxcontroller.ServiceInstanceQuery{
 		ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 		ServicePlanID:   ibmCloudInfo.ServicePlanID,
-		Name:            service.ObjectMeta.Name,
+		Name:            externalName,
 	}
 
 	instances, err := resServiceInstanceAPI.ListInstances(serviceInstanceQuery)
 	return GetServiceInstance(instances, service.Status.InstanceID)
+}
+
+// GetServiceInstanceFromObjCF from bx given context and resource in a CF context
+func GetServiceInstanceFromObjCF(scontext rcontext.Context, obj runtime.Object) (*mccpv2.ServiceInstance, error) {
+	service := obj.(*ibmcloudv1alpha1.Service)
+	externalName := getExternalName(service)
+
+	ibmCloudInfo, err := GetIBMCloudInfo(scontext.Client(), service)
+	if err != nil {
+		return &mccpv2.ServiceInstance{}, err
+	}
+
+	serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
+	return serviceInstanceAPI.FindByName(externalName)
 }

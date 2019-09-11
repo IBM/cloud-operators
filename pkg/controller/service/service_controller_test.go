@@ -102,22 +102,68 @@ var _ = Describe("service", func() {
 
 			Eventually(test.GetState(scontext, obj)).Should(Equal(resv1.ResourceStateOnline))
 
-			// get instance directly from bx to make sure is there
-			bxsvc, err := GetServiceInstanceFronObj(scontext, obj)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(bxsvc.Name).Should(Equal(service.ObjectMeta.Name))
+			if service.Spec.ServiceClassType == "CF" {
+				// get instance directly from bx to make sure is there
+				bxsvc, err := GetServiceInstanceFromObjCF(scontext, obj)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(bxsvc.Name).Should(Equal(service.ObjectMeta.Name))
 
-			// test delete
-			objcopy := obj.DeepCopyObject()
-			test.DeleteObject(scontext, obj, true)
-			Eventually(test.GetObject(scontext, obj)).Should((BeNil()))
+				// test delete
+				objcopy := obj.DeepCopyObject()
+				test.DeleteObject(scontext, obj, true)
+				Eventually(test.GetObject(scontext, obj)).Should((BeNil()))
 
-			_, err = GetServiceInstanceFronObj(scontext, objcopy)
-			Expect(err).To(HaveOccurred())
+				_, err = GetServiceInstanceFromObjCF(scontext, objcopy)
+				Expect(err).To(HaveOccurred())
+
+			} else {
+				// get instance directly from bx to make sure is there
+				bxsvc, err := GetServiceInstanceFromObj(scontext, obj)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(bxsvc.Name).Should(Equal(service.ObjectMeta.Name))
+
+				// test delete
+				objcopy := obj.DeepCopyObject()
+				test.DeleteObject(scontext, obj, true)
+				Eventually(test.GetObject(scontext, obj)).Should((BeNil()))
+
+				_, err = GetServiceInstanceFromObj(scontext, objcopy)
+				Expect(err).To(HaveOccurred())
+			}
 		},
 
 		// TODO - add more entries
 		Entry("string param", "translator.yaml"),
+		Entry("string param", "cos.yaml"),
+		Entry("string param", "messagehub.yaml"),
+		Entry("string param", "geoCF.yaml"),
+	)
+
+	DescribeTable("should be ready - alias plan",
+		func(specfile string, aliasfile string) {
+			service := test.LoadService("testdata/" + specfile)
+			alias := test.LoadService("testdata/" + aliasfile)
+			svcobj := test.PostInNs(scontext, &service, true, 0)
+			aliasobj := test.PostInNs(scontext, &alias, true, 0)
+
+			Eventually(test.GetState(scontext, svcobj)).Should(Equal(resv1.ResourceStateOnline))
+			Eventually(test.GetState(scontext, aliasobj)).Should(Equal(resv1.ResourceStateOnline))
+
+			// test delete
+			objcopy := svcobj.DeepCopyObject()
+			test.DeleteObject(scontext, svcobj, true)
+			Eventually(test.GetObject(scontext, svcobj)).Should((BeNil()))
+
+			test.DeleteObject(scontext, aliasobj, true)
+			Eventually(test.GetObject(scontext, svcobj)).Should((BeNil()))
+
+			_, err := GetServiceInstanceFromObj(scontext, objcopy)
+			Expect(err).To(HaveOccurred())
+
+		},
+
+		// TODO - add more entries
+		Entry("string param", "translator.yaml", "translator-alias.yaml"),
 	)
 
 	DescribeTable("should fail",

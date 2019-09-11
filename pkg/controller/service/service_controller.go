@@ -225,8 +225,8 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			// check if using the alias plan, in that case we need to use the existing instance
 			if strings.ToLower(instance.Spec.Plan) == aliasPlan {
 				logt.Info("Using `Alias` plan, checking if instance exists")
-				// TODO - should use external name if defined
-				serviceInstance, err := serviceInstanceAPI.FindByName(instance.ObjectMeta.Name)
+
+				serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
 				if err != nil {
 					logt.Error(err, "Instance ", instance.ObjectMeta.Name, " with `Alias` plan does not exists")
 					return r.updateStatusError(instance, "Failed", err)
@@ -294,7 +294,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 					// Warning: Do not add the ServiceID to this query
 					ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 					ServicePlanID:   ibmCloudInfo.ServicePlanID,
-					Name:            instance.ObjectMeta.Name,
+					Name:            externalName,
 				}
 
 				serviceInstances, err := resServiceInstanceAPI.ListInstances(serviceInstanceQuery)
