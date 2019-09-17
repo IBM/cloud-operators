@@ -43,6 +43,8 @@ spec:
               type: string
             serviceName:
               type: string
+            serviceNamespace:
+              type: string
           required:
           - serviceName
           type: object
