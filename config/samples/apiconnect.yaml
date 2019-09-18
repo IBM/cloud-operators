@@ -3,6 +3,6 @@ kind: Service
 metadata:
   name: myapiconnect
 spec:
-  plan: Alias
+  plan: Lite
   serviceClass: APIConnect
   serviceClassType: CF
