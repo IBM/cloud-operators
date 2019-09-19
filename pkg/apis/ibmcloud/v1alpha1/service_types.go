@@ -28,13 +28,16 @@ import (
 
 // ServiceSpec defines the desired state of Service
 type ServiceSpec struct {
-	ServiceClass     string `json:"serviceClass"`
-	Plan             string `json:"plan"`
+	ServiceClass string `json:"serviceClass"`
+	Plan         string `json:"plan"`
+	// +optional
 	ServiceClassType string `json:"serviceClassType,omitempty"`
 	// +optional
-	ExternalName string                `json:"externalName,omitempty"`
-	Parameters   []keyvaluev1.KeyValue `json:"parameters,omitempty"`
-	Context      icv1.ResourceContext  `json:"context,omitempty"`
+	ExternalName string `json:"externalName,omitempty"`
+	// +optional
+	Parameters []keyvaluev1.KeyValue `json:"parameters,omitempty"`
+	// +optional
+	Context icv1.ResourceContext `json:"context,omitempty"`
 }
 
 // ServiceStatus defines the observed state of Service
@@ -42,13 +45,17 @@ type ServiceStatus struct {
 	resv1.ResourceStatus `json:",inline"`
 	Generation           int64 `json:"generation,omitempty"`
 
-	ServiceClass     string               `json:"serviceClass"`
-	ServiceClassType string               `json:"serviceClassType"`
-	Plan             string               `json:"plan"`
-	InstanceID       string               `json:"instanceId,omitempty"`
-	ExternalName     string               `json:"externalName,omitempty"`
-	Context          icv1.ResourceContext `json:"context,omitempty"`
-	Binding          string               `json:"binding,omitempty"`
+	ServiceClass     string `json:"serviceClass"`
+	ServiceClassType string `json:"serviceClassType"`
+	Plan             string `json:"plan"`
+	// +optional
+	InstanceID string `json:"instanceId,omitempty"`
+	// +optional
+	ExternalName string `json:"externalName,omitempty"`
+	// +optional
+	Context icv1.ResourceContext `json:"context,omitempty"`
+	// +optional
+	Binding string `json:"binding,omitempty"`
 }
 
 // +genclient
