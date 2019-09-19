@@ -46,6 +46,8 @@ const serviceFinalizer = "service.ibmcloud.ibm.com"
 const selfHealingKey = "ibmcloud.ibm.com/self-healing"
 const instanceIDKey = "ibmcloud.ibm.com/instanceId"
 
+const syncPeriod = time.Second * 150
+
 // ContainsFinalizer checks if the instance contains service finalizer
 func ContainsFinalizer(instance *ibmcloudv1alpha1.Service) bool {
 	for _, finalizer := range instance.ObjectMeta.Finalizers {
@@ -83,7 +85,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("service-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: 30})
+	c, err := controller.New("service-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: 1})
 	if err != nil {
 		return err
 	}
@@ -125,11 +127,16 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
+	ibmCloudInfo, err := GetIBMCloudInfo(r.Client, instance)
+	if err != nil {
+		return r.updateStatusError(instance, "Failed", err)
+	}
+
 	// Set the Status field for the first time
 	if reflect.DeepEqual(instance.Status, ibmcloudv1alpha1.ServiceStatus{}) {
 		instance.Status.State = "Pending"
 		instance.Status.Message = "Processing Resource"
-		setStatusFieldsFromSpec(instance, nil)
+		setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info(err.Error())
 			return reconcile.Result{}, nil
@@ -148,11 +155,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
-	ibmCloudInfo, err := GetIBMCloudInfo(r.Client, instance)
-	if err != nil {
-		return r.updateStatusError(instance, "Failed", err)
-	}
-
 	// check is the self-healing annotation is declared
 	selfHealing := isSelfHealing(instance)
 
@@ -162,6 +164,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		if !ContainsFinalizer(instance) {
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, serviceFinalizer)
 			if err := r.Update(context.Background(), instance); err != nil {
+				logt.Info("Error adding finalizer", instance.ObjectMeta.Name, err.Error())
 				return reconcile.Result{}, nil
 			}
 		}
@@ -182,7 +185,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			// remove our finalizer from the list and update it.
 			instance.ObjectMeta.Finalizers = DeleteFinalizer(instance)
 			if err := r.Update(context.Background(), instance); err != nil {
-				logt.Info("Error removing finalizers", "in deletion", err.Error())
+				logt.Info("Error removing finalizers", "in deletion", err.Error()) // TODO: requeue immediately here?
 			}
 			return reconcile.Result{}, nil
 		}
@@ -264,11 +267,11 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				}
 				return r.updateStatus(instance, ibmCloudInfo, serviceInstance.Metadata.GUID, serviceInstance.Entity.LastOperation.State)
 			}
-			return r.updateStatusError(instance, "Failed", err)
+			return r.updateStatusError(instance, "Failed", err) // TODO: should this be failed?
 		}
 
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
-		// Verfication was successful, service exists, update the status if necessary
+		// Verification was successful, service exists, update the status if necessary
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.LastOperation.State)
 
 	} else { // resource is not CF
@@ -407,19 +410,22 @@ func GetServiceInstance(instances []models.ServiceInstance, ID string) (models.S
 
 func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *IBMCloudInfo, instanceID string, instanceState string) (reconcile.Result, error) {
 	state := getState(instanceState)
-	instance.Status.State = state
-	instance.Status.Message = state
-	instance.Status.InstanceID = instanceID
-	setStatusFieldsFromSpec(instance, ibmCloudInfo)
-	err := r.Status().Update(context.Background(), instance)
-	if err != nil && isSelfHealing(instance) {
-		logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
-		err = r.deleteService(ibmCloudInfo, instance)
-		if err != nil {
-			logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
+	if instance.Status.State != state && instance.Status.InstanceID != instanceID || instance.Status.State == "Service Denied" {
+		instance.Status.State = state
+		instance.Status.Message = state
+		instance.Status.InstanceID = instanceID
+		setStatusFieldsFromSpec(instance, ibmCloudInfo)
+		err := r.Status().Update(context.Background(), instance)
+		if err != nil && isSelfHealing(instance) {
+			logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
+			err = r.deleteService(ibmCloudInfo, instance)
+			if err != nil {
+				logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
+			}
 		}
+		return reconcile.Result{}, nil
 	}
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 30}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
 }
 
 func getState(serviceInstanceState string) string {
@@ -436,22 +442,17 @@ func setStatusFieldsFromSpec(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *I
 	instance.Status.ServiceClassType = instance.Spec.ServiceClassType
 	if ibmCloudInfo != nil {
 		instance.Status.Context = ibmCloudInfo.Context
+		instance.Spec.Context = ibmCloudInfo.Context
 	}
 }
 
 func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service, state string, err error) (reconcile.Result, error) {
 	message := err.Error()
 	logt.Info(message)
-	if strings.Contains(message, "dial tcp: lookup iam.cloud.ibm.com: no such host") || strings.Contains(message, "dial tcp: lookup login.ng.bluemix.net: no such host") {
+	if strings.Contains(message, "no such host") {
 		// This means that the IBM Cloud server is under too much pressure, we need to backup
-		if instance.Status.State != state {
-			instance.Status.Message = "Temporarily lost connection to server"
-			instance.Status.State = "Pending"
-			if err := r.Status().Update(context.Background(), instance); err != nil {
-				logt.Info("Error updating status", state, err.Error())
-			}
-		}
-		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 3}, nil
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 5}, nil
+
 	}
 	if instance.Status.State != state {
 		instance.Status.State = state
@@ -460,8 +461,9 @@ func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service,
 			logt.Info("Error updating status", state, err.Error())
 			return reconcile.Result{}, nil
 		}
+		return reconcile.Result{}, nil
 	}
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 3}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
 }
 
 func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *ibmcloudv1alpha1.Service) error {
@@ -549,6 +551,7 @@ func isSelfHealing(instance *ibmcloudv1alpha1.Service) bool {
 
 func getParams(instance *ibmcloudv1alpha1.Service) map[string]interface{} {
 	params := make(map[string]interface{})
+
 	for _, p := range instance.Spec.Parameters {
 		params[p.Name] = p.Value
 	}

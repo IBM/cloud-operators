@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// Create a new Cmd to provide shared dependencies and start components
-	//syncPeriod := 30 * time.Second // set a sync period
+	//syncPeriod := 1 * time.Minute // set a sync period
 	mgr, err := manager.New(cfg, manager.Options{ /*SyncPeriod: &syncPeriod*/ })
 	if err != nil {
 		log.Fatal(err)

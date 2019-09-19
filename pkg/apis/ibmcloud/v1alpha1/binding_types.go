@@ -23,19 +23,23 @@ import (
 
 // BindingSpec defines the desired state of Binding
 type BindingSpec struct {
-	ServiceName      string `json:"serviceName"`
+	ServiceName string `json:"serviceName"`
+	// +optional
 	ServiceNamespace string `json:"serviceNamespace,omitempty"`
 	// +optional
 	SecretName string `json:"secretName,omitempty"`
-	Role       string `json:"role,omitempty"`
+	// +optional
+	Role string `json:"role,omitempty"`
 }
 
 // BindingStatus defines the observed state of Binding
 type BindingStatus struct {
 	resv1.ResourceStatus `json:",inline"`
-	Generation           int64 `json:"generation,omitempty"`
-
-	InstanceID    string `json:"instanceId,omitempty"`
+	// +optional
+	Generation int64 `json:"generation,omitempty"`
+	// +optional
+	InstanceID string `json:"instanceId,omitempty"`
+	// +optional
 	KeyInstanceID string `json:"keyInstanceId,omitempty"`
 }
 
