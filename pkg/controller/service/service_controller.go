@@ -158,7 +158,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	// check is the self-healing annotation is declared
 	selfHealing := isSelfHealing(instance)
 
-	logt.Info("HERE ", "AFTER ISSELFHEALING", instance.ObjectMeta.Name)
 	// Delete if necessary
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// Instance is not being deleted, add the finalizer if not present
@@ -192,8 +191,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
-	logt.Info("HERE ", "AFTER DELETION CHECK", instance.ObjectMeta.Name)
-
 	/*
 		There is a representation invariant that is maintained by this code.
 		When the Status.InstanceID is set, then the Plan, ServiceClass are also set in the Status,
@@ -222,10 +219,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	*/
 
 	externalName := getExternalName(instance)
-
-	logt.Info("HERE ", "AFTER GET EXTERNAL NAME", instance.ObjectMeta.Name)
 	params := getParams(instance)
-	logt.Info("HERE ", "AFTER GETPARAMS", instance.ObjectMeta.Name)
 
 	if ibmCloudInfo.ServiceClassType == "CF" {
 		logt.Info("ServiceInstance ", "is CF", instance.ObjectMeta.Name)
@@ -281,7 +275,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.LastOperation.State)
 
 	} else { // resource is not CF
-		logt.Info("HERE ", "Inside IF for resource is not CF", instance.ObjectMeta.Name)
 		controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
 		if err != nil {
 			return r.updateStatusError(instance, "Pending", err)
@@ -393,18 +386,15 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
 		// Verification was successful, service exists, update the status if necessary
-		logt.Info("HERE ", "DONE", instance.ObjectMeta.Name)
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.State)
 
 	}
 }
 
 func getExternalName(instance *ibmcloudv1alpha1.Service) string {
-	logt.Info("HERE ", "Inside EXTERNAL NAME", instance.ObjectMeta.Name)
 	if instance.Spec.ExternalName != "" {
 		return instance.Spec.ExternalName
 	}
-	logt.Info("HERE ", "Inside EXTERNAL NAME 2", instance.ObjectMeta.Name)
 	return instance.Name
 }
 
@@ -460,18 +450,9 @@ func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service,
 	message := err.Error()
 	logt.Info(message)
 	if strings.Contains(message, "no such host") {
-		// TODO - restart the pod here
-
 		// This means that the IBM Cloud server is under too much pressure, we need to backup
-		if instance.Status.State != state {
-			instance.Status.Message = "Temporarily lost connection to server"
-			instance.Status.State = "Service Denied"
-			if err := r.Status().Update(context.Background(), instance); err != nil {
-				logt.Info("Error updating status", state, err.Error())
-			}
-		}
-		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 5}, nil // TODO - do note reschedule here
-		//return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 5}, nil
+
 	}
 	if instance.Status.State != state {
 		instance.Status.State = state
