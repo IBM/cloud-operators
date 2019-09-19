@@ -68,9 +68,13 @@ docker-push: check-tag
 scorecard:
 	hack/operator-scorecard.sh 
 
-# make a release for olm and releases
+# make an initial release for olm and releases
 release: check-tag
 	python hack/package.py v${TAG}
+
+# make an initial release for olm and releases
+release-update: check-tag
+	python hack/package.py v${TAG} --is_update
 
 # Push OLM metadata to private Quay registry
 push-olm: check-tag check-quaytoken check-quayns
