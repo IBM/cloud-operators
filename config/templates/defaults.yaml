@@ -101,6 +101,11 @@ crd:
           path: serviceName
           x-descriptors:
             - 'urn:alm:descriptor:text'
+        - description: Name of the secret where credentials will be stored
+          displayName: Secret Name
+          path: secretName
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
       statusDescriptors:
         - description: Detailed message on current status
           displayName: Message
