@@ -28,10 +28,11 @@ from collections import OrderedDict
 
 parser = argparse.ArgumentParser(description='Package bundle for OperatorHub')
 parser.add_argument('version', type=str, nargs='?', metavar='version', help='version to package')
+parser.add_argument('--is_update', action='store_true', default=False, dest='is_update', help='version update')
 args = parser.parse_args()
 
 if args.version == None:
-    print("Usage: python"+os.path.basename(__file__)+" <version>")
+    print("Usage: python"+os.path.basename(__file__)+" <version> <--is_update>")
     sys.exit()
 
 ################################
@@ -54,7 +55,15 @@ def find_role(source):
         if (filename.find("role.yaml")>=0):
             return filename
     print("Could not find role file in %s",source)     
-    sys.exit()       
+    sys.exit()  
+
+# returns >0 if semantic version v1 > v2, = 0 if v1 == v2, < 0 is v1 < v2
+def version_is_greater(v1, v2):
+    v1s = v1[1:].split('.')
+    v2s = v2[1:].split('.')    
+    v1v = int(v1s[0])*8 + int(v1s[1])*4 + int(v1s[2])*2
+    v2v = int(v2s[0])*8 + int(v2s[1])*4 + int(v2s[2])*2
+    return v1v - v2v
 
 # allow to insert literals (|-) in yaml
 class literal(str):
@@ -148,6 +157,30 @@ ix += 1
 ################################
 ## Generate OperatorHub metadata
 ################################
+
+# if it is an update, check if previous releases exist & get replaced version
+if args.is_update:
+    previous_version_exists = False
+    min = sys.maxsize
+    hashv = {}
+    for filename in os.listdir(os.path.join(script_home,"..","releases")):
+        if(filename == "latest"):
+            continue
+        vx = version_is_greater(args.version,filename)
+        if ( vx <0 ):
+            print("Must provide semantic version >= to existing versions")
+            sys.exit()   
+
+        if (vx >0 ):
+            previous_version_exists = True
+            if (vx < min):
+                min = vx
+                hashv[min] = filename
+
+    if (not previous_version_exists):
+        print("No valid previous version exists")
+        sys.exit()
+    replaced_version = hashv[min]  
 
 # iterate sources
 for filename in os.listdir(releases):
@@ -247,10 +280,21 @@ with open(os.path.join(config,"templates","template.clusterserviceversion.yaml")
             print("WARNING: kind %s not found!" % kind)    
                    
     csv['metadata']['annotations']['alm-examples'] = literal(json.dumps(alm_examples))
-    
+
+    if args.is_update and replaced_version:
+        csv['spec']['replaces'] = defs['operator_name']+"."+replaced_version
 
     with open(os.path.join(olm,"ibmcloud_operator."+args.version+".clusterserviceversion.yaml"), "w") as outfile:
         yaml.dump(csv, outfile, default_flow_style=False)
+
+# if update, copy csvs from previous version
+if args.is_update and replaced_version:
+    replaced = os.path.join(script_home,"..","olm",replaced_version)
+    for filename in os.listdir(replaced):
+        # we want only crds
+        if (filename.endswith("clusterserviceversion.yaml")):
+            shutil.copyfile(os.path.join(replaced,filename),os.path.join(olm,filename))
+    
 
 with open(os.path.join(script_home,"latest_tag"), "w") as f:
     f.write("export TAG=%s" % (args.version[1:])) 
