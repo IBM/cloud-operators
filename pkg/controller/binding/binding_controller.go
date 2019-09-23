@@ -384,9 +384,10 @@ func (r *ReconcileBinding) createCredentials(instance *ibmcloudv1alpha1.Binding,
 	var keyContents map[string]interface{}
 	var keyInstanceID string
 	logt.Info("Creating", "credentials", instance.ObjectMeta.Name)
+	parameters := getParams(instance)
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
 		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-		key, err := serviceKeys.Create(instance.Status.InstanceID, instance.ObjectMeta.Name, nil)
+		key, err := serviceKeys.Create(instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
 		if err != nil {
 			return "", nil, err
 		}
@@ -436,8 +437,6 @@ func (r *ReconcileBinding) createCredentials(instance *ibmcloudv1alpha1.Binding,
 			}
 			roleID = roles[0].ID
 		}
-
-		parameters := make(map[string]interface{})
 
 		parameters["role_crn"] = roleID
 
@@ -550,4 +549,13 @@ func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ib
 		return "", nil, err
 	}
 	return keyresp.ID, keyresp.Credentials, nil
+}
+
+func getParams(instance *ibmcloudv1alpha1.Binding) map[string]interface{} {
+	params := make(map[string]interface{})
+
+	for _, p := range instance.Spec.Parameters {
+		params[p.Name] = p.Value
+	}
+	return params
 }

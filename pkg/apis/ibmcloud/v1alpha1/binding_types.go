@@ -17,6 +17,7 @@
 package v1alpha1
 
 import (
+	keyvaluev1 "github.com/ibm/cloud-operators/pkg/lib/keyvalue/v1"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,6 +31,8 @@ type BindingSpec struct {
 	SecretName string `json:"secretName,omitempty"`
 	// +optional
 	Role string `json:"role,omitempty"`
+	// +optional
+	Parameters []keyvaluev1.KeyValue `json:"parameters,omitempty"`
 }
 
 // BindingStatus defines the observed state of Binding
