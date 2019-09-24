@@ -435,7 +435,13 @@ func (r *ReconcileBinding) createCredentials(instance *ibmcloudv1alpha1.Binding,
 			if len(roles) == 0 {
 				return "", nil, fmt.Errorf("The service has no roles defined for its bindings")
 			}
-			roleID = roles[0].ID
+			managerRole, err := getManagerRole(roles)
+			if err != nil {
+				// No Manager role found
+				roleID = roles[0].ID
+			} else {
+				roleID = managerRole.ID
+			}
 		}
 
 		parameters["role_crn"] = roleID
@@ -558,4 +564,13 @@ func getParams(instance *ibmcloudv1alpha1.Binding) map[string]interface{} {
 		params[p.Name] = p.Value
 	}
 	return params
+}
+
+func getManagerRole(roles []models.PolicyRole) (models.PolicyRole, error) {
+	for _, role := range roles {
+		if role.DisplayName == "Manager" {
+			return role, nil
+		}
+	}
+	return models.PolicyRole{}, fmt.Errorf("No Manager role found")
 }
