@@ -185,7 +185,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			// remove our finalizer from the list and update it.
 			instance.ObjectMeta.Finalizers = DeleteFinalizer(instance)
 			if err := r.Update(context.Background(), instance); err != nil {
-				logt.Info("Error removing finalizers", "in deletion", err.Error()) // TODO: requeue immediately here?
+				logt.Info("Error removing finalizers", "in deletion", err.Error())
 			}
 			return reconcile.Result{}, nil
 		}
@@ -267,7 +267,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				}
 				return r.updateStatus(instance, ibmCloudInfo, serviceInstance.Metadata.GUID, serviceInstance.Entity.LastOperation.State)
 			}
-			return r.updateStatusError(instance, "Failed", err) // TODO: should this be failed?
+			return r.updateStatusError(instance, "Failed", err)
 		}
 
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
