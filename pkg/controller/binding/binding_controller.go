@@ -147,6 +147,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		instance.Status.State = "Pending"
 		instance.Status.Message = "Processing Resource"
 		if err := r.Status().Update(context.Background(), instance); err != nil {
+			logt.Info("Binding could not update Status", instance.Name, err.Error())
 			return reconcile.Result{}, nil
 		}
 	}
@@ -172,7 +173,13 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
+		logt.Info("Binding could not update constroller reference", instance.Name, err.Error())
 		return reconcile.Result{}, err
+	}
+
+	if err := r.Update(context.Background(), instance); err != nil {
+		logt.Info("Error setting controller reference", instance.Name, err.Error())
+		return reconcile.Result{}, nil
 	}
 
 	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == "IN PROGRESS" {
