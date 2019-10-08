@@ -409,8 +409,9 @@ func GetServiceInstance(instances []models.ServiceInstance, ID string) (models.S
 }
 
 func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *IBMCloudInfo, instanceID string, instanceState string) (reconcile.Result, error) {
+	logt.Info("the instance state", "is:", instanceState)
 	state := getState(instanceState)
-	if instance.Status.State != state && instance.Status.InstanceID != instanceID || instance.Status.State == "Service Denied" {
+	if instance.Status.State != state || instance.Status.InstanceID != instanceID {
 		instance.Status.State = state
 		instance.Status.Message = state
 		instance.Status.InstanceID = instanceID

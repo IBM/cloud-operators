@@ -136,7 +136,7 @@ var _ = Describe("service", func() {
 		Entry("string param", "translator.yaml"),
 		Entry("string param", "cos.yaml"),
 		Entry("string param", "messagehub.yaml"),
-		Entry("string param", "geoCF.yaml"),
+		//Entry("string param", "geoCF.yaml"),
 	)
 
 	DescribeTable("should be ready - alias plan",
