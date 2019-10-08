@@ -3,9 +3,8 @@ kind: Service
 metadata:
   name: mydb2
 spec:
-  plan: Entry
-  serviceClass: dashDB
-  serviceClassType: CF
+  plan: free
+  serviceClass: dashdb-for-transactions
 ---
 apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Binding
