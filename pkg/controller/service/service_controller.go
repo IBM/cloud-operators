@@ -43,7 +43,6 @@ import (
 var logt = logf.Log.WithName("service")
 
 const serviceFinalizer = "service.ibmcloud.ibm.com"
-const selfHealingKey = "ibmcloud.ibm.com/self-healing"
 const instanceIDKey = "ibmcloud.ibm.com/instanceId"
 
 const syncPeriod = time.Second * 150
@@ -155,9 +154,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
-	// check is the self-healing annotation is declared
-	selfHealing := isSelfHealing(instance)
-
 	// Delete if necessary
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// Instance is not being deleted, add the finalizer if not present
@@ -206,11 +202,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		If not, we try to create the service on Bluemix. If InstanceID has been set,
 		then we verify that the service still exists on Bluemix and recreate it if necessary.
 
-		For non-CF resources, before creating we set the InstanceID to "IN PROGRESS".
-		This is to mitigate a potential data race that could cause the service to
-		be created more than once on Bluemix (with the same name, but different InstanceIDs).
-		CF services do not allow multiple services with the same name, so this is not needed.
-
 		When the service is created (or recreated), we update the Status fields to reflect
 		the external state. If this update fails (because the underlying etcd instance was modified),
 		then we restore the invariant by deleting the external resource that was created.
@@ -254,7 +245,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
 		serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
 		if err != nil {
-			if strings.Contains(err.Error(), "doesn't exist") && selfHealing {
+			if strings.Contains(err.Error(), "doesn't exist") {
 				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 				serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
 					Name:      externalName,
@@ -341,11 +332,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 			// Create the instance
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-			instance.Status.InstanceID = "IN PROGRESS"
-			if err := r.Status().Update(context.Background(), instance); err != nil {
-				logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
-				return reconcile.Result{}, nil
-			}
 			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
@@ -369,13 +355,8 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		serviceInstance, err := GetServiceInstance(serviceInstances, instance.Status.InstanceID)
-		if err != nil && strings.Contains(err.Error(), "not found") && selfHealing { // Need to recreate it!
+		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-			instance.Status.InstanceID = "IN PROGRESS"
-			if err := r.Status().Update(context.Background(), instance); err != nil {
-				logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
-				return reconcile.Result{}, nil
-			}
 			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
@@ -417,7 +398,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 		instance.Status.InstanceID = instanceID
 		setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		err := r.Status().Update(context.Background(), instance)
-		if err != nil && isSelfHealing(instance) {
+		if err != nil {
 			logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
 			err = r.deleteService(ibmCloudInfo, instance)
 			if err != nil {
@@ -468,7 +449,7 @@ func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service,
 }
 
 func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *ibmcloudv1alpha1.Service) error {
-	if instance.Status.InstanceID == "" || instance.Status.InstanceID == "IN PROGRESS" {
+	if instance.Status.InstanceID == "" {
 		return nil // Nothing to do here, service was not intialized
 	}
 	if ibmCloudInfo.ServiceClassType == "CF" {
@@ -526,28 +507,6 @@ func specChanged(instance *ibmcloudv1alpha1.Service) bool {
 		return true
 	}
 	return false
-}
-
-// check if self healing is enabled
-func isSelfHealing(instance *ibmcloudv1alpha1.Service) bool {
-	selfHealing := false
-	v, ok := instance.ObjectMeta.GetAnnotations()[selfHealingKey]
-	if ok {
-		if v == "enabled" {
-			logt.Info("Found annotation ", selfHealingKey, "=", v, " self healing is enabled")
-			selfHealing = true
-		} else {
-			logt.Info("Found annotation ", selfHealingKey, "=", v, " but self healing is NOT enabled")
-		}
-	} else {
-		logt.Info("Annotation ", selfHealingKey, " not found - self Healing is NOT enabled")
-	}
-	// check if using the alias plan - in this case self healing should be disabled but print a warning
-	if (strings.ToLower(instance.Spec.Plan) == aliasPlan) && selfHealing {
-		logt.Info("Warning: self healing annotation for cannot be used witb Alias plan. Setting self healing to false.", "instanceName", instance.ObjectMeta.Name)
-		selfHealing = false
-	}
-	return selfHealing
 }
 
 func getParams(instance *ibmcloudv1alpha1.Service) map[string]interface{} {
