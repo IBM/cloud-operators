@@ -41,36 +41,9 @@ NAME           STATUS   AGE
 myservice      Online   12s
 ```
 
-#### Enabling Self-Healing
+When a service created by the operator is deleted out-of-band (e.g. via `ibmcloud` CLI or IBM Cloud UI) then the service is automatically re-created by
+the operator.
 
-With self-healing enabled, when a service created by the operator is deleted out-of-band
-(e.g. via `ibmcloud` CLI or IBM Cloud UI) then the service is automatically re-created by
-the operator. This feature might be useful to ensure that a service instance is always available
-even if it gets deleted accidentally or the current instance becomes unhealthy. However,
-we do not reccomend using this feature with stateful services (e.g. databases).
-
-To enable self-healing, add the following annotation to the service definition:
-
-```yaml
-annotations:
-    ibmcloud.ibm.com/self-healing: enabled
-```
-
-for example, to create an instance of an IBM translator service with self-healing, use the following
-example:
-
-```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
-kind: Service
-metadata:
-  name: mytranslator
-  namespace: default
-  annotations:
-    ibmcloud.ibm.com/self-healing: enabled
-spec:
-  plan: lite
-  serviceClass: language-translator
-```  
 
 #### Referencing an existing service
 
