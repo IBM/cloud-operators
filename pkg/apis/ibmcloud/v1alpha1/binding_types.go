@@ -44,6 +44,8 @@ type BindingStatus struct {
 	InstanceID string `json:"instanceId,omitempty"`
 	// +optional
 	KeyInstanceID string `json:"keyInstanceId,omitempty"`
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // +genclient

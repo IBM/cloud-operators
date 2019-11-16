@@ -116,5 +116,12 @@ crd:
           displayName: State
           path: state
           x-descriptors:
-            - 'urn:alm:descriptor:text'  
+            - 'urn:alm:descriptor:text'
+        - description: Name of generated secret with service credentials
+          displayName: Secret Name
+          path: secretName
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+            - 'urn:alm:descriptor:io.kubernetes:Secret'
+            - 'binding:env:object:secret'        
   

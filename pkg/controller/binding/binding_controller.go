@@ -345,6 +345,7 @@ func (r *ReconcileBinding) updateStatusError(instance *ibmcloudv1alpha1.Binding,
 func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding, serviceInstance *ibmcloudv1alpha1.Service, ibmCloudInfo *service.IBMCloudInfo) (reconcile.Result, error) {
 	instance.Status.State = "Online"
 	instance.Status.Message = "Online"
+	instance.Status.SecretName = getSecretName(instance)
 	err := r.Status().Update(context.Background(), instance)
 	if err != nil {
 		logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
