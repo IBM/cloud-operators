@@ -87,6 +87,8 @@ spec:
               type: string
             message:
               type: string
+            secretName:
+              type: string
             state:
               type: string
           type: object
