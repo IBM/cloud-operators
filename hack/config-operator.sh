@@ -17,7 +17,10 @@
 
 set -e
 
-IC_APIKEY=$(ibmcloud iam api-key-create icop-key -d "Key for IBM Cloud Operator" | grep "API Key" | awk '{ print $3 }')
+if [[ -z "${IC_APIKEY}" ]]; then
+  echo "*** Generating new APIKey"
+  IC_APIKEY=$(ibmcloud iam api-key-create icop-key -d "Key for IBM Cloud Operator" | grep "API Key" | awk '{ print $3 }')
+fi
 IC_TARGET=$(ibmcloud target) \
 IC_ORG=$(echo "$IC_TARGET" | grep Org | awk '{print $2}')  \
 IC_SPACE=$(echo "$IC_TARGET" | grep Space | awk '{print $2}') \
