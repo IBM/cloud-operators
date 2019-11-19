@@ -50,9 +50,9 @@ metadata:
   labels:
     app.kubernetes.io/name: ibmcloud-operator
 data:
-  org: $IC_ORG
-  region: $IC_REGION
-  resourceGroup: $IC_GROUP
-  space: $IC_SPACE
+  org: "${IC_ORG}"
+  region: "${IC_REGION}"
+  resourceGroup: "${IC_GROUP}"
+  space: "${IC_SPACE}"
 EOF
 
