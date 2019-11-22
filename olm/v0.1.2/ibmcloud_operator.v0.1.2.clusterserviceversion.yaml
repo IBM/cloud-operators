@@ -8,7 +8,7 @@ metadata:
     categories: Cloud Provider
     certified: 'false'
     containerImage: cloudoperators/ibmcloud-operator:0.1.2
-    createdAt: '2019-11-15T22:04:15Z'
+    createdAt: '2019-11-21T10:00:56Z'
     description: The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage
       the lifecycle of IBM public cloud services.
     repository: https://github.com/IBM/cloud-operators
