@@ -43,14 +43,36 @@ cp ${SCRIPTS_HOME}/../releases/latest/*_role.yaml ${TEST_DEPLOY_DIR}/deploy/role
 cp ${SCRIPTS_HOME}/../releases/latest/*_deployment.yaml ${TEST_DEPLOY_DIR}/deploy/operator.yaml
 cp ${SCRIPTS_HOME}/../olm/v${TAG}/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml ${TEST_DEPLOY_DIR}/deploy/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml
 
+# get namespace to use
+NS=$(cat ${SCRIPTS_HOME}/../releases/latest/*deployment.yaml | grep namespace | awk '{print $2}')
+
+# create the scorecard config file
+cat > ${TEST_DEPLOY_DIR}/.osdk-scorecard.yaml <<EOS
+scorecard:
+  # Setting a global scorecard option
+  output: json
+  plugins:
+    # `basic` tests configured to test 2 CRs
+    - basic:
+        namespace: $NS
+        cr-manifest:
+          - "${TEST_DEPLOY_DIR}/deploy/crds/service_cr.yaml"
+          - "${TEST_DEPLOY_DIR}/deploy/crds/binding_cr.yaml"
+        crds-dir: "${TEST_DEPLOY_DIR}/deploy/crds"   
+    # `olm` tests configured to test 2 CRs
+    - olm:
+        cr-manifest:
+           - "${TEST_DEPLOY_DIR}/deploy/crds/service_cr.yaml"
+           - "${TEST_DEPLOY_DIR}/deploy/crds/binding_cr.yaml"
+        csv-path: "${TEST_DEPLOY_DIR}/deploy/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml"
+EOS
+
+# show up files
 if [ -z ${TREE_CMD} ]; then
     echo "'tree' command not found, consider installing it."
 else
     tree $TEST_DEPLOY_DIR
 fi    
-
-# launch the scorecard
-NS=$(cat ${SCRIPTS_HOME}/../releases/latest/*deployment.yaml | grep namespace | awk '{print $2}')
 
 # create install ns if needed
 kubectl get ns ${NS} >/dev/null 2>&1
@@ -63,11 +85,7 @@ else
 fi
 
 cd $TEST_DEPLOY_DIR
-operator-sdk scorecard \
---cr-manifest deploy/crds/service_cr.yaml \
---cr-manifest deploy/crds/binding_cr.yaml \
---csv-path deploy/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml \
---namespace ${NS}
+operator-sdk scorecard
 
 # clean up
 rm -r $TEST_DEPLOY_DIR
