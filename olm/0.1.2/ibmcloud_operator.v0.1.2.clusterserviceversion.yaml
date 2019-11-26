@@ -7,13 +7,13 @@ metadata:
     capabilities: Basic Install
     categories: Cloud Provider
     certified: 'false'
-    containerImage: cloudoperators/ibmcloud-operator:0.1.0
-    createdAt: '2019-06-28T11:56:22Z'
+    containerImage: cloudoperators/ibmcloud-operator:0.1.2
+    createdAt: '2019-11-25T21:58:20Z'
     description: The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage
       the lifecycle of IBM public cloud services.
     repository: https://github.com/IBM/cloud-operators
     support: IBM
-  name: ibmcloud-operator.v0.1.0
+  name: ibmcloud-operator.v0.1.2
   namespace: placeholder
 spec:
   customresourcedefinitions:
@@ -100,6 +100,11 @@ spec:
         path: serviceName
         x-descriptors:
         - urn:alm:descriptor:text
+      - description: Name of the secret where credentials will be stored
+        displayName: Secret Name
+        path: secretName
+        x-descriptors:
+        - urn:alm:descriptor:text
       statusDescriptors:
       - description: Detailed message on current status
         displayName: Message
@@ -111,6 +116,13 @@ spec:
         path: state
         x-descriptors:
         - urn:alm:descriptor:text
+      - description: Name of generated secret with service credentials
+        displayName: Secret Name
+        path: secretName
+        x-descriptors:
+        - urn:alm:descriptor:text
+        - urn:alm:descriptor:io.kubernetes:Secret
+        - binding:env:object:secret
       version: v1alpha1
   description: "The IBM Cloud Operator provides a simple Kubernetes CRD-Based API\
     \ to provision and bind  IBM public cloud services on your Kubernetes cluster.\
@@ -129,8 +141,10 @@ spec:
     \   already configured to access your cluster. Before installing the operator,\
     \ you need to login to  your IBM cloud account with the IBM Cloud CLI:\n\n   \
     \ ibmcloud login\n\nand set a default target environment for your resources with\
-    \ the command:\n\n    ibmcloud target --cf\n  \nyou can then configure the operator\
-    \ running the following script:\n\n    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/config-operator.sh\
+    \ the command:\n\n    ibmcloud target --cf -g default\n\nThis will use the IBM\
+    \ Cloud resource group `default`. To specify a different resource group, use the\
+    \ following command:\n\n    ibmcloud target -g <resource-group>\n\nyou can then\
+    \ configure the operator running the following script:\n\n    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/config-operator.sh\
     \ | bash \n\nThe script above creates an IBM Cloud API Key and stores it in a\
     \ Kubernetes secret that can be accessed by the operator, and it sets defaults\
     \ such as the resource group and region  used to provision IBM Cloud Services.\
@@ -331,7 +345,7 @@ spec:
                 - -v=5
                 command:
                 - ./manager
-                image: cloudoperators/ibmcloud-operator:0.1.0
+                image: cloudoperators/ibmcloud-operator:0.1.2
                 imagePullPolicy: Always
                 name: ibmcloud-controllers
               serviceAccountName: ibmcloud-operator
@@ -367,7 +381,8 @@ spec:
   maturity: alpha
   provider:
     name: IBM
+  replaces: ibmcloud-operator.v0.1.1
   selector:
     matchLabels:
       name: ibmcloud-operator
-  version: 0.1.0
+  version: 0.1.2

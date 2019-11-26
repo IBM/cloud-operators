@@ -81,7 +81,7 @@ script_home=os.path.dirname(os.path.realpath(__file__))
 os.chdir(script_home)
 config = os.path.join(script_home,"..","config")
 releases=os.path.join(script_home,"..","releases",args.version)
-olm=os.path.join(script_home,"..","olm",args.version)
+olm=os.path.join(script_home,"..","olm",args.version[1:])
 latest=os.path.join(script_home,"..","releases","latest")
 
 # load defaults 
@@ -189,14 +189,14 @@ for filename in os.listdir(releases):
         continue
     shutil.copyfile(os.path.join(releases,filename),os.path.join(olm,rename_crd(filename)))
 
-# copy package file
+# write/update package file
 with open(os.path.join(config,"templates","template.package.yaml"), 'r') as stream:
     pkg=yaml.safe_load(stream)
     pkg['channels'][0]['currentCSV'] = defs['operator_name']+"."+args.version
     pkg['channels'][0]['name'] = defs['channel_name']
     pkg['packageName'] = defs['operator_name']
 
-    with open(os.path.join(olm,"ibmcloud_operator.package.yaml"), "w") as outfile:
+    with open(os.path.join(olm,"..","ibmcloud_operator.package.yaml"), "w") as outfile:
         yaml.dump(pkg, outfile, default_flow_style=False)
  
 # fill in cluster service version from template, deployment and roles
@@ -286,15 +286,6 @@ with open(os.path.join(config,"templates","template.clusterserviceversion.yaml")
 
     with open(os.path.join(olm,"ibmcloud_operator."+args.version+".clusterserviceversion.yaml"), "w") as outfile:
         yaml.dump(csv, outfile, default_flow_style=False)
-
-# if update, copy csvs from previous version
-if args.is_update and replaced_version:
-    replaced = os.path.join(script_home,"..","olm",replaced_version)
-    for filename in os.listdir(replaced):
-        # we want only crds
-        if (filename.endswith("clusterserviceversion.yaml")):
-            shutil.copyfile(os.path.join(replaced,filename),os.path.join(olm,filename))
-    
 
 with open(os.path.join(script_home,"latest_tag"), "w") as f:
     f.write("export TAG=%s" % (args.version[1:])) 
