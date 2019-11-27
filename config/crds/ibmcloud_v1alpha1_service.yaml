@@ -80,6 +80,10 @@ spec:
                 - name
                 type: object
               type: array
+            tags:
+              items:
+                type: string
+              type: array
             plan:
               type: string
             serviceClass:

@@ -211,6 +211,8 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	externalName := getExternalName(instance)
 	params := getParams(instance)
+	tags := getTags(instance)
+	logt.Info("ServiceInstance ", "name", externalName, "tags", tags)
 
 	if ibmCloudInfo.ServiceClassType == "CF" {
 		logt.Info("ServiceInstance ", "is CF", instance.ObjectMeta.Name)
@@ -235,6 +237,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				PlanGUID:  ibmCloudInfo.BxPlan.GUID,
 				SpaceGUID: ibmCloudInfo.Space.GUID,
 				Params:    params,
+				Tags:      tags,
 			})
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
@@ -252,6 +255,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 					PlanGUID:  ibmCloudInfo.BxPlan.GUID,
 					SpaceGUID: ibmCloudInfo.Space.GUID,
 					Params:    params,
+					Tags:      tags,
 				})
 				if err != nil {
 					return r.updateStatusError(instance, "Failed", err)
@@ -278,6 +282,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 			TargetCrn:       ibmCloudInfo.TargetCrn,
 			Parameters:      params,
+			Tags:            tags,
 		}
 
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
@@ -516,4 +521,8 @@ func getParams(instance *ibmcloudv1alpha1.Service) map[string]interface{} {
 		params[p.Name] = p.Value
 	}
 	return params
+}
+
+func getTags(instance *ibmcloudv1alpha1.Service) []string {
+	return instance.Spec.Tags
 }
