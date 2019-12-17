@@ -37,6 +37,8 @@ type ServiceSpec struct {
 	// +optional
 	Parameters []keyvaluev1.KeyValue `json:"parameters,omitempty"`
 	// +optional
+	Tags []string `json:"tags,omitempty"`
+	// +optional
 	Context icv1.ResourceContext `json:"context,omitempty"`
 }
 
