@@ -256,6 +256,11 @@ func (in *ServiceSpec) DeepCopyInto(out *ServiceSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Tags != nil {
+		in, out := &in.Tags, &out.Tags
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	out.Context = in.Context
 	return
 }
