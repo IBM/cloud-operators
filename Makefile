@@ -77,8 +77,9 @@ release-update: check-tag
 	python hack/package.py v${TAG} --is_update
 
 # Push OLM metadata to private Quay registry
+# operator-courier push olm/${TAG} ${QUAY_NS} ibmcloud-operator ${TAG} "${QUAY_TOKEN}"
 push-olm: check-tag check-quaytoken check-quayns
-	operator-courier push olm/v${TAG} ${QUAY_NS} ibmcloud-operator ${TAG} "${QUAY_TOKEN}"
+	operator-courier push olm ${QUAY_NS} ibmcloud-operator ${TAG} "${QUAY_TOKEN}"
 	@echo Remember to make https://quay.io/application/${QUAY_NS}/ibmcloud-operator public
 
 .PHONY: lintall
