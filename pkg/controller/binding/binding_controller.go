@@ -49,6 +49,7 @@ import (
 var logt = logf.Log.WithName("binding")
 
 const bindingFinalizer = "binding.ibmcloud.ibm.com"
+const syncPeriod = time.Second * 150
 
 // ContainsFinalizer checks if the instance contains service finalizer
 func ContainsFinalizer(instance *ibmcloudv1alpha1.Binding) bool {
@@ -177,10 +178,10 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	// 	return reconcile.Result{}, err
 	// }
 
-	if err := r.Update(context.Background(), instance); err != nil {
-		logt.Info("Error setting controller reference", instance.Name, err.Error())
-		return reconcile.Result{}, nil
-	}
+	// if err := r.Update(context.Background(), instance); err != nil {
+	// 	logt.Info("Error setting controller reference", instance.Name, err.Error())
+	// 	return reconcile.Result{}, nil
+	// }
 
 	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == "IN PROGRESS" {
 		// The parent service has not been initialized fully yet
@@ -344,7 +345,7 @@ func (r *ReconcileBinding) updateStatusError(instance *ibmcloudv1alpha1.Binding,
 			return reconcile.Result{}, nil
 		}
 	}
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 3}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
 }
 
 func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding, serviceInstance *ibmcloudv1alpha1.Service, ibmCloudInfo *service.IBMCloudInfo) (reconcile.Result, error) {
@@ -360,7 +361,7 @@ func (r *ReconcileBinding) updateStatusOnline(instance *ibmcloudv1alpha1.Binding
 		}
 	}
 
-	return reconcile.Result{Requeue: true, RequeueAfter: time.Minute * 30}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
 }
 
 func (r *ReconcileBinding) getServiceInstance(instance *ibmcloudv1alpha1.Binding) (*ibmcloudv1alpha1.Service, error) {

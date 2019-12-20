@@ -80,16 +80,16 @@ spec:
                 - name
                 type: object
               type: array
-            tags:
-              items:
-                type: string
-              type: array
             plan:
               type: string
             serviceClass:
               type: string
             serviceClassType:
               type: string
+            tags:
+              items:
+                type: string
+              type: array
           required:
           - serviceClass
           - plan
