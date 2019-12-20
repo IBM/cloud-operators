@@ -41,7 +41,7 @@ cp ${SCRIPTS_HOME}/../releases/latest/*_serviceaccount.yaml ${TEST_DEPLOY_DIR}/d
 cp ${SCRIPTS_HOME}/../releases/latest/*_role_binding.yaml ${TEST_DEPLOY_DIR}/deploy/role_binding.yaml
 cp ${SCRIPTS_HOME}/../releases/latest/*_role.yaml ${TEST_DEPLOY_DIR}/deploy/role.yaml
 cp ${SCRIPTS_HOME}/../releases/latest/*_deployment.yaml ${TEST_DEPLOY_DIR}/deploy/operator.yaml
-cp ${SCRIPTS_HOME}/../olm/v${TAG}/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml ${TEST_DEPLOY_DIR}/deploy/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml
+cp ${SCRIPTS_HOME}/../olm/${TAG}/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml ${TEST_DEPLOY_DIR}/deploy/ibmcloud_operator.v${TAG}.clusterserviceversion.yaml
 
 # get namespace to use
 NS=$(cat ${SCRIPTS_HOME}/../releases/latest/*deployment.yaml | grep namespace | awk '{print $2}')
@@ -73,6 +73,10 @@ if [ -z ${TREE_CMD} ]; then
 else
     tree $TEST_DEPLOY_DIR
 fi    
+
+# show config file
+echo "Scorecard config file:"
+cat ${TEST_DEPLOY_DIR}/.osdk-scorecard.yaml
 
 # create install ns if needed
 kubectl get ns ${NS} >/dev/null 2>&1
