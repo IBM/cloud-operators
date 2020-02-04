@@ -19,6 +19,16 @@ set -e
 
 RELEASE="latest/"
 
+which curl > /dev/null 2>&1 || (echo "Install curl first before running install-operator.sh" && exit 1)
+
+if ! curl -s https://github.com/ > /dev/null
+then
+  echo "GitHub is down, or having issues. You won't be able to pull the master.zip from the repository."
+  exit 1
+fi
+
+which unzip > /dev/null 2>&1 || (echo "Install unzip first before running install-operator.sh" && exit 1)
+
 # check if running piped from curl
 if [ -z ${BASH_SOURCE} ]; then
   echo "* Downloading install yaml..."
