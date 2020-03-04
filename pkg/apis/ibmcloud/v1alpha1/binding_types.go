@@ -28,6 +28,8 @@ type BindingSpec struct {
 	// +optional
 	ServiceNamespace string `json:"serviceNamespace,omitempty"`
 	// +optional
+	Alias string `json:"alias,omitempty"`
+	// +optional
 	SecretName string `json:"secretName,omitempty"`
 	// +optional
 	Role string `json:"role,omitempty"`
