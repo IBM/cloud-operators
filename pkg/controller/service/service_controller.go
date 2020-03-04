@@ -28,6 +28,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	rcontext "github.com/ibm/cloud-operators/pkg/context"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -113,6 +114,7 @@ type ReconcileService struct {
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=services/status,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	rctx := rcontext.New(r.Client, request)
 	// Fetch the Service instance
 	instance := &ibmcloudv1alpha1.Service{}
 	err := r.Get(context.Background(), request.NamespacedName, instance)
@@ -210,7 +212,11 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	*/
 
 	externalName := getExternalName(instance)
-	params := getParams(instance)
+	params, err := getParams(rctx, instance)
+	if err != nil {
+		logt.Error(err, "Instance ", instance.ObjectMeta.Name, " has problems with its parameters")
+		return r.updateStatusError(instance, "Failed", err)
+	}
 	tags := getTags(instance)
 	logt.Info("ServiceInstance ", "name", externalName, "tags", tags)
 
@@ -514,13 +520,17 @@ func specChanged(instance *ibmcloudv1alpha1.Service) bool {
 	return false
 }
 
-func getParams(instance *ibmcloudv1alpha1.Service) map[string]interface{} {
+func getParams(rctx rcontext.Context, instance *ibmcloudv1alpha1.Service) (map[string]interface{}, error) {
 	params := make(map[string]interface{})
 
 	for _, p := range instance.Spec.Parameters {
-		params[p.Name] = p.Value
+		val, err := p.ToJSON(rctx)
+		if err != nil {
+			return params, err
+		}
+		params[p.Name] = val
 	}
-	return params
+	return params, nil
 }
 
 func getTags(instance *ibmcloudv1alpha1.Service) []string {

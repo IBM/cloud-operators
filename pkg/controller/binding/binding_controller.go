@@ -30,6 +30,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/utils"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
+	rcontext "github.com/ibm/cloud-operators/pkg/context"
 	"github.com/ibm/cloud-operators/pkg/controller/service"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -130,6 +131,7 @@ type ReconcileBinding struct {
 // +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/status,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	rctx := rcontext.New(r.Client, request)
 	// Fetch the Binding instance
 	instance := &ibmcloudv1alpha1.Binding{}
 	err := r.Get(context.Background(), request.NamespacedName, instance)
@@ -247,7 +249,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			return reconcile.Result{}, nil
 		}
 
-		keyInstanceID, keyContents, err := r.createCredentials(instance, ibmCloudInfo)
+		keyInstanceID, keyContents, err := r.createCredentials(rctx, instance, ibmCloudInfo)
 		if err != nil {
 			logt.Info("Error creating credentials", instance.Name, err.Error())
 			if strings.Contains(err.Error(), "still in progress") {
@@ -275,7 +277,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		if err != nil || contentsContainRedacted {
 			// TODO: check if service is gone
 			logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
-			keyInstanceID, keyContents, err = r.createCredentials(instance, ibmCloudInfo)
+			keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
 			}
@@ -394,11 +396,15 @@ func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 	return ret, nil
 }
 
-func (r *ReconcileBinding) createCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
+func (r *ReconcileBinding) createCredentials(rctx rcontext.Context, instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
 	var keyContents map[string]interface{}
 	var keyInstanceID string
 	logt.Info("Creating", "credentials", instance.ObjectMeta.Name)
-	parameters := getParams(instance)
+	parameters, err := getParams(rctx, instance)
+	if err != nil {
+		logt.Error(err, "Instance ", instance.ObjectMeta.Name, " has problems with its parameters")
+		return "", nil, err
+	}
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
 		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
 		key, err := serviceKeys.Create(instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
@@ -571,13 +577,17 @@ func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ib
 	return keyresp.ID, keyresp.Credentials, nil
 }
 
-func getParams(instance *ibmcloudv1alpha1.Binding) map[string]interface{} {
+func getParams(rctx rcontext.Context, instance *ibmcloudv1alpha1.Binding) (map[string]interface{}, error) {
 	params := make(map[string]interface{})
 
 	for _, p := range instance.Spec.Parameters {
-		params[p.Name] = p.Value
+		val, err := p.ToJSON(rctx)
+		if err != nil {
+			return params, err
+		}
+		params[p.Name] = val
 	}
-	return params
+	return params, nil
 }
 
 func getManagerRole(roles []models.PolicyRole) (models.PolicyRole, error) {
