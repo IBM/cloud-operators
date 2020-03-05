@@ -172,6 +172,25 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			return reconcile.Result{}, nil
 		}
+		instance.Status.State = "Pending"
+		instance.Status.Message = "Processing Resource"
+		instance.Status.InstanceID = ""
+		instance.Status.KeyInstanceID = ""
+
+		// If a secret exists that corresponds to this Binding, then delete it
+		secret, err := GetSecret(r, instance)
+		if err == nil { // A secret exists
+			err = r.deleteSecret(secret)
+			if err != nil {
+				logt.Info("Unable to delete", "invalid secret", instance.Name)
+				return r.updateStatusError(instance, "Failed", err)
+			}
+		}
+		instance.Status.SecretName = ""
+		if err := r.Status().Update(context.Background(), instance); err != nil {
+			logt.Info("Binding could not update Status", instance.Name, err.Error())
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
