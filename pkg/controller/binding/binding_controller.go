@@ -50,6 +50,7 @@ import (
 var logt = logf.Log.WithName("binding")
 
 const bindingFinalizer = "binding.ibmcloud.ibm.com"
+const inProgress = "IN PROGRESS"
 const syncPeriod = time.Second * 150
 
 // ContainsFinalizer checks if the instance contains service finalizer
@@ -194,17 +195,19 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
-	// if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
-	// 	logt.Info("Binding could not update constroller reference", instance.Name, err.Error())
-	// 	return reconcile.Result{}, err
-	// }
+	if serviceInstance.Namespace == instance.Namespace { // Set an owner reference if service and binding are in the same namespace
+		if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
+			logt.Info("Binding could not update constroller reference", instance.Name, err.Error())
+			return reconcile.Result{}, err
+		}
 
-	// if err := r.Update(context.Background(), instance); err != nil {
-	// 	logt.Info("Error setting controller reference", instance.Name, err.Error())
-	// 	return reconcile.Result{}, nil
-	// }
+		if err := r.Update(context.Background(), instance); err != nil {
+			logt.Info("Error setting controller reference", instance.Name, err.Error())
+			return reconcile.Result{}, nil
+		}
+	}
 
-	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == "IN PROGRESS" {
+	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == inProgress {
 		// The parent service has not been initialized fully yet
 		logt.Info("Parent service", "not yet initialized", instance.Name)
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
@@ -213,7 +216,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	ibmCloudInfo, err := service.GetIBMCloudInfo(r.Client, serviceInstance)
 	if err != nil {
 		logt.Info("Unable to get", "ibmcloudInfo", instance.Name)
-		return r.updateStatusError(instance, "Failed", err)
+		return r.updateStatusError(instance, "Pending", err)
 	}
 
 	// Delete if necessary
@@ -262,19 +265,30 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Now instance.Status.IntanceID has been set properly
 	if instance.Status.KeyInstanceID == "" { // The KeyInstanceID has not been set, need to create the key
-		instance.Status.KeyInstanceID = "IN PROGRESS"
+		instance.Status.KeyInstanceID = inProgress
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
 			return reconcile.Result{}, nil
 		}
 
-		keyInstanceID, keyContents, err := r.createCredentials(rctx, instance, ibmCloudInfo)
-		if err != nil {
-			logt.Info("Error creating credentials", instance.Name, err.Error())
-			if strings.Contains(err.Error(), "still in progress") {
+		var keyInstanceID string
+		var keyContents map[string]interface{}
+
+		if instance.Spec.Alias != "" { // This binding is an alias, do not create new credentials
+			keyInstanceID, keyContents, err = r.getCredentials(instance, ibmCloudInfo)
+			if err != nil {
+				logt.Info("Error getting aliased credentials", instance.Name, err.Error())
 				return r.updateStatusError(instance, "Pending", err)
 			}
-			return r.updateStatusError(instance, "Failed", err)
+		} else { // This binding is NOT an alias, create new credentials
+			keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
+			if err != nil {
+				logt.Info("Error creating credentials", instance.Name, err.Error())
+				if strings.Contains(err.Error(), "still in progress") {
+					return r.updateStatusError(instance, "Pending", err)
+				}
+				return r.updateStatusError(instance, "Failed", err)
+			}
 		}
 
 		instance.Status.KeyInstanceID = keyInstanceID
@@ -293,16 +307,23 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		logt.Info("ServiceInstance Key", "should already exist, verifying", instance.ObjectMeta.Name)
 		keyInstanceID, keyContents, err := r.getCredentials(instance, ibmCloudInfo)
 		_, contentsContainRedacted := keyContents["REDACTED"]
-		if err != nil || contentsContainRedacted {
-			// TODO: check if service is gone
+		if (err != nil && strings.Contains(err.Error(), "404")) || contentsContainRedacted { // Credentials not found
+			if instance.Spec.Alias != "" {
+				logt.Info("Error getting aliased credentials", instance.Name, err.Error())
+				return r.updateStatusError(instance, "Pending", err)
+			}
+
 			logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
 			keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
 			}
-			instance.Status.KeyInstanceID = keyInstanceID
-		}
 
+		} else if err != nil {
+			logt.Info("Error getting credentials", instance.Name, err.Error())
+			return r.updateStatusError(instance, "Pending", err)
+		}
+		instance.Status.KeyInstanceID = keyInstanceID
 		secret, err := GetSecret(r, instance)
 		if err != nil {
 			logt.Info("Secret does not exist", "Recreating", getSecretName(instance))
@@ -535,18 +556,20 @@ func (r *ReconcileBinding) createSecret(instance *ibmcloudv1alpha1.Binding, keyC
 func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) error {
 	logt.Info("Deleting", "credentials", instance.ObjectMeta.Name)
 
-	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
-		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-		err := serviceKeys.Delete(instance.Status.KeyInstanceID)
-		if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
-			return err
-		}
+	if instance.Spec.Alias == "" { // Delete the credentials only if this is not an Alias
+		if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
+			serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
+			err := serviceKeys.Delete(instance.Status.KeyInstanceID)
+			if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
+				return err
+			}
 
-	} else { // service type is not CF
-		resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-		err := resServiceKeyAPI.DeleteKey(instance.Status.KeyInstanceID)
-		if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
-			return err
+		} else { // service type is not CF
+			resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
+			err := resServiceKeyAPI.DeleteKey(instance.Status.KeyInstanceID)
+			if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
+				return err
+			}
 		}
 	}
 	secret, err := GetSecret(r, instance)
@@ -577,10 +600,17 @@ func getSecretName(instance *ibmcloudv1alpha1.Binding) string {
 
 func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "credentials", instance.ObjectMeta.Name)
+	var credname string
+	if instance.Spec.Alias != "" {
+		credname = instance.Spec.Alias
+	} else {
+		credname = instance.ObjectMeta.Name
+	}
 
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
 		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, instance.ObjectMeta.Name)
+
+		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, credname)
 		if err != nil {
 			return "", nil, err
 		}
@@ -589,11 +619,33 @@ func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ib
 
 	// service type is not CF
 	resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-	keyresp, err := resServiceKeyAPI.GetKey(instance.Status.KeyInstanceID)
+	if instance.Status.KeyInstanceID != "" && instance.Status.KeyInstanceID != inProgress { // There is already a KeyInstanceID
+		keyresp, err := resServiceKeyAPI.GetKey(instance.Status.KeyInstanceID)
+		if err != nil {
+			return "", nil, err
+		}
+		return keyresp.ID, keyresp.Credentials, nil
+	}
+
+	// There is no KeyInstanceID
+	keys, err := resServiceKeyAPI.GetKeys(credname)
 	if err != nil {
 		return "", nil, err
 	}
-	return keyresp.ID, keyresp.Credentials, nil
+
+	serviceKeys := make([]models.ServiceKey, 0)
+	for _, key := range keys {
+		if key.SourceCrn.String() == instance.Status.InstanceID {
+			serviceKeys = append(serviceKeys, key)
+		}
+	}
+
+	if len(serviceKeys) > 1 {
+		return "", nil, fmt.Errorf("Alias credential, there exist more than one credential with that name: %s", credname)
+	}
+
+	return serviceKeys[0].ID, serviceKeys[0].Credentials, nil
+
 }
 
 func getParams(rctx rcontext.Context, instance *ibmcloudv1alpha1.Binding) (map[string]interface{}, error) {
