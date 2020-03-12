@@ -106,7 +106,7 @@ spec:
   serviceClass: language-translator
 ```
 
-The following would also work: TODO -- VERIFY THIS!
+The following would also work: 
 
 ```yaml
 apiVersion: ibmcloud.ibm.com/v1alpha1
@@ -239,7 +239,10 @@ NAME                       TYPE                                  DATA   AGE
 mybinding                  Opaque                                6      102s
 ```
 
-#### Referencing an existing credentials
+When a binding and service are created in the same namespace, there is an ownership relationship. So when when the service is deleted, so is the binding. This relationship does not exist if they are not in the same namespace (since Kubernetes disallows it).
+In this case, the binding needs to be deleted manually and will not be deleted when the services is deleted.
+
+#### Referencing existing credentials
 
 When many bindings are needed on the same service, it is possible to link to the same set of credentials on the service instance,
 instead of creating new ones.

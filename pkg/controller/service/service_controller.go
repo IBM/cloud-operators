@@ -299,11 +299,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
-			instance.Status.InstanceID = inProgress
-			if err := r.Status().Update(context.Background(), instance); err != nil {
-				logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
-				return reconcile.Result{}, nil
-			}
 
 			// check if using the alias plan, in that case we need to use the existing instance
 			if strings.ToLower(instance.Spec.Plan) == aliasPlan {
@@ -354,6 +349,12 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				}
 			}
 
+			instance.Status.InstanceID = inProgress
+			if err := r.Status().Update(context.Background(), instance); err != nil {
+				logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
+				return reconcile.Result{}, nil
+			}
+
 			// Create the instance
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
@@ -379,7 +380,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		serviceInstance, err := GetServiceInstance(serviceInstances, instance.Status.InstanceID)
-		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
+		if err != nil && strings.Contains(err.Error(), "not found") && strings.ToLower(instance.Spec.Plan) != aliasPlan { // Need to recreate it!
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
 			if err := r.Status().Update(context.Background(), instance); err != nil {
