@@ -261,7 +261,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
 		serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
 		if err != nil {
-			if strings.Contains(err.Error(), "doesn't exist") {
+			if strings.Contains(err.Error(), "doesn't exist") && strings.ToLower(instance.Spec.Plan) != aliasPlan {
 				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 				serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
 					Name:      externalName,
@@ -393,6 +393,9 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
 
+		} else if err != nil && strings.ToLower(instance.Spec.Plan) == aliasPlan {
+			instance.Status.InstanceID = ""
+			r.updateStatusError(instance, "Pending", fmt.Errorf("Service instance no longer exists"))
 		}
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
@@ -428,7 +431,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 		instance.Status.InstanceID = instanceID
 		setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		err := r.Status().Update(context.Background(), instance)
-		if err != nil {
+		if err != nil && strings.ToLower(instance.Spec.Plan) != aliasPlan {
 			logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
 			err = r.deleteService(ibmCloudInfo, instance)
 			if err != nil {
