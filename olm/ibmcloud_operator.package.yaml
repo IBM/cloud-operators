@@ -1,4 +1,4 @@
 channels:
-- currentCSV: ibmcloud-operator.v0.1.4
+- currentCSV: ibmcloud-operator.v0.1.5
   name: alpha
 packageName: ibmcloud-operator
