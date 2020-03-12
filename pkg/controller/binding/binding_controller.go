@@ -51,6 +51,7 @@ var logt = logf.Log.WithName("binding")
 
 const bindingFinalizer = "binding.ibmcloud.ibm.com"
 const inProgress = "IN PROGRESS"
+const notFound = "Not Found"
 const syncPeriod = time.Second * 150
 
 // ContainsFinalizer checks if the instance contains service finalizer
@@ -173,6 +174,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			return reconcile.Result{}, nil
 		}
+		// In the case that the Binding had already an InstanceID and KeyInstanceID, but the service disappeared, we need to reset these
 		instance.Status.State = "Pending"
 		instance.Status.Message = "Processing Resource"
 		instance.Status.InstanceID = ""
@@ -195,7 +197,8 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
-	if serviceInstance.Namespace == instance.Namespace { // Set an owner reference if service and binding are in the same namespace
+	// Set an owner reference if service and binding are in the same namespace
+	if serviceInstance.Namespace == instance.Namespace {
 		if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
 			logt.Info("Binding could not update constroller reference", instance.Name, err.Error())
 			return reconcile.Result{}, err
@@ -207,8 +210,8 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 	}
 
+	// If the service has not been initialized fully yet, then requeue
 	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == inProgress {
-		// The parent service has not been initialized fully yet
 		logt.Info("Parent service", "not yet initialized", instance.Name)
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
@@ -306,16 +309,18 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	} else { // The KeyInstanceID has been set, verify that the key and secret still exist
 		logt.Info("ServiceInstance Key", "should already exist, verifying", instance.ObjectMeta.Name)
 		keyInstanceID, keyContents, err := r.getCredentials(instance, ibmCloudInfo)
-		_, contentsContainRedacted := keyContents["REDACTED"]
-		if (err != nil && strings.Contains(err.Error(), "404")) || contentsContainRedacted { // Credentials not found
+
+		if err != nil && strings.Contains(err.Error(), notFound) { // Credentials not found
 			if instance.Spec.Alias != "" {
 				logt.Info("Error getting aliased credentials", instance.Name, err.Error())
+				instance.Status.KeyInstanceID = ""
 				return r.updateStatusError(instance, "Pending", err)
 			}
 
 			logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
 			keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
 			if err != nil {
+				instance.Status.KeyInstanceID = ""
 				return r.updateStatusError(instance, "Failed", err)
 			}
 
@@ -324,6 +329,8 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			return r.updateStatusError(instance, "Pending", err)
 		}
 		instance.Status.KeyInstanceID = keyInstanceID
+
+		// Verify that the secrets still exists
 		secret, err := GetSecret(r, instance)
 		if err != nil {
 			logt.Info("Secret does not exist", "Recreating", getSecretName(instance))
@@ -600,6 +607,7 @@ func getSecretName(instance *ibmcloudv1alpha1.Binding) string {
 
 func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "credentials", instance.ObjectMeta.Name)
+
 	var credname string
 	if instance.Spec.Alias != "" {
 		credname = instance.Spec.Alias
@@ -612,22 +620,42 @@ func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ib
 
 		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, credname)
 		if err != nil {
+			if strings.Contains(err.Error(), "doesn't exist") {
+				return "", nil, fmt.Errorf(notFound)
+			}
 			return "", nil, err
 		}
+		_, contentsContainRedacted := myRetrievedKeys.Credentials["REDACTED"]
+		if contentsContainRedacted {
+			return "", nil, fmt.Errorf(notFound)
+		}
+
 		return myRetrievedKeys.GUID, myRetrievedKeys.Credentials, nil
 	}
 
 	// service type is not CF
 	resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-	if instance.Status.KeyInstanceID != "" && instance.Status.KeyInstanceID != inProgress { // There is already a KeyInstanceID
-		keyresp, err := resServiceKeyAPI.GetKey(instance.Status.KeyInstanceID)
-		if err != nil {
-			return "", nil, err
+
+	if instance.Spec.Alias == "" { // Not alias, so must find the credential with the exact keyInstanceID
+		if instance.Status.KeyInstanceID != "" && instance.Status.KeyInstanceID != inProgress { // There is already a KeyInstanceID
+			keyresp, err := resServiceKeyAPI.GetKey(instance.Status.KeyInstanceID)
+			if err != nil && strings.Contains(err.Error(), "404") {
+				return "", nil, fmt.Errorf(notFound)
+			} else if err != nil {
+				return "", nil, err
+			}
+			_, contentsContainRedacted := keyresp.Credentials["REDACTED"]
+			if contentsContainRedacted {
+				return "", nil, fmt.Errorf(notFound)
+			}
+
+			return keyresp.ID, keyresp.Credentials, nil
+		} else if instance.Status.KeyInstanceID == inProgress {
+			return "", nil, fmt.Errorf(notFound)
 		}
-		return keyresp.ID, keyresp.Credentials, nil
 	}
 
-	// There is no KeyInstanceID
+	// Binding is an Alias
 	keys, err := resServiceKeyAPI.GetKeys(credname)
 	if err != nil {
 		return "", nil, err
@@ -640,8 +668,17 @@ func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ib
 		}
 	}
 
+	if len(serviceKeys) == 0 {
+		return "", nil, fmt.Errorf(notFound)
+	}
+
 	if len(serviceKeys) > 1 {
-		return "", nil, fmt.Errorf("Alias credential, there exist more than one credential with that name: %s", credname)
+		return "", nil, fmt.Errorf("Alias credential, there exist more than one credential with the name: %s", credname)
+	}
+
+	_, contentsContainRedacted := serviceKeys[0].Credentials["REDACTED"]
+	if contentsContainRedacted {
+		return "", nil, fmt.Errorf(notFound)
 	}
 
 	return serviceKeys[0].ID, serviceKeys[0].Credentials, nil

@@ -7,7 +7,7 @@ IBM Cloud public instances.
 
 ### Creating a Service
 
-To create an instance of an IBM public cloud service, create the following custom resource:
+To create an instance of an IBM public cloud service, create the following custom resource, `service.yaml`:
 
 ```yaml
 apiVersion: ibmcloud.ibm.com/v1alpha1
@@ -19,18 +19,23 @@ spec:
     serviceClass: <SERVICE_CLASS>
 ```    
 
-to find the value for `<SERVICE_CLASS>`, you can list the names of all IBM public cloud 
+To find the value for `<SERVICE_CLASS>`, you can list the names of all IBM public cloud 
 services with the command:
 
 ```bash
 ibmcloud catalog service-marketplace
 ```
 
-once you find the `<SERVICE_CLASS>` name, you can list the available plans to select
+Once you find the `<SERVICE_CLASS>` name, you can list the available plans to select
 a `<PLAN>` with the command:
 
 ```bash
 ibmcloud catalog service <SERVICE_CLASS> | grep plan
+```
+
+To create the service:
+```bash
+kubectl apply -f service.yaml
 ```
 
 After creating a service, you can find its status with:
@@ -41,13 +46,46 @@ NAME           STATUS   AGE
 myservice      Online   12s
 ```
 
-When a service created by the operator is deleted out-of-band (e.g. via `ibmcloud` CLI or IBM Cloud UI) then the service is automatically re-created by
-the operator.
+When a service created by the operator is deleted out-of-band (e.g. via `ibmcloud` CLI or IBM Cloud UI) then the service is automatically re-created by the operator. This may take a few minutes because the IBM Cloud Operator runs at regular intervals, every few minutes.
+
+#### Services requiring global region
+
+Some combinations of service and plan require a `global` region. If this is not the case, the following
+error message appears in the `status` of the service resource:
+```bash
+Failed: No deployment found for service plan <plan> at location <location>. Valid location(s) are: ["global"]
+```
+
+Here's an example of how to set the region to `global`:
+```yaml
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mycos
+spec:
+  plan: standard
+  serviceClass: cloud-object-storage
+  context:
+    region: global
+```
+
+#### Services that provision slowly
+
+Most services provision very rapidly and appear `Online` shortly after creation. However, some services can
+take a while, such as 10 to 30mns. While they are provisioning the service resource will reflect
+this state in its `status`. For example, a `Cloudant` resource will display `inactive` until it is fully provisioned.
+Some services might even have say `failed` until they become `Online`.
+
+During this time, the corresponding binding resource may also have a `Failed` status, because some services refuse
+to create credentials while they are provisioning and return an error. 
+
+In these cases, everything becomes `Online` by simply waiting for a while. The service eventually becomes `Online`, and so does
+the binding.
 
 
 #### Referencing an existing service
 
-If a cloud service is already provisioned in your account, you can still create a `Service` resource
+If a cloud service is already provisioned in your account, you can still create a service resource
 that is linked to that resource. This can be useful for example when the service has been created
 by an administrator, or the service is stateful and you need to maintain data associated with
 the service, or there are multiple clusters using the service, but only one is actively managing the service
@@ -68,16 +106,27 @@ spec:
   serviceClass: language-translator
 ```
 
-Note that self-healing cannot be used together with the `Alias` plan. The `Alias` plan overrides
-and disables self healing, and generates a warning in the logs.
+The following would also work: TODO -- VERIFY THIS!
+
+```yaml
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Service
+metadata:
+  name: mytranslator-alias
+  namespace: default
+spec:
+  plan: Alias
+  serviceClass: language-translator
+  externalName: mytranslator
+```
 
 For CF-type services, the name is unique within a context (org & space), therefore the name is sufficient
 to identify an existing service instance. 
 
 For IAM-type services, multiple service instances can have the same name.
 The example above will work only if there is one single instance of the service with that name. If multiple
-service instances with the same name exist, you must add an annotation to identity the particular instance
-you want to link to.
+service instances with the same name exist, you must add an annotation to identify the particular instance
+you want to link to (in addition to specifying the name of the instance to link to).
 
 To find the instance ID to use, you can list the current instances with the same name with the command:
 
@@ -120,7 +169,7 @@ Created at:            2019-07-02T02:13:15Z
 Updated at:            2019-07-02T02:13:15Z 
 ```
 
-in the example above, there are two instances with the same name. To identify
+In the example above, there are two instances with the same name. To identify
 which one to use, you may look at the plan, which might be different, or the creation date.
 Let's assume you want to use the first instance; then, simply copy the ID value into the 
 `ibmcloud.ibm.com/instanceId` annotation. The resource definition for this example is then:
@@ -190,11 +239,24 @@ NAME                       TYPE                                  DATA   AGE
 mybinding                  Opaque                                6      102s
 ```
 
-### Self-healing for Bindings
+#### Referencing an existing credentials
 
-Self-healing for bindings is always enabled. If credentials are removed out-of-band they are
-automatically recreated.
+When many bindings are needed on the same service, it is possible to link to the same set of credentials on the service instance,
+instead of creating new ones.
 
+```
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-translator-alias
+spec:
+  serviceName: mytranslator
+  alias: binding-translator
+```
+
+The field `alias` indicates the name of the credentials to link to. This name must be unique, i.e. there cannot be other credentials
+on the same service instance with the same name. If the binding is deleted, this does not cause the deletion of the
+corresponding credentials.
 
 ### Deleting a Binding
 
@@ -205,4 +267,6 @@ kubectl delete binding.ibmcloud mybinding
 ```
 
 Similarly to services, the operator uses finalizers to remove the custom resource
-only after the service credentials are removed.
+only after the service credentials are removed. When a binding is deleted, the corresponding secret is also deleted.
+
+In order to refresh credentials on a service, the user can simply delete and recreate a binding.
