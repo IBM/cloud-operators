@@ -18,7 +18,7 @@ function ts::run() {
     u::begin_testcase "should deploy sample translator service"
 
     kubectl apply -f service-translator.yaml 
-    object::wait_service_online test-translator-1 100
+    object::wait_service_online test-translator-e2e 200
 
     u::end_testcase 
 }

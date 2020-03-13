@@ -6,4 +6,4 @@ metadata:
 spec:
   plan: Alias
   serviceClass: language-translator
-  externalName: test-translator-1
+  externalName: test-translator
