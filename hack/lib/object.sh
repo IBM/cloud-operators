@@ -40,6 +40,7 @@ function object::wait_resource_online() {
             echo ""
             return 0
         fi
+        printf "$(kubectl get $kind $name -o yaml)"
         printf "."
         sleep 10
     done
