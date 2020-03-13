@@ -20,7 +20,7 @@ function object::wait_operator_ready() {
     printf "Checking operator status .."
     until [ "$(kubectl -n ibmcloud-operators get po | grep 'Running' | awk '{print $3}')" == "Running" ]; do
         printf "."
-        sleep 2
+        sleep 5
     done
     printf $CHECKMARK
     echo ""
@@ -41,7 +41,7 @@ function object::wait_resource_online() {
             return 0
         fi
         printf "."
-        sleep 2
+        sleep 10
     done
 
     printf "timeout $CROSSMARK"
