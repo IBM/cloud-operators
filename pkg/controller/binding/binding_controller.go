@@ -50,6 +50,7 @@ import (
 var logt = logf.Log.WithName("binding")
 
 const bindingFinalizer = "binding.ibmcloud.ibm.com"
+const inProgress = "IN PROGRESS"
 const syncPeriod = time.Second * 150
 
 // ContainsFinalizer checks if the instance contains service finalizer
@@ -175,17 +176,21 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
-	// if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
-	// 	logt.Info("Binding could not update constroller reference", instance.Name, err.Error())
-	// 	return reconcile.Result{}, err
-	// }
+	// Set an owner reference if service and binding are in the same namespace
+	if serviceInstance.Namespace == instance.Namespace {
+		if err := controllerutil.SetControllerReference(serviceInstance, instance, r.scheme); err != nil {
+			logt.Info("Binding could not update constroller reference", instance.Name, err.Error())
+			return reconcile.Result{}, err
+		}
 
-	// if err := r.Update(context.Background(), instance); err != nil {
-	// 	logt.Info("Error setting controller reference", instance.Name, err.Error())
-	// 	return reconcile.Result{}, nil
-	// }
+		if err := r.Update(context.Background(), instance); err != nil {
+			logt.Info("Error setting controller reference", instance.Name, err.Error())
+			return reconcile.Result{}, nil
+		}
+	}
 
-	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == "IN PROGRESS" {
+	// If the service has not been initialized fully yet, then requeue
+	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == inProgress {
 		// The parent service has not been initialized fully yet
 		logt.Info("Parent service", "not yet initialized", instance.Name)
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
@@ -194,7 +199,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 	ibmCloudInfo, err := service.GetIBMCloudInfo(r.Client, serviceInstance)
 	if err != nil {
 		logt.Info("Unable to get", "ibmcloudInfo", instance.Name)
-		return r.updateStatusError(instance, "Failed", err)
+		return r.updateStatusError(instance, "Pending", err)
 	}
 
 	// Delete if necessary
@@ -243,7 +248,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Now instance.Status.IntanceID has been set properly
 	if instance.Status.KeyInstanceID == "" { // The KeyInstanceID has not been set, need to create the key
-		instance.Status.KeyInstanceID = "IN PROGRESS"
+		instance.Status.KeyInstanceID = inProgress
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
 			return reconcile.Result{}, nil
