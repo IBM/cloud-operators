@@ -37,8 +37,6 @@ spec:
           type: object
         spec:
           properties:
-            alias:
-              type: string
             parameters:
               items:
                 properties:
