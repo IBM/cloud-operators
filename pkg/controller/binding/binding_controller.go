@@ -51,6 +51,7 @@ var logt = logf.Log.WithName("binding")
 
 const bindingFinalizer = "binding.ibmcloud.ibm.com"
 const inProgress = "IN PROGRESS"
+const notFound = "Not Found"
 const syncPeriod = time.Second * 150
 
 // ContainsFinalizer checks if the instance contains service finalizer
@@ -275,12 +276,10 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 		return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 
-	} else { // The KeyInstanceID has been set, verify that the key and secret still exist
+	} else { // The KeyInstanceID has been set (or is still inProgress), verify that the key and secret still exist
 		logt.Info("ServiceInstance Key", "should already exist, verifying", instance.ObjectMeta.Name)
 		keyInstanceID, keyContents, err := r.getCredentials(instance, ibmCloudInfo)
-		_, contentsContainRedacted := keyContents["REDACTED"]
-		if err != nil || contentsContainRedacted {
-			// TODO: check if service is gone
+		if err != nil && strings.Contains(err.Error(), notFound) {
 			logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
 			keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
 			if err != nil {
@@ -566,20 +565,39 @@ func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ib
 
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
 		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, instance.ObjectMeta.Name)
+
+		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, instance.Name)
 		if err != nil {
+			if strings.Contains(err.Error(), "doesn't exist") {
+				return "", nil, fmt.Errorf(notFound)
+			}
 			return "", nil, err
 		}
+		_, contentsContainRedacted := myRetrievedKeys.Credentials["REDACTED"]
+		if contentsContainRedacted {
+			return "", nil, fmt.Errorf(notFound)
+		}
+
 		return myRetrievedKeys.GUID, myRetrievedKeys.Credentials, nil
 	}
 
 	// service type is not CF
 	resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-	keyresp, err := resServiceKeyAPI.GetKey(instance.Status.KeyInstanceID)
-	if err != nil {
-		return "", nil, err
+	if instance.Status.KeyInstanceID != "" && instance.Status.KeyInstanceID != inProgress { // There is a valid KeyInstanceID
+		keyresp, err := resServiceKeyAPI.GetKey(instance.Status.KeyInstanceID)
+		if err != nil && strings.Contains(err.Error(), "404") {
+			return "", nil, fmt.Errorf(notFound)
+		} else if err != nil {
+			return "", nil, err
+		}
+		_, contentsContainRedacted := keyresp.Credentials["REDACTED"]
+		if contentsContainRedacted {
+			return "", nil, fmt.Errorf(notFound)
+		}
+		return keyresp.ID, keyresp.Credentials, nil
 	}
-	return keyresp.ID, keyresp.Credentials, nil
+
+	return "", nil, fmt.Errorf(notFound)
 }
 
 func getParams(rctx rcontext.Context, instance *ibmcloudv1alpha1.Binding) (map[string]interface{}, error) {
