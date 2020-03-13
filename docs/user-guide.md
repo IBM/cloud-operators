@@ -106,7 +106,9 @@ spec:
   serviceClass: language-translator
 ```
 
+
 The following would also work: 
+
 
 ```yaml
 apiVersion: ibmcloud.ibm.com/v1alpha1
