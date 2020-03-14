@@ -8,7 +8,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/models"
 
 	"github.com/IBM-Cloud/bluemix-go/api/account/accountv2"
-	"github.com/IBM-Cloud/bluemix-go/api/iamuum/iamuumv1"
+	"github.com/IBM-Cloud/bluemix-go/api/iamuum/iamuumv2"
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/IBM-Cloud/bluemix-go/trace"
@@ -16,10 +16,10 @@ import (
 
 func main() {
 	var org string
-	flag.StringVar(&org, "org", "", "Bluemix Organization")
+	flag.StringVar(&org, "org", "smjtorg", "Bluemix Organization")
 
 	var accessGroup string
-	flag.StringVar(&accessGroup, "accessGroup", "", "Bluemix access group name")
+	flag.StringVar(&accessGroup, "accessGroup", "myacgroup1", "Bluemix access group name")
 
 	flag.Parse()
 	if org == "" || accessGroup == "" {
@@ -55,26 +55,28 @@ func main() {
 		log.Fatal(err)
 	}
 
-	iamuumClient, err := iamuumv1.New(sess)
+	iamuumClient, err := iamuumv2.New(sess)
 	if err != nil {
 		log.Fatal(err)
 	}
 	accessGroupAPI := iamuumClient.AccessGroup()
 
-	data := models.AccessGroup{
-		Name: accessGroup,
+	data := models.AccessGroupV2{
+		AccessGroup: models.AccessGroup{
+			Name: accessGroup,
+		},
 	}
 	agID, err := accessGroupAPI.Create(data, myAccount.GUID)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(agID)
+	log.Println("create", agID)
 
 	agID, _, err = accessGroupAPI.Get(agID.ID)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(agID)
+	log.Println("get", agID)
 
 	err = accessGroupAPI.Delete(agID.ID, false)
 	if err != nil {

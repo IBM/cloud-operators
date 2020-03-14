@@ -8,6 +8,8 @@ import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -153,7 +155,9 @@ func init() {
 	proto.RegisterType((*StreamMsg2)(nil), "grpc.testing.StreamMsg2")
 }
 
-func init() { proto.RegisterFile("grpc/grpc.proto", fileDescriptor_81ea47a3f88c2082) }
+func init() {
+	proto.RegisterFile("grpc/grpc.proto", fileDescriptor_81ea47a3f88c2082)
+}
 
 var fileDescriptor_81ea47a3f88c2082 = []byte{
 	// 244 bytes of a gzipped FileDescriptorProto
@@ -177,11 +181,11 @@ var fileDescriptor_81ea47a3f88c2082 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // TestClient is the client API for Test service.
 //
@@ -197,10 +201,10 @@ type TestClient interface {
 }
 
 type testClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewTestClient(cc *grpc.ClientConn) TestClient {
+func NewTestClient(cc grpc.ClientConnInterface) TestClient {
 	return &testClient{cc}
 }
 
@@ -319,6 +323,23 @@ type TestServer interface {
 	Upstream(Test_UpstreamServer) error
 	// This one streams in both directions.
 	Bidi(Test_BidiServer) error
+}
+
+// UnimplementedTestServer can be embedded to have forward compatible implementations.
+type UnimplementedTestServer struct {
+}
+
+func (*UnimplementedTestServer) UnaryCall(ctx context.Context, req *SimpleRequest) (*SimpleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnaryCall not implemented")
+}
+func (*UnimplementedTestServer) Downstream(req *SimpleRequest, srv Test_DownstreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method Downstream not implemented")
+}
+func (*UnimplementedTestServer) Upstream(srv Test_UpstreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method Upstream not implemented")
+}
+func (*UnimplementedTestServer) Bidi(srv Test_BidiServer) error {
+	return status.Errorf(codes.Unimplemented, "method Bidi not implemented")
 }
 
 func RegisterTestServer(s *grpc.Server, srv TestServer) {

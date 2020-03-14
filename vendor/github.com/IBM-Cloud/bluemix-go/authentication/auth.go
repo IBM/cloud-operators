@@ -22,5 +22,5 @@ func PopulateTokens(tokenProvider client.TokenProvider, c *bluemix.Config) error
 		err := tokenProvider.AuthenticateAPIKey(c.BluemixAPIKey)
 		return err
 	}
-	return errors.New("Insufficient credentials, need IBMID/IBMIDPassword or Bluemix API Key")
+	return errors.New("Insufficient credentials, need IBMID/IBMIDPassword or IBM Cloud API Key or IAM/IAM refresh tokens")
 }

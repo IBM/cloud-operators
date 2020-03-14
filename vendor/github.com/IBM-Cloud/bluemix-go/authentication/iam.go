@@ -101,12 +101,36 @@ func (auth *IAMAuthRepository) RefreshToken() (string, error) {
 	return auth.config.IAMAccessToken, nil
 }
 
-func (auth *IAMAuthRepository) getToken(data map[string]string) error {
-	request := rest.PostRequest(auth.endpoint+"/oidc/token").
+//GetPasscode ...
+func (auth *IAMAuthRepository) GetPasscode() (string, error) {
+	request := rest.PostRequest(auth.endpoint+"/identity/passcode").
 		Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("bx:bx"))).
-		Field("response_type", "cloud_iam,uaa").
-		Field("uaa_client_id", "cf").
-		Field("uaa_client_secret", "")
+		Field("grant_type", "refresh_token").
+		Field("refresh_token", auth.config.IAMRefreshToken).
+		Field("response_type", "cloud_iam")
+
+	res := make(map[string]string, 0)
+	var apiErr IAMError
+
+	resp, err := auth.client.Do(request, &res, &apiErr)
+	if err != nil {
+		return "", err
+	}
+
+	if apiErr.ErrorCode != "" {
+		if apiErr.ErrorCode == "BXNIM0407E" {
+			return "", bmxerror.New(ErrCodeInvalidToken, apiErr.Description())
+		}
+		return "", bmxerror.NewRequestFailure(apiErr.ErrorCode, apiErr.Description(), resp.StatusCode)
+	}
+
+	return res["passcode"], nil
+}
+
+func (auth *IAMAuthRepository) getToken(data map[string]string) error {
+	request := rest.PostRequest(auth.endpoint+"/identity/token").
+		Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("bx:bx"))).
+		Field("response_type", "cloud_iam")
 
 	for k, v := range data {
 		request.Field(k, v)
@@ -129,9 +153,6 @@ func (auth *IAMAuthRepository) getToken(data map[string]string) error {
 
 	auth.config.IAMAccessToken = fmt.Sprintf("%s %s", tokens.TokenType, tokens.AccessToken)
 	auth.config.IAMRefreshToken = tokens.RefreshToken
-
-	auth.config.UAAAccessToken = fmt.Sprintf("%s %s", tokens.TokenType, tokens.UAAAccessToken)
-	auth.config.UAARefreshToken = tokens.UAARefreshToken
 
 	return nil
 }
