@@ -48,6 +48,8 @@ const instanceIDKey = "ibmcloud.ibm.com/instanceId"
 
 const syncPeriod = time.Second * 150
 
+const inProgress = "IN PROGRESS"
+
 // ContainsFinalizer checks if the instance contains service finalizer
 func ContainsFinalizer(instance *ibmcloudv1alpha1.Service) bool {
 	for _, finalizer := range instance.ObjectMeta.Finalizers {
@@ -169,15 +171,10 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	} else {
 		// The object is being deleted
 		if ContainsFinalizer(instance) {
-			// service should only be deleted if NOT using plan `Alias`
-			if strings.ToLower(instance.Spec.Plan) != aliasPlan {
-				err := r.deleteService(ibmCloudInfo, instance)
-				if err != nil {
-					logt.Info("Error deleting resource", instance.ObjectMeta.Name, err.Error())
-					return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
-				}
-			} else {
-				logt.Info("Service is using the `Alias` plan, since it is not managed by the operator it will not be deleted", "instance name:", instance.ObjectMeta.Name)
+			err := r.deleteService(ibmCloudInfo, instance)
+			if err != nil {
+				logt.Info("Error deleting resource", instance.ObjectMeta.Name, err.Error())
+				return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
 			}
 
 			// remove our finalizer from the list and update it.
@@ -204,6 +201,11 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		If not, we try to create the service on Bluemix. If InstanceID has been set,
 		then we verify that the service still exists on Bluemix and recreate it if necessary.
 
+		For non-CF resources, before creating we set the InstanceID to "IN PROGRESS".
+		This is to mitigate a potential data race that could cause the service to
+		be created more than once on Bluemix (with the same name, but different InstanceIDs).
+		CF services do not allow multiple services with the same name, so this is not needed.
+
 		When the service is created (or recreated), we update the Status fields to reflect
 		the external state. If this update fails (because the underlying etcd instance was modified),
 		then we restore the invariant by deleting the external resource that was created.
@@ -225,7 +227,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
 			// check if using the alias plan, in that case we need to use the existing instance
-			if strings.ToLower(instance.Spec.Plan) == aliasPlan {
+			if isAlias(instance) {
 				logt.Info("Using `Alias` plan, checking if instance exists")
 
 				serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
@@ -236,7 +238,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 					return r.updateStatus(instance, ibmCloudInfo, serviceInstance.GUID, resv1.ResourceStateOnline)
 				}
 			}
-
+			// Service is not Alias
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
 				Name:      externalName,
@@ -253,7 +255,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
 		serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
-		if err != nil {
+		if err != nil && !isAlias(instance) {
 			if strings.Contains(err.Error(), "doesn't exist") {
 				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 				serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
@@ -269,6 +271,10 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				return r.updateStatus(instance, ibmCloudInfo, serviceInstance.Metadata.GUID, serviceInstance.Entity.LastOperation.State)
 			}
 			return r.updateStatusError(instance, "Failed", err)
+		} else if err != nil && isAlias(instance) {
+			// reset the service instance ID, since it's gone
+			instance.Status.InstanceID = ""
+			return r.updateStatusError(instance, "Pending", err)
 		}
 
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
@@ -292,8 +298,14 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
+			instance.Status.InstanceID = inProgress
+			if err := r.Status().Update(context.Background(), instance); err != nil {
+				logt.Info("Error updating InstanceID to be in progress", "Error", err.Error())
+				return reconcile.Result{}, nil
+			}
+
 			// check if using the alias plan, in that case we need to use the existing instance
-			if strings.ToLower(instance.Spec.Plan) == aliasPlan {
+			if isAlias(instance) {
 				logt.Info("Using `Alias` plan, checking if instance exists")
 				serviceInstanceQuery := bxcontroller.ServiceInstanceQuery{
 					// Warning: Do not add the ServiceID to this query
@@ -341,7 +353,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				}
 			}
 
-			// Create the instance
+			// Create the instance, service is not alias
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 			if err != nil {
@@ -367,13 +379,22 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 		serviceInstance, err := GetServiceInstance(serviceInstances, instance.Status.InstanceID)
 		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
-			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
-			if err != nil {
-				return r.updateStatusError(instance, "Failed", err)
+			if !isAlias(instance) {
+				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+				instance.Status.InstanceID = "IN PROGRESS"
+				if err := r.Status().Update(context.Background(), instance); err != nil {
+					logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
+					return reconcile.Result{}, nil
+				}
+				serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
+				if err != nil {
+					return r.updateStatusError(instance, "Failed", err)
+				}
+				return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
+			} else {
+				instance.Status.InstanceID = ""
+				return r.updateStatusError(instance, "Pending", fmt.Errorf("Aliased service instance no longer exists"))
 			}
-			return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
-
 		}
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
@@ -460,6 +481,10 @@ func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service,
 }
 
 func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *ibmcloudv1alpha1.Service) error {
+	if isAlias(instance) {
+		logt.Info("Aliased service will not be deleted", "Name", instance.Name)
+		return nil
+	}
 	if instance.Status.InstanceID == "" {
 		return nil // Nothing to do here, service was not intialized
 	}
@@ -535,4 +560,8 @@ func getParams(rctx rcontext.Context, instance *ibmcloudv1alpha1.Service) (map[s
 
 func getTags(instance *ibmcloudv1alpha1.Service) []string {
 	return instance.Spec.Tags
+}
+
+func isAlias(instance *ibmcloudv1alpha1.Service) bool {
+	return strings.ToLower(instance.Spec.Plan) == aliasPlan
 }
