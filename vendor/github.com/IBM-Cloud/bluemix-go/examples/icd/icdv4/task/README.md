@@ -1,6 +1,6 @@
 # Cloud Database Task status information 
 
-Get information about a task and its status. Tasks themselves are persistent so old tasks may be consulted as well as active/running tasks. ICD  resource instance must be created first via UI or using the `resource/service-instance` example to create an icd instance. Any of the ICD instance types are supported, Postgres, ElasticSearch, RabbitMQ, Etcd, etc. The 64 digit CRN of the icd instance should be supplied as the icdId. Environment variable BM_API_KEY must be set with API key and BM_REGION set to the ICD deployment region. 
+Get information about a task and its status. Tasks themselves are persistent so old tasks may be consulted as well as active/running tasks. ICD  resource instance must be created first via UI or using the `resource/service-instance` example to create an icd instance. Any of the ICD instance types are supported, Postgres, ElasticSearch, RabbitMQ, Etcd, etc. The 64 digit CRN of the icd instance should be supplied as the icdId. Environment variable IC_API_KEY must be set with API key and IC_REGION set to the ICD deployment region. 
 
 Most ICD operations are performed as tasks and return task object that includes the task ID. See scalingupdate for an example of usage of this command to query running tasks. 
 

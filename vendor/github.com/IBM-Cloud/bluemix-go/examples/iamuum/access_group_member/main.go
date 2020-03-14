@@ -11,7 +11,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/api/account/accountv1"
 	"github.com/IBM-Cloud/bluemix-go/api/account/accountv2"
 	"github.com/IBM-Cloud/bluemix-go/api/iam/iamv1"
-	"github.com/IBM-Cloud/bluemix-go/api/iamuum/iamuumv1"
+	"github.com/IBM-Cloud/bluemix-go/api/iamuum/iamuumv2"
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/IBM-Cloud/bluemix-go/trace"
@@ -64,14 +64,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	iamuumClient, err := iamuumv1.New(sess)
+	iamuumClient, err := iamuumv2.New(sess)
 	if err != nil {
 		log.Fatal(err)
 	}
 	accessGroupAPI := iamuumClient.AccessGroup()
 
-	data := models.AccessGroup{
-		Name: accessGroup,
+	data := models.AccessGroupV2{
+		AccessGroup: models.AccessGroup{
+			Name: accessGroup,
+		},
 	}
 	agID, err := accessGroupAPI.Create(data, myAccount.GUID)
 	if err != nil {
@@ -122,23 +124,23 @@ func main() {
 
 	accessGroupMemAPI := iamuumClient.AccessGroupMember()
 
-	var members []models.AccessGroupMember
+	var members []models.AccessGroupMemberV2
 
-	grpmem1 := models.AccessGroupMember{
+	grpmem1 := models.AccessGroupMemberV2{
 		ID:   userDetails.IbmUniqueId,
-		Type: iamuumv1.AccessGroupMemberUser,
+		Type: iamuumv2.AccessGroupMemberUser,
 	}
 
 	members = append(members, grpmem1)
 
-	grpmem2 := models.AccessGroupMember{
+	grpmem2 := models.AccessGroupMemberV2{
 		ID:   sID.IAMID,
-		Type: iamuumv1.AccessGroupMemberService,
+		Type: iamuumv2.AccessGroupMemberService,
 	}
 
 	members = append(members, grpmem2)
 
-	addRequest := iamuumv1.AddGroupMemberRequest{
+	addRequest := iamuumv2.AddGroupMemberRequestV2{
 		Members: members,
 	}
 

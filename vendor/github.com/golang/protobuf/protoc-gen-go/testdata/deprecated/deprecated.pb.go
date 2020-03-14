@@ -10,6 +10,8 @@ import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -166,7 +168,9 @@ func init() {
 	proto.RegisterType((*DeprecatedResponse)(nil), "deprecated.DeprecatedResponse")
 }
 
-func init() { proto.RegisterFile("deprecated/deprecated.proto", fileDescriptor_f64ba265cd7eae3f) }
+func init() {
+	proto.RegisterFile("deprecated/deprecated.proto", fileDescriptor_f64ba265cd7eae3f)
+}
 
 var fileDescriptor_f64ba265cd7eae3f = []byte{
 	// 287 bytes of a gzipped FileDescriptorProto
@@ -192,11 +196,11 @@ var fileDescriptor_f64ba265cd7eae3f = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // DeprecatedServiceClient is the client API for DeprecatedService service.
 //
@@ -205,15 +209,17 @@ const _ = grpc.SupportPackageIsVersion4
 // Deprecated: Do not use.
 type DeprecatedServiceClient interface {
 	// DeprecatedCall takes a DeprecatedRequest and returns a DeprecatedResponse.
+	//
+	// Deprecated: Do not use.
 	DeprecatedCall(ctx context.Context, in *DeprecatedRequest, opts ...grpc.CallOption) (*DeprecatedResponse, error)
 }
 
 type deprecatedServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
 // Deprecated: Do not use.
-func NewDeprecatedServiceClient(cc *grpc.ClientConn) DeprecatedServiceClient {
+func NewDeprecatedServiceClient(cc grpc.ClientConnInterface) DeprecatedServiceClient {
 	return &deprecatedServiceClient{cc}
 }
 
@@ -232,7 +238,18 @@ func (c *deprecatedServiceClient) DeprecatedCall(ctx context.Context, in *Deprec
 // Deprecated: Do not use.
 type DeprecatedServiceServer interface {
 	// DeprecatedCall takes a DeprecatedRequest and returns a DeprecatedResponse.
+	//
+	// Deprecated: Do not use.
 	DeprecatedCall(context.Context, *DeprecatedRequest) (*DeprecatedResponse, error)
+}
+
+// Deprecated: Do not use.
+// UnimplementedDeprecatedServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedDeprecatedServiceServer struct {
+}
+
+func (*UnimplementedDeprecatedServiceServer) DeprecatedCall(ctx context.Context, req *DeprecatedRequest) (*DeprecatedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeprecatedCall not implemented")
 }
 
 // Deprecated: Do not use.

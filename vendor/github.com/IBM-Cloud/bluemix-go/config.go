@@ -16,10 +16,14 @@ const (
 	AccountService ServiceName = ServiceName("account")
 	//AccountServicev1 ...
 	AccountServicev1 ServiceName = ServiceName("accountv1")
+	//CertificateManager ...
+	CertificateManager ServiceName = ServiceName("certificate-manager")
 	//CisService ...
 	CisService ServiceName = ServiceName("cis")
 	//ContainerService ...
 	ContainerService ServiceName = ServiceName("container")
+	//ContainerService ...
+	VpcContainerService ServiceName = ServiceName("containerv2")
 	//RegistryService ...
 	ContainerRegistryService ServiceName = ServiceName("container-registry")
 	//GlobalSearchService ...
@@ -32,19 +36,28 @@ const (
 	IAMPAPService ServiceName = ServiceName("iampap")
 	//IAMUUMService ...
 	IAMUUMService ServiceName = ServiceName("iamuum")
+	//IAMUUMServicev2 ...
+	IAMUUMServicev2 ServiceName = ServiceName("iamuumv2")
 	//ICDService ...
 	ICDService ServiceName = ServiceName("icd")
 	//MccpService ...
 	MccpService ServiceName = ServiceName("mccp")
 	//resourceManagementService
 	ResourceManagementService ServiceName = ServiceName("resource-management")
+	//resourceManagementService
+	ResourceManagementServicev2 ServiceName = ServiceName("resource-managementv2")
 	//resourceControllerService
 	ResourceControllerService ServiceName = ServiceName("resource-controller")
 	//resourceCatalogService
 	ResourceCatalogrService ServiceName = ServiceName("resource-catalog ")
 	//UAAService ...
 	UAAService ServiceName = ServiceName("uaa")
-	
+	//CSEService
+	CseService ServiceName = ServiceName("cse")
+	//SchematicsService ...
+	SchematicsService ServiceName = ServiceName("schematics")
+	//UserManagement ...
+	UserManagement ServiceName = ServiceName("user-management")
 )
 
 //Config ...
@@ -99,8 +112,8 @@ func (c *Config) Copy(mccpgs ...*Config) *Config {
 
 //ValidateConfigForService ...
 func (c *Config) ValidateConfigForService(svc ServiceName) error {
-	if (c.IBMID == "" || c.IBMIDPassword == "") && c.BluemixAPIKey == "" {
-		return bmxerror.New(ErrInsufficientCredentials, "Please check the documentation on how to configure the Bluemix credentials")
+	if (c.IBMID == "" || c.IBMIDPassword == "") && c.BluemixAPIKey == "" && (c.IAMAccessToken == "" || c.IAMRefreshToken == "") {
+		return bmxerror.New(ErrInsufficientCredentials, "Please check the documentation on how to configure the IBM Cloud credentials")
 	}
 
 	if c.Region == "" && (c.Endpoint == nil || *c.Endpoint == "") {

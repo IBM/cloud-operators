@@ -1,8 +1,8 @@
-# Bluemix SDK for Go
+# IBM Cloud SDK for Go
 
 [![Build Status](https://travis-ci.org/IBM-Cloud/bluemix-go.svg?branch=master)](https://travis-ci.org/IBM-Cloud/bluemix-go) [![GoDoc](https://godoc.org/github.com/IBM-Cloud/bluemix-go?status.svg)](https://godoc.org/github.com/IBM-Cloud/bluemix-go)
 
-bluemix-go provides the Go implementation for operating the IBM Bluemix platform, which is based on the [Cloud Foundry API][cloudfoundry_api].
+bluemix-go provides the Go implementation for operating the IBM Cloud platform, which is based on the [Cloud Foundry API][cloudfoundry_api].
 
 ## Installing
 
@@ -21,7 +21,7 @@ go get -u github.com/IBM-Cloud/bluemix-go
 
 ## Using the SDK
 
-You must have a working Bluemix account to use the APIs. [Sign up][bluemix_signup] if you don't have one.
+You must have a working IBM Cloud account to use the APIs. [Sign up][ibmcloud_signup] if you don't have one.
 
 The SDK has ```examples``` folder which cites few examples on how to use the SDK.
 First you need to create a session.
@@ -43,9 +43,9 @@ You must export the following environment variables.
 
 OR
 
-* BM_API_KEY/BLUEMIX_API_KEY - This is the Bluemix API Key. Login to [Bluemix][bluemix_login] to create one if you don't already have one. See instructions below for creating an API Key.
+* IC_API_KEY/IBMCLOUD_API_KEY - This is the Bluemix API Key. Login to [IBMCloud][ibmcloud_login] to create one if you don't already have one. See instructions below for creating an API Key.
 
-The default region is _us_south_. You can override it in the [Config struct][bluemix_go_config]. You can also provide the value via environment variables; either via _BM_REGION_ or _BLUEMIX_REGION_. Valid regions are -
+The default region is _us_south_. You can override it in the [Config struct][ibmcloud_go_config]. You can also provide the value via environment variables; either via _IC_REGION_ or _IBMCLOUD_REGION_. Valid regions are -
 * us-south
 * us-east
 * eu-gb
@@ -53,7 +53,7 @@ The default region is _us_south_. You can override it in the [Config struct][blu
 * au-syd
 * jp-tok
 
-The maximum retries is 3. You can override it in the [Config struct][bluemix_go_config]. You can also provide the value via environment variable; via MAX_RETRIES
+The maximum retries is 3. You can override it in the [Config struct][ibmcloud_go_config]. You can also provide the value via environment variable; via MAX_RETRIES
 
 ## Creating an IBM Cloud API Key
 
@@ -78,7 +78,7 @@ You have created a key! Press the eyeball to show the key. Copy or save it becau
 ![Your key is now created](.screenshots/screenshot_api_keys_create_successful.png)
 
 
-[bluemix_signup]: https://console.ng.bluemix.net/registration/?target=%2Fdashboard%2Fapps
-[bluemix_login]: https://console.ng.bluemix.net
-[bluemix_go_config]: https://godoc.org/github.com/IBM-Cloud/bluemix-go#Config
+[ibmcloud_signup]: https://console.ng.bluemix.net/registration/?target=%2Fdashboard%2Fapps
+[ibmcloud_login]: https://console.ng.bluemix.net
+[ibmcloud_go_config]: https://godoc.org/github.com/IBM-Cloud/bluemix-go#Config
 [cloudfoundry_api]: https://apidocs.cloudfoundry.org/264/

@@ -89,16 +89,19 @@ func main() {
 		log.Fatal(err)
 	}
 	clustersAPI := clusterClient.Clusters()
-	var configPath, kubeConfig string
+
 	if network {
-		kubeConfig, configPath, err = clustersAPI.StoreConfig(clusterName, path, admin, network, target)
+		kubeConfig, configPath, err := clustersAPI.StoreConfigDetail(clusterName, path, admin, network, target)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(kubeConfig, configPath)
 	} else {
-		configPath, err = clustersAPI.GetClusterConfig(clusterName, path, admin, target)
+		configPath, err := clustersAPI.GetClusterConfigDetail(clusterName, path, admin, target)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(configPath)
 	}
 
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(kubeConfig)
-	fmt.Println(configPath)
 }

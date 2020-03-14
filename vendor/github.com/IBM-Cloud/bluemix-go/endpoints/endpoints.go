@@ -10,6 +10,7 @@ import (
 //EndpointLocator ...
 type EndpointLocator interface {
 	AccountManagementEndpoint() (string, error)
+	CertificateManagerEndpoint() (string, error)
 	CFAPIEndpoint() (string, error)
 	ContainerEndpoint() (string, error)
 	ContainerRegistryEndpoint() (string, error)
@@ -24,6 +25,9 @@ type EndpointLocator interface {
 	ResourceControllerEndpoint() (string, error)
 	ResourceCatalogEndpoint() (string, error)
 	UAAEndpoint() (string, error)
+	CseEndpoint() (string, error)
+	SchematicsEndpoint() (string, error)
+	UserManagementEndpoint() (string, error)
 }
 
 const (
@@ -33,12 +37,15 @@ const (
 
 var regionToEndpoint = map[string]map[string]string{
 	"account": {
-		"us-south": "https://accountmanagement.ng.bluemix.net",
-		"us-east":  "https://accountmanagement.us-east.bluemix.net",
-		"eu-gb":    "https://accountmanagement.eu-gb.bluemix.net",
-		"au-syd":   "https://accountmanagement.au-syd.bluemix.net",
-		"eu-de":    "https://accountmanagement.eu-de.bluemix.net",
-		"jp-tok":   "https://accountmanagement.jp-tok.bluemix.net",
+		"global": "https://accounts.cloud.ibm.com",
+	},
+	"certificate-manager": {
+		"us-south": "https://us-south.certificate-manager.cloud.ibm.com",
+		"us-east":  "https://us-east.certificate-manager.cloud.ibm.com",
+		"eu-gb":    "https://eu-gb.certificate-manager.cloud.ibm.com",
+		"au-syd":   "https://au-syd.certificate-manager.cloud.ibm.com",
+		"eu-de":    "https://eu-de.certificate-manager.cloud.ibm.com",
+		"jp-tok":   "https://jp-tok.certificate-manager.cloud.ibm.com",
 	},
 	"cf": {
 		"us-south": "https://api.ng.bluemix.net",
@@ -57,52 +64,22 @@ var regionToEndpoint = map[string]map[string]string{
 		"jp-tok":   "https://registry.jp-tok.bluemix.net",
 	},
 	"cs": {
-		"us-south": "https://containers.cloud.ibm.com",
-		"us-east":  "https://containers.cloud.ibm.com",
-		"eu-de":    "https://containers.cloud.ibm.com",
-		"au-syd":   "https://containers.cloud.ibm.com",
-		"eu-gb":    "https://containers.cloud.ibm.com",
-		"jp-tok":   "https://containers.cloud.ibm.com",
+		"global": "https://containers.cloud.ibm.com/global",
 	},
 	"cis": {
-		"us-south": "https://api.cis.cloud.ibm.com",
-		"us-east":  "https://api.cis.cloud.ibm.com",
-		"eu-de":    "https://api.cis.cloud.ibm.com",
-		"au-syd":   "https://api.cis.cloud.ibm.com",
-		"eu-gb":    "https://api.cis.cloud.ibm.com",
-		"jp-tok":   "https://api.cis.cloud.ibm.com",
+		"global": "https://api.cis.cloud.ibm.com",
 	},
 	"global-search": {
-		"us-south": "https://api.global-search-tagging.cloud.ibm.com",
-		"us-east":  "https://api.global-search-tagging.cloud.ibm.com",
-		"eu-de":    "https://api.global-search-tagging.cloud.ibm.com",
-		"eu-gb":    "https://api.global-search-tagging.cloud.ibm.com",
-		"au-syd":   "https://api.global-search-tagging.cloud.ibm.com",
-		"jp-tok":   "https://api.global-search-tagging.cloud.ibm.com",
+		"global": "https://api.global-search-tagging.cloud.ibm.com",
 	},
 	"global-tagging": {
-		"us-south": "https://tags.global-search-tagging.cloud.ibm.com",
-		"us-east":  "https://tags.global-search-tagging.cloud.ibm.com",
-		"eu-de":    "https://tags.global-search-tagging.cloud.ibm.com",
-		"eu-gb":    "https://tags.global-search-tagging.cloud.ibm.com",
-		"au-syd":   "https://tags.global-search-tagging.cloud.ibm.com",
-		"jp-tok":   "https://tags.global-search-tagging.cloud.ibm.com",
+		"global": "https://tags.global-search-tagging.cloud.ibm.com",
 	},
 	"iam": {
-		"us-south": "https://iam.cloud.ibm.com",
-		"us-east":  "https://iam.cloud.ibm.com",
-		"eu-gb":    "https://iam.cloud.ibm.com",
-		"au-syd":   "https://iam.cloud.ibm.com",
-		"eu-de":    "https://iam.cloud.ibm.com",
-		"jp-tok":   "https://iam.cloud.ibm.com",
+		"global": "https://iam.cloud.ibm.com",
 	},
 	"iampap": {
-		"us-south": "https://iam.cloud.ibm.com",
-		"us-east":  "https://iam.cloud.ibm.com",
-		"eu-gb":    "https://iam.cloud.ibm.com",
-		"au-syd":   "https://iam.cloud.ibm.com",
-		"eu-de":    "https://iam.cloud.ibm.com",
-		"jp-tok":   "https://iam.cloud.ibm.com",
+		"global": "https://iam.cloud.ibm.com",
 	},
 	"icd": {
 		"us-south": "https://api.us-south.databases.cloud.ibm.com",
@@ -114,44 +91,36 @@ var regionToEndpoint = map[string]map[string]string{
 		"oslo01":   "https://api.osl01.databases.cloud.ibm.com",
 	},
 	"mccp": {
-		"us-south": "https://mccp.ng.bluemix.net",
-		"us-east":  "https://mccp.us-east.bluemix.net",
-		"eu-gb":    "https://mccp.eu-gb.bluemix.net",
-		"au-syd":   "https://mccp.au-syd.bluemix.net",
-		"eu-de":    "https://mccp.eu-de.bluemix.net",
-		"jp-tok":   "https://mccp.jp-tok.bluemix.net",
+		"us-south": "https://mccp.us-south.cf.cloud.ibm.com",
+		"us-east":  "https://mccp.us-east.cf.cloud.ibm.com",
+		"eu-gb":    "https://mccp.eu-gb.cf.cloud.ibm.com",
+		"au-syd":   "https://mccp.au-syd.cf.cloud.ibm.com",
+		"eu-de":    "https://mccp.eu-de.cf.cloud.ibm.com",
 	},
 	"resource-manager": {
-		"us-south": "https://resource-controller.cloud.ibm.com",
-		"us-east":  "https://resource-controller.cloud.ibm.com",
-		"eu-de":    "https://resource-controller.cloud.ibm.com",
-		"au-syd":   "https://resource-controller.cloud.ibm.com",
-		"eu-gb":    "https://resource-controller.cloud.ibm.com",
-		"jp-tok":   "https://resource-controller.cloud.ibm.com",
+		"global": "https://resource-controller.cloud.ibm.com",
 	},
 	"resource-catalog": {
-		"us-south": "https://globalcatalog.cloud.ibm.com",
-		"us-east":  "https://globalcatalog.cloud.ibm.com",
-		"eu-de":    "https://globalcatalog.cloud.ibm.com",
-		"au-syd":   "https://globalcatalog.cloud.ibm.com",
-		"eu-gb":    "https://globalcatalog.cloud.ibm.com",
-		"jp-tok":   "https://globalcatalog.cloud.ibm.com",
+		"global": "https://globalcatalog.cloud.ibm.com",
 	},
 	"resource-controller": {
-		"us-south": "https://resource-controller.cloud.ibm.com",
-		"us-east":  "https://resource-controller.cloud.ibm.com",
-		"eu-de":    "https://resource-controller.cloud.ibm.com",
-		"au-syd":   "https://resource-controller.cloud.ibm.com",
-		"eu-gb":    "https://resource-controller.cloud.ibm.com",
-		"jp-tok":   "https://resource-controller.cloud.ibm.com",
+		"global": "https://resource-controller.cloud.ibm.com",
 	},
 	"uaa": {
-		"us-south": "https://login.ng.bluemix.net/UAALoginServerWAR",
-		"us-east":  "https://login.us-east.bluemix.net/UAALoginServerWAR",
-		"eu-gb":    "https://login.eu-gb.bluemix.net/UAALoginServerWAR",
-		"au-syd":   "https://login.au-syd.bluemix.net/UAALoginServerWAR",
-		"eu-de":    "https://login.eu-de.bluemix.net/UAALoginServerWAR",
-		"jp-tok":   "https://login.jp-tok.bluemix.net/UAALoginServerWAR",
+		"us-south": "https://iam.cloud.ibm.com/cloudfoundry/login/us-south",
+		"us-east":  "https://iam.cloud.ibm.com/cloudfoundry/login/us-east",
+		"eu-gb":    "https://iam.cloud.ibm.com/cloudfoundry/login/uk-south",
+		"au-syd":   "https://iam.cloud.ibm.com/cloudfoundry/login/ap-south",
+		"eu-de":    "https://iam.cloud.ibm.com/cloudfoundry/login/eu-central",
+	},
+	"cse": {
+		"global": "https://api.serviceendpoint.cloud.ibm.com",
+	},
+	"schematics": {
+		"global": "https://schematics.cloud.ibm.com",
+	},
+	"usermanagement": {
+		"global": "https://user-management.cloud.ibm.com",
 	},
 }
 
@@ -170,12 +139,20 @@ func NewEndpointLocator(region string) EndpointLocator {
 }
 
 func (e *endpointLocator) AccountManagementEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["account"][e.region]; ok {
+	if ep, ok := regionToEndpoint["account"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_ACCOUNT_MANAGEMENT_API_ENDPOINT"}, ep), nil
 
 	}
 	return "", bmxerror.New(ErrCodeServiceEndpoint, fmt.Sprintf("Account Management endpoint doesn't exist for region: %q", e.region))
+}
+
+func (e *endpointLocator) CertificateManagerEndpoint() (string, error) {
+	if ep, ok := regionToEndpoint["certificate-manager"][e.region]; ok {
+		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
+		return helpers.EnvFallBack([]string{"IBMCLOUD_CERTIFICATE_MANAGER_API_ENDPOINT"}, ep), nil
+	}
+	return "", bmxerror.New(ErrCodeServiceEndpoint, fmt.Sprintf("Certificate Manager Service endpoint doesn't exist for region: %q", e.region))
 }
 
 func (e *endpointLocator) CFAPIEndpoint() (string, error) {
@@ -188,11 +165,19 @@ func (e *endpointLocator) CFAPIEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) ContainerEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["cs"][e.region]; ok {
+	if ep, ok := regionToEndpoint["cs"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_CS_API_ENDPOINT"}, ep), nil
 	}
 	return "", bmxerror.New(ErrCodeServiceEndpoint, fmt.Sprintf("Container Service endpoint doesn't exist for region: %q", e.region))
+}
+
+func (e *endpointLocator) SchematicsEndpoint() (string, error) {
+	if ep, ok := regionToEndpoint["schematics"]["global"]; ok {
+		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
+		return helpers.EnvFallBack([]string{"IBMCLOUD_SCHEMATICS_API_ENDPOINT"}, ep), nil
+	}
+	return "", bmxerror.New(ErrCodeServiceEndpoint, fmt.Sprintf("Schematics Service endpoint doesn't exist for region: %q", e.region))
 }
 
 func (e *endpointLocator) ContainerRegistryEndpoint() (string, error) {
@@ -204,7 +189,7 @@ func (e *endpointLocator) ContainerRegistryEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) CisEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["cis"][e.region]; ok {
+	if ep, ok := regionToEndpoint["cis"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_CIS_API_ENDPOINT"}, ep), nil
 	}
@@ -212,7 +197,7 @@ func (e *endpointLocator) CisEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) GlobalSearchEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["global-search"][e.region]; ok {
+	if ep, ok := regionToEndpoint["global-search"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_GS_API_ENDPOINT"}, ep), nil
 	}
@@ -220,7 +205,7 @@ func (e *endpointLocator) GlobalSearchEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) GlobalTaggingEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["global-tagging"][e.region]; ok {
+	if ep, ok := regionToEndpoint["global-tagging"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_GT_API_ENDPOINT"}, ep), nil
 	}
@@ -228,7 +213,7 @@ func (e *endpointLocator) GlobalTaggingEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) IAMEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["iam"][e.region]; ok {
+	if ep, ok := regionToEndpoint["iam"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_IAM_API_ENDPOINT"}, ep), nil
 
@@ -237,7 +222,7 @@ func (e *endpointLocator) IAMEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) IAMPAPEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["iampap"][e.region]; ok {
+	if ep, ok := regionToEndpoint["iampap"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_IAMPAP_API_ENDPOINT"}, ep), nil
 
@@ -263,7 +248,7 @@ func (e *endpointLocator) MCCPAPIEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) ResourceManagementEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["resource-manager"][e.region]; ok {
+	if ep, ok := regionToEndpoint["resource-manager"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_RESOURCE_MANAGEMENT_API_ENDPOINT"}, ep), nil
 
@@ -272,7 +257,7 @@ func (e *endpointLocator) ResourceManagementEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) ResourceControllerEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["resource-controller"][e.region]; ok {
+	if ep, ok := regionToEndpoint["resource-controller"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_RESOURCE_CONTROLLER_API_ENDPOINT"}, ep), nil
 
@@ -281,7 +266,7 @@ func (e *endpointLocator) ResourceControllerEndpoint() (string, error) {
 }
 
 func (e *endpointLocator) ResourceCatalogEndpoint() (string, error) {
-	if ep, ok := regionToEndpoint["resource-catalog"][e.region]; ok {
+	if ep, ok := regionToEndpoint["resource-catalog"]["global"]; ok {
 		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
 		return helpers.EnvFallBack([]string{"IBMCLOUD_RESOURCE_CATALOG_API_ENDPOINT"}, ep), nil
 
@@ -296,4 +281,22 @@ func (e *endpointLocator) UAAEndpoint() (string, error) {
 
 	}
 	return "", bmxerror.New(ErrCodeServiceEndpoint, fmt.Sprintf("UAA endpoint doesn't exist for region: %q", e.region))
+}
+
+func (e *endpointLocator) CseEndpoint() (string, error) {
+	if ep, ok := regionToEndpoint["cse"]["global"]; ok {
+		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
+		return helpers.EnvFallBack([]string{"IBMCLOUD_CSE_ENDPOINT"}, ep), nil
+
+	}
+	return "", bmxerror.New(ErrCodeServiceEndpoint, fmt.Sprintf("CSE endpoint doesn't exist for region: %q", e.region))
+}
+
+func (e *endpointLocator) UserManagementEndpoint() (string, error) {
+	if ep, ok := regionToEndpoint["usermanagement"]["global"]; ok {
+		//As the current list of regionToEndpoint above is not exhaustive we allow to read endpoints from the env
+		return helpers.EnvFallBack([]string{"IBMCLOUD_USER_MANAGEMENT_ENDPOINT"}, ep), nil
+
+	}
+	return "", bmxerror.New(ErrCodeServiceEndpoint, fmt.Sprintf("User Management endpoint doesn't exist"))
 }

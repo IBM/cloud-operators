@@ -6,23 +6,22 @@ import (
 	"fmt"
 	"log"
 	"net"
+	gohttp "net/http"
 	"path"
 	"strings"
 	"sync"
 	"time"
 
-	gohttp "net/http"
-
 	bluemix "github.com/IBM-Cloud/bluemix-go"
 	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/http"
-
 	"github.com/IBM-Cloud/bluemix-go/rest"
 )
 
 //TokenProvider ...
 type TokenProvider interface {
 	RefreshToken() (string, error)
+	GetPasscode() (string, error)
 	AuthenticatePassword(string, string) error
 	AuthenticateAPIKey(string) error
 }
@@ -285,10 +284,21 @@ func getDefaultAuthHeaders(serviceName bluemix.ServiceName, c *bluemix.Config) g
 		h.Set(authorizationHeader, c.IAMAccessToken)
 		h.Set(iamRefreshTokenHeader, c.IAMRefreshToken)
 		h.Set(uaaAccessTokenHeader, c.UAAAccessToken)
+	case bluemix.VpcContainerService:
+		h.Set(userAgentHeader, http.UserAgent())
+		h.Set(authorizationHeader, c.IAMAccessToken)
+		h.Set(iamRefreshTokenHeader, c.IAMRefreshToken)
+	case bluemix.SchematicsService:
+		h.Set(userAgentHeader, http.UserAgent())
+		h.Set(authorizationHeader, c.IAMAccessToken)
+		h.Set(iamRefreshTokenHeader, c.IAMRefreshToken)
 	case bluemix.ContainerRegistryService:
 		h.Set(authorizationHeader, c.IAMAccessToken)
 		h.Set(crRefreshTokenHeader, c.IAMRefreshToken)
-	case bluemix.IAMPAPService, bluemix.AccountServicev1, bluemix.ResourceCatalogrService, bluemix.ResourceControllerService, bluemix.ResourceManagementService, bluemix.IAMService, bluemix.IAMUUMService:
+	case bluemix.IAMPAPService, bluemix.AccountServicev1, bluemix.ResourceCatalogrService, bluemix.ResourceControllerService, bluemix.ResourceManagementService, bluemix.ResourceManagementServicev2, bluemix.IAMService, bluemix.IAMUUMService, bluemix.IAMUUMServicev2, bluemix.CseService:
+		h.Set(authorizationHeader, c.IAMAccessToken)
+	case bluemix.UserManagement:
+		h.Set(userAgentHeader, http.UserAgent())
 		h.Set(authorizationHeader, c.IAMAccessToken)
 	case bluemix.CisService:
 		h.Set(userAgentHeader, http.UserAgent())
@@ -300,6 +310,10 @@ func getDefaultAuthHeaders(serviceName bluemix.ServiceName, c *bluemix.Config) g
 	case bluemix.ICDService:
 		h.Set(userAgentHeader, http.UserAgent())
 		h.Set(authorizationHeader, c.IAMAccessToken)
+	case bluemix.CertificateManager:
+		h.Set(userAgentHeader, http.UserAgent())
+		h.Set(authorizationHeader, c.IAMAccessToken)
+
 	default:
 		log.Println("Unknown service - No auth headers set")
 	}

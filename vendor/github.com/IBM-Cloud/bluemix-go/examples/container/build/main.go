@@ -1,29 +1,29 @@
 package main
 
 import (
-	"fmt"
 	"archive/tar"
 	"bufio"
 	"compress/gzip"
 	"encoding/json"
-	"path/filepath"
 	"flag"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
-	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	bluemix "github.com/IBM-Cloud/bluemix-go"
 	"github.com/IBM-Cloud/bluemix-go/session"
 
-	"github.com/IBM-Cloud/bluemix-go/api/iam/iamv1"
 	"github.com/IBM-Cloud/bluemix-go/api/container/registryv1"
+	"github.com/IBM-Cloud/bluemix-go/api/iam/iamv1"
 	"github.com/IBM-Cloud/bluemix-go/trace"
 )
 
 func tarGzContext(context string) (string, error) {
-	tarfile, err := ioutil.TempFile("","docker-*.tar.gz")
+	tarfile, err := ioutil.TempFile("", "docker-*.tar.gz")
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +44,7 @@ func tarGzContext(context string) (string, error) {
 		baseDir = filepath.Base(context)
 	}
 
-	err = filepath.Walk(context, 
+	err = filepath.Walk(context,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -74,10 +74,10 @@ func tarGzContext(context string) (string, error) {
 			_, err = io.Copy(tarball, file)
 			return err
 		})
-		if err != nil {
-			return "", err
-		}
-		return tarfile.Name(), err
+	if err != nil {
+		return "", err
+	}
+	return tarfile.Name(), err
 }
 
 //Example: ./build -f Dockerfile -t registry.ng.bluemix.net/ibmcloud-go/imagtest .")
@@ -92,12 +92,12 @@ func main() {
 	var dockerFile string
 	flag.StringVar(&dockerFile, "f", "Dockerfile", "Dockerfile")
 
-        var region string
-        flag.StringVar(&region, "region", "us-south", "region")
+	var region string
+	flag.StringVar(&region, "region", "us-south", "region")
 
 	flag.Parse()
 
-	c.Region = region 
+	c.Region = region
 	directory := flag.Args()
 
 	fmt.Println(directory)
@@ -132,19 +132,19 @@ func main() {
 	}
 
 	namespaces, err := registryClient.Namespaces().GetNamespaces(namespaceHeaderStruct)
-	found := false;
+	found := false
 	for _, a := range namespaces {
-			if a == namespace[1] {
-					found = true
-					break
-			}
+		if a == namespace[1] {
+			found = true
+			break
+		}
 	}
 	if !found {
 		_, err := registryClient.Namespaces().AddNamespace(namespace[1], namespaceHeaderStruct)
 		if err != nil {
 			log.Fatal(err)
 		}
-	
+
 	}
 
 	headerStruct := registryv1.BuildTargetHeader{
@@ -155,8 +155,7 @@ func main() {
 	requestStruct.T = imageTag
 	requestStruct.Dockerfile = dockerFile
 
-
-	tarName,err := tarGzContext(directory[0])
+	tarName, err := tarGzContext(directory[0])
 	if err != nil {
 
 	}
@@ -177,11 +176,11 @@ func main() {
 	}
 
 	fmt.Println("\nInspecting Built Image...")
-	image, err := registryClient.Images().InspectImage(imageTag,imageHeaderStruct)
+	image, err := registryClient.Images().InspectImage(imageTag, imageHeaderStruct)
 	if err != nil {
 		log.Fatal(err)
 	}
-	jsonBytes,err := json.MarshalIndent(image, "", "  ")
+	jsonBytes, err := json.MarshalIndent(image, "", "  ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -190,15 +189,14 @@ func main() {
 
 	fmt.Println("\nScanning Built Image...")
 	imageVulnerabiliyRequst := registryv1.DefaultImageVulnerabilitiesRequest()
-	imageReport, err := registryClient.Images().ImageVulnerabilities(imageTag,*imageVulnerabiliyRequst,imageHeaderStruct)
+	imageReport, err := registryClient.Images().ImageVulnerabilities(imageTag, *imageVulnerabiliyRequst, imageHeaderStruct)
 	if err != nil {
 		log.Fatal(err)
 	}
-	jsonBytes,err = json.MarshalIndent(imageReport, "", "  ")
+	jsonBytes, err = json.MarshalIndent(imageReport, "", "  ")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Printf(string(jsonBytes))
 }
-
