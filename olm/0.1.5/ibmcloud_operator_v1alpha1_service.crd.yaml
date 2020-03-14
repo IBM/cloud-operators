@@ -4,7 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: bindings.ibmcloud.ibm.com
+  name: services.ibmcloud.ibm.com
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.state
@@ -15,8 +15,8 @@ spec:
     type: date
   group: ibmcloud.ibm.com
   names:
-    kind: Binding
-    plural: bindings
+    kind: Service
+    plural: services
   scope: Namespaced
   subresources:
     status: {}
@@ -37,7 +37,20 @@ spec:
           type: object
         spec:
           properties:
-            alias:
+            context:
+              properties:
+                org:
+                  type: string
+                region:
+                  type: string
+                resourcegroup:
+                  type: string
+                resourcelocation:
+                  type: string
+                space:
+                  type: string
+              type: object
+            externalName:
               type: string
             parameters:
               items:
@@ -67,32 +80,58 @@ spec:
                 - name
                 type: object
               type: array
-            role:
+            plan:
               type: string
-            secretName:
+            serviceClass:
               type: string
-            serviceName:
+            serviceClassType:
               type: string
-            serviceNamespace:
-              type: string
+            tags:
+              items:
+                type: string
+              type: array
           required:
-          - serviceName
+          - serviceClass
+          - plan
           type: object
         status:
           properties:
+            binding:
+              type: string
+            context:
+              properties:
+                org:
+                  type: string
+                region:
+                  type: string
+                resourcegroup:
+                  type: string
+                resourcelocation:
+                  type: string
+                space:
+                  type: string
+              type: object
+            externalName:
+              type: string
             generation:
               format: int64
               type: integer
             instanceId:
               type: string
-            keyInstanceId:
-              type: string
             message:
               type: string
-            secretName:
+            plan:
+              type: string
+            serviceClass:
+              type: string
+            serviceClassType:
               type: string
             state:
               type: string
+          required:
+          - serviceClass
+          - serviceClassType
+          - plan
           type: object
   version: v1alpha1
 status:

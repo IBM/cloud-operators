@@ -174,6 +174,12 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 			return reconcile.Result{}, nil
 		}
+
+		// In case there previously existed a service instance and it's now gone, reset the state of the resource
+		if instance.Status.KeyInstanceID != "" {
+			return r.resetResource(instance)
+		}
+
 		return reconcile.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
@@ -255,15 +261,25 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 			return reconcile.Result{}, nil
 		}
 
-		keyInstanceID, keyContents, err := r.createCredentials(rctx, instance, ibmCloudInfo)
-		if err != nil {
-			logt.Info("Error creating credentials", instance.Name, err.Error())
-			if strings.Contains(err.Error(), "still in progress") {
+		var keyInstanceID string
+		var keyContents map[string]interface{}
+
+		if instance.Spec.Alias != "" {
+			keyInstanceID, keyContents, err = getAliasCredentials(instance, ibmCloudInfo)
+			if err != nil {
+				logt.Info("Error retrieving alias credentials", instance.Name, err.Error())
 				return r.updateStatusError(instance, "Pending", err)
 			}
-			return r.updateStatusError(instance, "Failed", err)
+		} else {
+			keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
+			if err != nil {
+				logt.Info("Error creating credentials", instance.Name, err.Error())
+				if strings.Contains(err.Error(), "still in progress") {
+					return r.updateStatusError(instance, "Pending", err)
+				}
+				return r.updateStatusError(instance, "Failed", err)
+			}
 		}
-
 		instance.Status.KeyInstanceID = keyInstanceID
 
 		// Now create the secret
@@ -278,16 +294,24 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	} else { // The KeyInstanceID has been set (or is still inProgress), verify that the key and secret still exist
 		logt.Info("ServiceInstance Key", "should already exist, verifying", instance.ObjectMeta.Name)
-		keyInstanceID, keyContents, err := r.getCredentials(instance, ibmCloudInfo)
-		if err != nil && strings.Contains(err.Error(), notFound) {
-			logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
-			keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
+		var keyInstanceID string
+		var keyContents map[string]interface{}
+		if instance.Spec.Alias != "" {
+			keyInstanceID, keyContents, err = getAliasCredentials(instance, ibmCloudInfo)
 			if err != nil {
-				return r.updateStatusError(instance, "Failed", err)
+				return r.resetResource(instance)
 			}
-			instance.Status.KeyInstanceID = keyInstanceID
+		} else {
+			keyInstanceID, keyContents, err = getCredentials(instance, ibmCloudInfo)
+			if err != nil && strings.Contains(err.Error(), notFound) {
+				logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
+				keyInstanceID, keyContents, err = r.createCredentials(rctx, instance, ibmCloudInfo)
+				if err != nil {
+					return r.updateStatusError(instance, "Failed", err)
+				}
+				instance.Status.KeyInstanceID = keyInstanceID
+			}
 		}
-
 		secret, err := GetSecret(r, instance)
 		if err != nil {
 			logt.Info("Secret does not exist", "Recreating", getSecretName(instance))
@@ -305,7 +329,7 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 				return r.updateStatusError(instance, "Failed", err)
 			}
 			if instance.Status.KeyInstanceID != secret.Annotations["service-key-id"] || changed { // Warning: the deep comparison may not be needed, the key is probably enough
-				err := r.deleteSecret(secret)
+				err := r.deleteSecret(instance)
 				if err != nil {
 					logt.Info("Error deleting secret before recreating", instance.Name, err.Error())
 					return r.updateStatusError(instance, "Failed", err)
@@ -520,33 +544,35 @@ func (r *ReconcileBinding) createSecret(instance *ibmcloudv1alpha1.Binding, keyC
 func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) error {
 	logt.Info("Deleting", "credentials", instance.ObjectMeta.Name)
 
-	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
-		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-		err := serviceKeys.Delete(instance.Status.KeyInstanceID)
-		if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
-			return err
-		}
+	if instance.Spec.Alias == "" { // Delete only if it not alias
+		if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
+			serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
+			err := serviceKeys.Delete(instance.Status.KeyInstanceID)
+			if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
+				return err
+			}
 
-	} else { // service type is not CF
-		resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-		err := resServiceKeyAPI.DeleteKey(instance.Status.KeyInstanceID)
-		if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
-			return err
+		} else { // service type is not CF
+			resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
+			err := resServiceKeyAPI.DeleteKey(instance.Status.KeyInstanceID)
+			if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
+				return err
+			}
 		}
 	}
+	return r.deleteSecret(instance)
+}
+
+func (r *ReconcileBinding) deleteSecret(instance *ibmcloudv1alpha1.Binding) error {
+	logt.Info("Deleting ", "secret", instance.Status.SecretName)
 	secret, err := GetSecret(r, instance)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return nil
+			return nil //secret does not exist, nothing to delete
 		}
 		return err
 	}
-	return r.deleteSecret(secret)
-}
-
-func (r *ReconcileBinding) deleteSecret(secret *corev1.Secret) error {
-	logt.Info("Deleting ", "secret", secret.Name)
-	if err := r.Delete(context.Background(), secret); err != nil {
+	if err = r.Delete(context.Background(), secret); err != nil {
 		return err
 	}
 	return nil
@@ -560,25 +586,89 @@ func getSecretName(instance *ibmcloudv1alpha1.Binding) string {
 	return secretName
 }
 
-func (r *ReconcileBinding) getCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
+func (r *ReconcileBinding) resetResource(instance *ibmcloudv1alpha1.Binding) (reconcile.Result, error) {
+	instance.Status.State = "Pending"
+	instance.Status.Message = "Processing Resource"
+	instance.Status.InstanceID = ""
+	instance.Status.KeyInstanceID = ""
+
+	// If a secret exists that corresponds to this Binding, then delete it
+	err := r.deleteSecret(instance)
+	if err != nil {
+		logt.Info("Unable to delete", "secret", instance.Name)
+		return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+	}
+
+	instance.Status.SecretName = ""
+	if err := r.Status().Update(context.Background(), instance); err != nil {
+		logt.Info("Binding could not reset Status", instance.Name, err.Error())
+		return reconcile.Result{}, nil
+	}
+	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+}
+
+func getCFCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo, name string) (string, map[string]interface{}, error) {
+	logt.Info("Getting", "CF credentials", name)
+	serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
+
+	myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, name)
+	if err != nil {
+		if strings.Contains(err.Error(), "doesn't exist") {
+			return "", nil, fmt.Errorf(notFound)
+		}
+		return "", nil, err
+	}
+	_, contentsContainRedacted := myRetrievedKeys.Credentials["REDACTED"]
+	if contentsContainRedacted {
+		return "", nil, fmt.Errorf(notFound)
+	}
+
+	return myRetrievedKeys.GUID, myRetrievedKeys.Credentials, nil
+}
+
+func getAliasCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
+	logt.Info("Getting", " alias credentials", instance.ObjectMeta.Name)
+	name := instance.Spec.Alias
+
+	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
+		return getCFCredentials(instance, ibmCloudInfo, name)
+	}
+
+	// service type is not CF
+	resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
+	keys, err := resServiceKeyAPI.GetKeys(name)
+	if err != nil {
+		return "", nil, err
+	}
+
+	serviceKeys := make([]models.ServiceKey, 0)
+	for _, key := range keys {
+		if key.SourceCrn.String() == instance.Status.InstanceID {
+			serviceKeys = append(serviceKeys, key)
+		}
+	}
+
+	if len(serviceKeys) == 0 {
+		return "", nil, fmt.Errorf(notFound)
+	}
+
+	if len(serviceKeys) > 1 {
+		return "", nil, fmt.Errorf("Alias credential, there exist more than one credential with the name: %s", name)
+	}
+
+	_, contentsContainRedacted := serviceKeys[0].Credentials["REDACTED"]
+	if contentsContainRedacted {
+		return "", nil, fmt.Errorf(notFound)
+	}
+
+	return serviceKeys[0].ID, serviceKeys[0].Credentials, nil
+}
+
+func getCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "credentials", instance.ObjectMeta.Name)
 
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
-		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-
-		myRetrievedKeys, err := serviceKeys.FindByName(instance.Status.InstanceID, instance.Name)
-		if err != nil {
-			if strings.Contains(err.Error(), "doesn't exist") {
-				return "", nil, fmt.Errorf(notFound)
-			}
-			return "", nil, err
-		}
-		_, contentsContainRedacted := myRetrievedKeys.Credentials["REDACTED"]
-		if contentsContainRedacted {
-			return "", nil, fmt.Errorf(notFound)
-		}
-
-		return myRetrievedKeys.GUID, myRetrievedKeys.Credentials, nil
+		return getCFCredentials(instance, ibmCloudInfo, instance.Name)
 	}
 
 	// service type is not CF

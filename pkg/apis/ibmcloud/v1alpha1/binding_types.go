@@ -32,6 +32,8 @@ type BindingSpec struct {
 	// +optional
 	Role string `json:"role,omitempty"`
 	// +optional
+	Alias string `json:"alias,omitempty"`
+	// +optional
 	Parameters []keyvaluev1.KeyValue `json:"parameters,omitempty"`
 }
 
