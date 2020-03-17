@@ -60,6 +60,12 @@ The script above first creates an IBM Cloud API Key and stores it in a Kubernete
 accessed by the operator, then it sets defaults such as the default resource group and region 
 used to provision IBM Cloud Services; finally, it deploys the operator in your cluster. You can always override the defaults in the `Service` custom resource. If you prefer to create the secret and the defaults manually, consult the [IBM Cloud Operator documentation](docs/install.md).
 
+### Using a ServiceId
+
+To instantiate services and bindings on behalf of a ServiceId, set the environment variable `IC_APIKEY` to the `api-key` of the ServiceId. This can be obtained via the IBM Cloud Console of CLI.
+
+Next log into the IBM Cloud account that owns the ServiceId and follow the instructions above.
+
 ## Removing the operator
 
 To remove the operator, run the following script:
@@ -171,9 +177,17 @@ Field | Is required | Format/Type
  space | No | String 
  region | No | String 
  resourceGroup | No | String 
+ resourceGroupID | No | String
  resourceLocation | No | String 
 
 To override any element, the user can simply indicate that element and omit the others.
+If a resourceGroup is indicated, then the resourceGroupID must also be provided. This can be obtained with the
+following command, and retrieving the field `ID`.
+
+```bash
+ibmcloud resource group <resourceGroup>
+```
+
 
 ### Binding Yaml Elements
 
