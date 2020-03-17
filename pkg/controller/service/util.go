@@ -137,24 +137,21 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 
 func getIBMCloudContext(instance *ibmcloudv1alpha1.Service, cm *v1.ConfigMap) icv1.ResourceContext {
 	if (icv1.ResourceContext{}) == instance.Spec.Context {
-		resourceGroup := cm.Data["resourcegroup"]
-		if resourceGroup == "" {
-			resourceGroup = "default"
-		}
 		newContext := icv1.ResourceContext{
 			Org:             cm.Data["org"],
 			Space:           cm.Data["space"],
 			Region:          cm.Data["region"],
-			ResourceGroup:   resourceGroup,
+			ResourceGroup:   cm.Data["resourcegroup"],
 			ResourceGroupID: cm.Data["resourcegroupid"],
 		}
-
 		return newContext
-	} else if instance.Spec.Context.ResourceGroup == "" {
-		instance.Spec.Context.ResourceGroup = "default"
-		return instance.Spec.Context
 	}
-
+	if instance.Spec.Context.ResourceGroup == "" {
+		instance.Spec.Context.ResourceGroup = cm.Data["resourcegroup"]
+	}
+	if instance.Spec.Context.ResourceGroupID == "" {
+		instance.Spec.Context.ResourceGroupID = cm.Data["resourcegroupid"]
+	}
 	return instance.Spec.Context
 }
 

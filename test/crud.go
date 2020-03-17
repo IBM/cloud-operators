@@ -32,6 +32,7 @@ var (
 	space           = ""
 	region          = ""
 	resourceGroup   = ""
+	resourceGroupID = ""
 	apikey          = os.Getenv("BLUEMIX_API_KEY")
 	auth            = os.Getenv("OW_AUTH")
 	apihost         = os.Getenv("OW_APIHOST")
@@ -55,6 +56,7 @@ func init() {
 			region = config["Region"].(string)
 			if rgfields, ok := config["ResourceGroup"]; ok {
 				resourceGroup = rgfields.(map[string]interface{})["Name"].(string)
+				resourceGroupID = rgfields.(map[string]interface{})["GUID"].(string)
 			}
 
 		}
@@ -81,7 +83,7 @@ func init() {
 		}
 	}
 
-	if org == "" || space == "" || region == "" || uaaAccessToken == "" || uaaRefreshToken == "" {
+	if org == "" || space == "" || region == "" || uaaAccessToken == "" || uaaRefreshToken == "" || resourceGroupID == "" {
 		panic("set current bx target to run tests")
 	}
 
