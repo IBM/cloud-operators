@@ -28,7 +28,6 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/catalog"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
-	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/management"
 	"github.com/IBM-Cloud/bluemix-go/crn"
 	bxendpoints "github.com/IBM-Cloud/bluemix-go/endpoints"
 	"github.com/IBM-Cloud/bluemix-go/models"
@@ -36,7 +35,7 @@ import (
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	rcontext "github.com/ibm/cloud-operators/pkg/context"
 	icv1 "github.com/ibm/cloud-operators/pkg/lib/ibmcloud/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -138,15 +137,16 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 
 func getIBMCloudContext(instance *ibmcloudv1alpha1.Service, cm *v1.ConfigMap) icv1.ResourceContext {
 	if (icv1.ResourceContext{}) == instance.Spec.Context {
-		resourceGroup := cm.Data["resourceGroup"]
+		resourceGroup := cm.Data["resourcegroup"]
 		if resourceGroup == "" {
 			resourceGroup = "default"
 		}
 		newContext := icv1.ResourceContext{
-			Org:           cm.Data["org"],
-			Space:         cm.Data["space"],
-			Region:        cm.Data["region"],
-			ResourceGroup: resourceGroup,
+			Org:             cm.Data["org"],
+			Space:           cm.Data["space"],
+			Region:          cm.Data["region"],
+			ResourceGroup:   resourceGroup,
+			ResourceGroupID: cm.Data["resourcegroupid"],
 		}
 
 		return newContext
@@ -205,6 +205,7 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 	serviceplan := instance.Spec.Plan
 
 	useCtx := nctx
+	logt.Info("Context", "is", useCtx)
 	if useCtx.ResourceLocation == "" {
 		useCtx.ResourceLocation = useCtx.Region
 	}
@@ -359,39 +360,37 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			catalogCRN = supportedDeployments[0].CatalogCRN
 		}
 
-		managementClient, err := management.New(sess)
-		if err != nil {
-			return nil, err
-		}
-		var resourceGroupID string
-		resGrpAPI := managementClient.ResourceGroup()
-		if useCtx.ResourceGroup == "" {
+		// managementClient, err := management.New(sess)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// var resourceGroupID string
+		// resGrpAPI := managementClient.ResourceGroup()
+		// if useCtx.ResourceGroup == "" {
 
-			resourceGroupQuery := management.ResourceGroupQuery{
-				Default: true,
-			}
+		// 	resourceGroupQuery := management.ResourceGroupQuery{
+		// 		Default: true,
+		// 	}
 
-			grpList, err := resGrpAPI.List(&resourceGroupQuery)
-			for _, gp := range grpList {
-				logt.Info("Deployment", "name", gp.Name)
-			}
-			if err != nil {
-				return nil, err
-			}
+		// 	grpList, err := resGrpAPI.List(&resourceGroupQuery)
 
-			resourceGroupID = grpList[0].ID
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
 
-		} else {
-			grp, err := resGrpAPI.FindByName(nil, useCtx.ResourceGroup)
-			if err != nil {
-				return nil, err
-			}
-			resourceGroupID = grp[0].ID
-		}
+		// 	resourceGroupID = grpList[0].ID
 
-		if useCtx.ResourceLocation == "" {
-			useCtx.ResourceLocation = useCtx.Region
-		}
+		// } else {
+		// 	grp, err := resGrpAPI.FindByName(nil, useCtx.ResourceGroup)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
+		// 	resourceGroupID = grp[0].ID
+		// }
+
+		// if useCtx.ResourceLocation == "" {
+		// 	useCtx.ResourceLocation = useCtx.Region
+		// }
 
 		ibmCloudInfo := IBMCloudInfo{
 			//BXClient:         bxclient,         // MccpServiceAPI
@@ -401,7 +400,7 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			//Org:              myorg,     //*Organization
 			//Space:            myspace,
 			//Region:           regionList,
-			ResourceGroupID:  resourceGroupID,
+			ResourceGroupID:  useCtx.ResourceGroupID,
 			ResourceLocation: useCtx.ResourceLocation,
 			Session:          sess,
 			ServiceClass:     servicename,
