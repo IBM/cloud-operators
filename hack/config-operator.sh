@@ -29,6 +29,10 @@ IC_GROUP=$(echo "$IC_TARGET" | grep 'Resource' | awk '{print $3}')
 B64_APIKEY=$(echo -n $IC_APIKEY | base64)
 B64_REGION=$(echo -n $IC_REGION | base64)
 
+IC_GROUP_QUERY=$(ibmcloud resource group "$IC_GROUP") \
+IC_GROUP_ID=$(echo "$IC_GROUP_QUERY" | grep ID | grep -v Account | awk '{print $2}')
+
+
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
@@ -55,7 +59,8 @@ metadata:
 data:
   org: "${IC_ORG}"
   region: "${IC_REGION}"
-  resourceGroup: "${IC_GROUP}"
+  resourcegroup: "${IC_GROUP}"
+  resourcegroupid: "${IC_GROUP_ID}"
   space: "${IC_SPACE}"
 EOF
 

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -93,10 +93,11 @@ func ConfigureSeedDefaults(configmaps corev1.ConfigMapInterface) {
 			Name: "seed-defaults",
 		},
 		Data: map[string]string{
-			"org":           org,
-			"space":         space,
-			"region":        region,
-			"resourceGroup": resourceGroup,
+			"org":             org,
+			"space":           space,
+			"region":          region,
+			"resourcegroup":   resourceGroup,
+			"resourcegroupid": resourceGroupID,
 		},
 	}
 	configmaps.Create(config)

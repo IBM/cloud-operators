@@ -27,6 +27,8 @@ type ResourceContext struct {
 	// +optional
 	ResourceGroup string `json:"resourcegroup,omitempty"`
 	// +optional
+	ResourceGroupID string `json:"resourcegroupid,omitempty"`
+	// +optional
 	ResourceLocation string `json:"resourcelocation,omitempty"`
 }
 

@@ -4,7 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: services.ibmcloud.ibm.com
+  name: bindings.ibmcloud.ibm.com
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.state
@@ -15,8 +15,8 @@ spec:
     type: date
   group: ibmcloud.ibm.com
   names:
-    kind: Service
-    plural: services
+    kind: Binding
+    plural: bindings
   scope: Namespaced
   subresources:
     status: {}
@@ -37,22 +37,7 @@ spec:
           type: object
         spec:
           properties:
-            context:
-              properties:
-                org:
-                  type: string
-                region:
-                  type: string
-                resourcegroup:
-                  type: string
-                resourcegroupid:
-                  type: string
-                resourcelocation:
-                  type: string
-                space:
-                  type: string
-              type: object
-            externalName:
+            alias:
               type: string
             parameters:
               items:
@@ -82,60 +67,32 @@ spec:
                 - name
                 type: object
               type: array
-            plan:
+            role:
               type: string
-            serviceClass:
+            secretName:
               type: string
-            serviceClassType:
+            serviceName:
               type: string
-            tags:
-              items:
-                type: string
-              type: array
+            serviceNamespace:
+              type: string
           required:
-          - serviceClass
-          - plan
+          - serviceName
           type: object
         status:
           properties:
-            binding:
-              type: string
-            context:
-              properties:
-                org:
-                  type: string
-                region:
-                  type: string
-                resourcegroup:
-                  type: string
-                resourcegroupid:
-                  type: string
-                resourcelocation:
-                  type: string
-                space:
-                  type: string
-              type: object
-            externalName:
-              type: string
             generation:
               format: int64
               type: integer
             instanceId:
               type: string
+            keyInstanceId:
+              type: string
             message:
               type: string
-            plan:
-              type: string
-            serviceClass:
-              type: string
-            serviceClassType:
+            secretName:
               type: string
             state:
               type: string
-          required:
-          - serviceClass
-          - serviceClassType
-          - plan
           type: object
   version: v1alpha1
 status:

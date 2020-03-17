@@ -517,9 +517,14 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 				return nil // Nothing to do here, service not found
 			}
 			if strings.Contains(err.Error(), "Request failed with status code: 410") { // Not Found
-				logt.Info("Resource not found, empty code, nothing to to", "ServiceInstance", err.Error())
+				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
 			}
+			if strings.Contains(err.Error(), "Instance is pending reclamation") { // Not Founf
+				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
+				return nil // Nothing to do here, service not found
+			}
+
 			return err
 		}
 	}
