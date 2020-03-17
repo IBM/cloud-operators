@@ -62,7 +62,7 @@ used to provision IBM Cloud Services; finally, it deploys the operator in your c
 
 ### Using a ServiceId
 
-To instantiate services and bindings on behalf of a ServiceId, set the environment variable `IC_APIKEY` to the `api-key` of the ServiceId. This can be obtained via the IBM Cloud Console of CLI.
+To instantiate services and bindings on behalf of a ServiceId, set the environment variable `IC_APIKEY` to the `api-key` of the ServiceId. This can be obtained via the IBM Cloud Console or [CLI](https://cloud.ibm.com/docs/iam?topic=iam-serviceids). Be sure to give proper access permissions to the ServiceId.
 
 Next log into the IBM Cloud account that owns the ServiceId and follow the instructions above.
 
