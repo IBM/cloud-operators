@@ -57,7 +57,9 @@ type ServiceStatus struct {
 	// +optional
 	Context icv1.ResourceContext `json:"context,omitempty"`
 	// +optional
-	Binding string `json:"binding,omitempty"`
+	Parameters []keyvaluev1.KeyValue `json:"parameters,omitempty"`
+	// +optional
+	Tags []string `json:"tags,omitempty"`
 }
 
 // +genclient

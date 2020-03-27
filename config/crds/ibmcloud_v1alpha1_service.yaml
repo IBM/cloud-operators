@@ -98,8 +98,6 @@ spec:
           type: object
         status:
           properties:
-            binding:
-              type: string
             context:
               properties:
                 org:
@@ -124,6 +122,34 @@ spec:
               type: string
             message:
               type: string
+            parameters:
+              items:
+                properties:
+                  attributes:
+                    description: A parameter may have attributes (e.g. message hub
+                      topic might have partitions)
+                    type: object
+                  name:
+                    description: Name representing the key.
+                    type: string
+                  value:
+                    description: Defaults to null.
+                    type: object
+                  valueFrom:
+                    description: Source for the value. Cannot be used if value is
+                      not empty.
+                    properties:
+                      configMapKeyRef:
+                        description: Selects a key of a ConfigMap.
+                        type: object
+                      secretKeyRef:
+                        description: Selects a key of a secret in the resource namespace
+                        type: object
+                    type: object
+                required:
+                - name
+                type: object
+              type: array
             plan:
               type: string
             serviceClass:
@@ -132,6 +158,10 @@ spec:
               type: string
             state:
               type: string
+            tags:
+              items:
+                type: string
+              type: array
           required:
           - serviceClass
           - serviceClassType

@@ -53,6 +53,7 @@ const bindingFinalizer = "binding.ibmcloud.ibm.com"
 const inProgress = "IN PROGRESS"
 const notFound = "Not Found"
 const syncPeriod = time.Second * 150
+const idkey = "ibmcloud.ibm.com/keyId"
 
 // ContainsFinalizer checks if the instance contains service finalizer
 func ContainsFinalizer(instance *ibmcloudv1alpha1.Binding) bool {
@@ -635,33 +636,29 @@ func getAliasCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *servi
 	}
 
 	// service type is not CF
+	keyid, annotationFound := instance.ObjectMeta.GetAnnotations()[idkey]
+	if !annotationFound {
+		return "", nil, fmt.Errorf("Alias credential does not have" + keyid + " annotation")
+	}
 	resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-	keys, err := resServiceKeyAPI.GetKeys(name)
+	key, err := resServiceKeyAPI.GetKey(keyid)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return "", nil, fmt.Errorf(notFound)
+		}
 		return "", nil, err
 	}
 
-	serviceKeys := make([]models.ServiceKey, 0)
-	for _, key := range keys {
-		if key.SourceCrn.String() == instance.Status.InstanceID {
-			serviceKeys = append(serviceKeys, key)
-		}
+	if key.Name != name { // alias name and keyid annotations are inconsistent
+		return "", nil, fmt.Errorf("Alias credential name and keyid do not match")
 	}
 
-	if len(serviceKeys) == 0 {
-		return "", nil, fmt.Errorf(notFound)
-	}
-
-	if len(serviceKeys) > 1 {
-		return "", nil, fmt.Errorf("Alias credential, there exist more than one credential with the name: %s", name)
-	}
-
-	_, contentsContainRedacted := serviceKeys[0].Credentials["REDACTED"]
+	_, contentsContainRedacted := key.Credentials["REDACTED"]
 	if contentsContainRedacted {
 		return "", nil, fmt.Errorf(notFound)
 	}
 
-	return serviceKeys[0].ID, serviceKeys[0].Credentials, nil
+	return key.ID, key.Credentials, nil
 }
 
 func getCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
