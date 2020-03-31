@@ -11,8 +11,7 @@ COPY vendor/ vendor/
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager github.com/ibm/cloud-operators/cmd/manager
 
 # Copy the controller-manager into a thin image
-FROM ubuntu:latest
-RUN apt-get update && apt-get dist-upgrade -y && apt-get install --no-install-recommends -y ca-certificates && rm -rf /var/lib/apt/lists/*
+FROM registry.access.redhat.com/ubi8-minimal
 WORKDIR /root/
 COPY --from=builder /go/src/github.com/ibm/cloud-operators/manager .
 COPY git-rev .
