@@ -8,6 +8,8 @@ spec:
   tags:
     - cloudant
     - lite
+    - choumi
+    - zoumi
 ---
 apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Binding

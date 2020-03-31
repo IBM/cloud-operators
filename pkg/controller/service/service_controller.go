@@ -132,6 +132,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	ibmCloudInfo, err := GetIBMCloudInfo(r.Client, instance)
 	if err != nil {
+		logt.Info(err.Error())
 		return r.updateStatusError(instance, "Failed", err)
 	}
 
@@ -278,6 +279,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
+
 		// Verification was successful, service exists, update the status if necessary
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.LastOperation.State)
 
@@ -398,6 +400,23 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
+		// Update Params and Tags if they have changed
+		if tagsOrParamsChanged(instance) {
+			logt.Info("ServiceInstance ", "updating tags and/or parameters", instance.ObjectMeta.Name)
+			serviceInstanceUpdatePayload := bxcontroller.UpdateServiceInstanceRequest{
+				Name:          externalName,
+				ServicePlanID: ibmCloudInfo.ServicePlanID,
+				Parameters:    params,
+				Tags:          tags,
+			}
+
+			serviceInstance, err = resServiceInstanceAPI.UpdateInstance(serviceInstance.ID, serviceInstanceUpdatePayload)
+			if err != nil {
+				logt.Info("Error updating tags and/or parameters", "Error", err.Error())
+				return r.updateStatusError(instance, "Failed", err)
+			}
+		}
+
 		// Verification was successful, service exists, update the status if necessary
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.State)
 
@@ -409,6 +428,10 @@ func getExternalName(instance *ibmcloudv1alpha1.Service) string {
 		return instance.Spec.ExternalName
 	}
 	return instance.Name
+}
+
+func tagsOrParamsChanged(instance *ibmcloudv1alpha1.Service) bool {
+	return !reflect.DeepEqual(instance.Spec.Parameters, instance.Status.Parameters) || !reflect.DeepEqual(instance.Spec.Tags, instance.Status.Tags)
 }
 
 // GetServiceInstance gets the instance with given ID
@@ -424,7 +447,7 @@ func GetServiceInstance(instances []models.ServiceInstance, ID string) (models.S
 func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *IBMCloudInfo, instanceID string, instanceState string) (reconcile.Result, error) {
 	logt.Info("the instance state", "is:", instanceState)
 	state := getState(instanceState)
-	if instance.Status.State != state || instance.Status.InstanceID != instanceID {
+	if instance.Status.State != state || instance.Status.InstanceID != instanceID || tagsOrParamsChanged(instance) {
 		instance.Status.State = state
 		instance.Status.Message = state
 		instance.Status.InstanceID = instanceID
@@ -454,6 +477,9 @@ func setStatusFieldsFromSpec(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *I
 	instance.Status.ExternalName = instance.Spec.ExternalName
 	instance.Status.ServiceClass = instance.Spec.ServiceClass
 	instance.Status.ServiceClassType = instance.Spec.ServiceClassType
+	instance.Status.Parameters = instance.Spec.Parameters
+	instance.Status.Tags = instance.Spec.Tags
+
 	if ibmCloudInfo != nil {
 		instance.Status.Context = ibmCloudInfo.Context
 		instance.Spec.Context = ibmCloudInfo.Context
@@ -516,11 +542,15 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
 			}
+			if strings.Contains(err.Error(), "cannot be found") { // Not Found
+				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
+				return nil // Nothing to do here, service not found
+			}
 			if strings.Contains(err.Error(), "Request failed with status code: 410") { // Not Found
 				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
 			}
-			if strings.Contains(err.Error(), "Instance is pending reclamation") { // Not Founf
+			if strings.Contains(err.Error(), "Instance is pending reclamation") { // Not Found
 				logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
 				return nil // Nothing to do here, service not found
 			}

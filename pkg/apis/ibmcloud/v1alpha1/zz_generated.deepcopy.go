@@ -191,7 +191,7 @@ func (in *Service) DeepCopyInto(out *Service) {
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	in.Spec.DeepCopyInto(&out.Spec)
-	out.Status = in.Status
+	in.Status.DeepCopyInto(&out.Status)
 	return
 }
 
@@ -280,6 +280,18 @@ func (in *ServiceStatus) DeepCopyInto(out *ServiceStatus) {
 	*out = *in
 	out.ResourceStatus = in.ResourceStatus
 	out.Context = in.Context
+	if in.Parameters != nil {
+		in, out := &in.Parameters, &out.Parameters
+		*out = make([]v1.KeyValue, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Tags != nil {
+		in, out := &in.Tags, &out.Tags
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
