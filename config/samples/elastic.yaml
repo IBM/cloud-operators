@@ -7,7 +7,11 @@ spec:
   serviceClass: databases-for-elasticsearch
   parameters:
   - name: members_disk_allocation_mb
-    value: 30720
+    value: 307201
+  - name: service_endpoints
+    value: public
+  tags:
+  - booya
 ---
 apiVersion: ibmcloud.ibm.com/v1alpha1
 kind: Binding

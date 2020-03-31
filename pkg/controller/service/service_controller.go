@@ -280,8 +280,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
-		// Make sure that Params and Tags have not changed
-
 		// Verification was successful, service exists, update the status if necessary
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.LastOperation.State)
 
@@ -402,6 +400,23 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		}
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
+		// Update Params and Tags if they have changed
+		if tagsOrParamsChanged(instance) {
+			logt.Info("ServiceInstance ", "updating tags and/or parameters", instance.ObjectMeta.Name)
+			serviceInstanceUpdatePayload := bxcontroller.UpdateServiceInstanceRequest{
+				Name:          externalName,
+				ServicePlanID: ibmCloudInfo.ServicePlanID,
+				Parameters:    params,
+				Tags:          tags,
+			}
+
+			serviceInstance, err = resServiceInstanceAPI.UpdateInstance(serviceInstance.ID, serviceInstanceUpdatePayload)
+			if err != nil {
+				logt.Info("Error updating tags and/or parameters", "Error", err.Error())
+				return r.updateStatusError(instance, "Failed", err)
+			}
+		}
+
 		// Verification was successful, service exists, update the status if necessary
 		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.State)
 
@@ -413,6 +428,10 @@ func getExternalName(instance *ibmcloudv1alpha1.Service) string {
 		return instance.Spec.ExternalName
 	}
 	return instance.Name
+}
+
+func tagsOrParamsChanged(instance *ibmcloudv1alpha1.Service) bool {
+	return !reflect.DeepEqual(instance.Spec.Parameters, instance.Status.Parameters) || !reflect.DeepEqual(instance.Spec.Tags, instance.Status.Tags)
 }
 
 // GetServiceInstance gets the instance with given ID
@@ -428,7 +447,7 @@ func GetServiceInstance(instances []models.ServiceInstance, ID string) (models.S
 func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmCloudInfo *IBMCloudInfo, instanceID string, instanceState string) (reconcile.Result, error) {
 	logt.Info("the instance state", "is:", instanceState)
 	state := getState(instanceState)
-	if instance.Status.State != state || instance.Status.InstanceID != instanceID {
+	if instance.Status.State != state || instance.Status.InstanceID != instanceID || tagsOrParamsChanged(instance) {
 		instance.Status.State = state
 		instance.Status.Message = state
 		instance.Status.InstanceID = instanceID
