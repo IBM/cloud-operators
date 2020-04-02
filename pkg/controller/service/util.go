@@ -19,6 +19,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
@@ -42,7 +43,13 @@ import (
 )
 
 const aliasPlan = "alias"
-const defaultNamespace = "default"
+
+const seedInstall = "ibm-cloud-operator"
+const seedSecret = "secret-ibm-cloud-operator"
+const seedDefaults = "config-ibm-cloud-operator"
+const seedTokens = "secret-ibm-cloud-operator-tokens"
+
+var icoDefaultNamespace string
 
 // IBMCloudInfo kept all the needed client API resource and instance Info
 type IBMCloudInfo struct {
@@ -75,16 +82,20 @@ func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config
 		EndpointLocator: bxendpoints.NewEndpointLocator("us-south"), // TODO: hard wired to us-south!!
 	}
 
-	secretName := "seed-secret"
+	secretName := seedSecret
 	secretNameSpace := instance.ObjectMeta.Namespace
 
 	secret := &v1.Secret{}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: defaultNamespace}, secret)
+			namespace := getDefaultNamespace(r)
+			if namespace != "default" {
+				secretName = secretName + "-" + secretNameSpace
+			}
+			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, secret)
 			if err != nil {
-				logt.Info("Unable to get secret in namespace", defaultNamespace, err)
+				logt.Info("Unable to get secret in namespace", namespace, err)
 				return c, err
 			}
 		} else {
@@ -107,6 +118,25 @@ func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config
 	return c, nil
 }
 
+func getDefaultNamespace(r client.Client) string {
+	if icoDefaultNamespace == "default" {
+		return icoDefaultNamespace
+	}
+	cm := &v1.ConfigMap{}
+	cmName := seedInstall
+	cmNamespace := os.Getenv("CONTROLLER_NAMESPACE")
+
+	err := r.Get(context.Background(), types.NamespacedName{Namespace: cmNamespace, Name: cmName}, cm)
+	if err != nil {
+		icoDefaultNamespace = "default"
+		return icoDefaultNamespace
+	}
+
+	// There exists an ico-management configmap in the controller namespace
+	icoDefaultNamespace = cm.Data["namespace"]
+	return icoDefaultNamespace
+}
+
 func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Service) (icv1.ResourceContext, error) {
 	// If the object already has the context set in its Status, then we don't read from the configmap
 	if !reflect.DeepEqual(instance.Status.Context, icv1.ResourceContext{}) {
@@ -114,15 +144,19 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 	}
 
 	cm := &v1.ConfigMap{}
-	cmName := "seed-defaults"
+	cmName := seedDefaults
 	cmNameSpace := instance.ObjectMeta.Namespace
 
 	err := r.Get(context.Background(), types.NamespacedName{Namespace: cmNameSpace, Name: cmName}, cm)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			err = r.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: defaultNamespace}, cm)
+			namespace := getDefaultNamespace(r)
+			if namespace != "default" {
+				cmName = cmName + "-" + cmNameSpace
+			}
+			err = r.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: namespace}, cm)
 			if err != nil {
-				logt.Info("Failed to find ConfigMap in namespace (in Service)", defaultNamespace, err)
+				logt.Info("Failed to find ConfigMap in namespace (in Service)", namespace, err)
 				return icv1.ResourceContext{}, err
 			}
 		} else {
@@ -156,19 +190,20 @@ func getIBMCloudContext(instance *ibmcloudv1alpha1.Service, cm *v1.ConfigMap) ic
 }
 
 func getIamToken(r client.Client, instance *ibmcloudv1alpha1.Service) (string, string, string, string, error) {
-	secretName := "seed-secret-tokens"
-	secretNameSpace := "ibmcloud-operators"
-	if instance.ObjectMeta.Namespace != "" {
-		secretNameSpace = instance.ObjectMeta.Namespace
-	}
+	secretName := seedTokens
+	secretNameSpace := instance.ObjectMeta.Namespace
 
 	secret := &v1.Secret{}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: defaultNamespace}, secret)
+			namespace := getDefaultNamespace(r)
+			if namespace != "default" {
+				secretName = secretName + "-" + secretNameSpace
+			}
+			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, secret)
 			if err != nil {
-				logt.Info("Unable to get secret in namespace", defaultNamespace, err)
+				logt.Info("Unable to get secret in namespace", namespace, err)
 				return "", "", "", "", err
 			}
 		} else {

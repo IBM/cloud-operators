@@ -82,7 +82,7 @@ func Read(ctx context.Context, url string) ([]byte, error) {
 		if err != nil {
 			// if rc indicates bad request, unauthorized or forbidden we try to use the iam token
 			if rc == 400 || rc == 401 || rc == 403 {
-				token, err := secret.GetSecretValue(ctx, "seed-secret", "access_token", true)
+				token, err := secret.GetSecretValue(ctx, "secret-ibm-cloud-operator", "access_token", true)
 				if err != nil {
 					return nil, err
 				}

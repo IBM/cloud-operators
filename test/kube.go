@@ -86,11 +86,11 @@ func CreateNamespaceOrDie(namespaces corev1.NamespaceInterface, stem string) str
 	return ns.Name
 }
 
-// ConfigureSeedDefaults sets seed-defaults
+// ConfigureSeedDefaults sets config-ibm-cloud-operator
 func ConfigureSeedDefaults(configmaps corev1.ConfigMapInterface) {
 	config := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "seed-defaults",
+			Name: "config-ibm-cloud-operator",
 		},
 		Data: map[string]string{
 			"org":             org,
@@ -103,11 +103,11 @@ func ConfigureSeedDefaults(configmaps corev1.ConfigMapInterface) {
 	configmaps.Create(config)
 }
 
-// ConfigureSeedSecret sets seed-secret and seed-secret-tokens
+// ConfigureSeedSecret sets secret-ibm-cloud-operator and secret-ibm-cloud-operator-tokens
 func ConfigureSeedSecret(secrets corev1.SecretInterface) {
 	config := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "seed-secret",
+			Name: "secret-ibm-cloud-operator",
 		},
 		Data: map[string][]byte{
 			"api-key": []byte(apikey),
@@ -117,7 +117,7 @@ func ConfigureSeedSecret(secrets corev1.SecretInterface) {
 
 	config = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "seed-secret-tokens",
+			Name: "secret-ibm-cloud-operator-tokens",
 		},
 		Data: map[string][]byte{
 			"uaa_token":         []byte(uaaAccessToken),

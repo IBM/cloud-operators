@@ -37,7 +37,7 @@ cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
 metadata:
-  name: seed-secret
+  name: secret-ibm-cloud-operator
   labels:
     seed.ibm.com/ibmcloud-token: "apikey"
     app.kubernetes.io/name: ibmcloud-operator
@@ -52,7 +52,7 @@ cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: seed-defaults
+  name: config-ibm-cloud-operator
   namespace: default
   labels:
     app.kubernetes.io/name: ibmcloud-operator
@@ -63,4 +63,3 @@ data:
   resourcegroupid: "${IC_GROUP_ID}"
   space: "${IC_SPACE}"
 EOF
-
