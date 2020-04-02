@@ -49,7 +49,7 @@ const seedSecret = "secret-ibm-cloud-operator"
 const seedDefaults = "config-ibm-cloud-operator"
 const seedTokens = "secret-ibm-cloud-operator-tokens"
 
-var icoDefaultNamespace string
+var controllerNamespace string
 
 // IBMCloudInfo kept all the needed client API resource and instance Info
 type IBMCloudInfo struct {
@@ -119,22 +119,17 @@ func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config
 }
 
 func getDefaultNamespace(r client.Client) string {
-	if icoDefaultNamespace == "default" {
-		return icoDefaultNamespace
+	if controllerNamespace == "" {
+		controllerNamespace = os.Getenv("CONTROLLER_NAMESPACE")
 	}
 	cm := &v1.ConfigMap{}
-	cmName := seedInstall
-	cmNamespace := os.Getenv("CONTROLLER_NAMESPACE")
-
-	err := r.Get(context.Background(), types.NamespacedName{Namespace: cmNamespace, Name: cmName}, cm)
+	err := r.Get(context.Background(), types.NamespacedName{Namespace: controllerNamespace, Name: seedInstall}, cm)
 	if err != nil {
-		icoDefaultNamespace = "default"
-		return icoDefaultNamespace
+		return "default"
 	}
 
 	// There exists an ico-management configmap in the controller namespace
-	icoDefaultNamespace = cm.Data["namespace"]
-	return icoDefaultNamespace
+	return cm.Data["namespace"]
 }
 
 func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Service) (icv1.ResourceContext, error) {
