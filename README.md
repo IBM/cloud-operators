@@ -168,7 +168,10 @@ The IBM Cloud Operator needs an account context, which indicates the `api-key` a
 account to be used for service instantiation. The `api-key` is contained in a Secret called `secret-ibm-cloud-operator` that is created
 when the IBM Cloud Operator is installed. Details of the account (such as organization, space, resource group) are held in a
 ConfigMap called `config-ibm-cloud-operator`. To find the secret and configmap the IBM Cloud Operator first looks at the namespace of the
-resource being created, and if not found, in the default namespace. This account information can be overriden by using
+resource being created, and if not found, in a management namespace (see below for more details on management namespaces). If there is no management namespace, then the operator looks for the secret and configmap in the `default` namespace. 
+
+
+The account information can be overriden by using
 the `context` field in the service yaml, with the following substructure:
 
 Field | Is required | Format/Type 
@@ -187,6 +190,42 @@ following command, and retrieving the field `ID`.
 ```bash
 ibmcloud resource group <resourceGroup>
 ```
+
+#### Using a Management Namespace
+
+Different Kubernetes namespaces can contain different secrets `secret-ibm-cloud-operator` and configmap `config-ibm-cloud-operator`, corresponding to different IBM Public Cloud accounts. So each namespace can be set up for a different account. 
+
+In some scenarios, however, there is a need for hiding the `api-keys` from users. In this case, a management namespace can be set up that contains all the secrets and configmaps corresponding to each namespace, with a naming convention. 
+
+To configure a management namespace named `safe`, there must be a configmap named `ibm-cloud-operator` created in the same namespace as the IBM Cloud Operator itself. This configmap indicates the name of the management namespace, in a field `namespace`. To create such a config map, execute the following:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ibm-cloud-operator
+  namespace: <namespace where IBM Cloud Operator has been installed>
+  labels:
+    app.kubernetes.io/name: ibmcloud-operator
+data:
+  namespace: safe
+EOF
+```
+
+This configmap indicates to the operator where to find the management namespace, in this case `safe`.
+Next the `safe` namespace needs to contain secrets and configmaps corresponding to each namespace that will contain services and bindings. The naming convention is as follows:
+
+```
+<namespace>-secret-ibm-cloud-operator
+<namespace>-config-ibm-cloud-operator
+```
+
+These can be created similary to what is done in `hack/configure-operator.sh`.
+
+If we create a service or binding resource in a namespace `XYZ`, the IBM Cloud Operator first looks in the `XYZ` namespace to find `secret-ibm-cloud-operator` and `config-ibm-cloud-operator`, for account context. If they are missing in `XYZ`, it looks for the `ibm-cloud-operator` configmap in the namespace where the operator is installed, to see if there is a management namespace. If there is, it looks in the management namespace for the secret and configmap with the naming convention:
+`XYZ-secret-ibm-cloud-operator` and `XYZ-config-ibm-cloud-operator`. If there is no management namespace, the operator looks in the `default` namespace for the secret and configmap (`secret-ibm-cloud-operator` and `config-ibm-cloud-operator`).
+
 
 
 ### Binding Yaml Elements
