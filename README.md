@@ -162,12 +162,12 @@ for more details).
 _Notice that the `serviceClass`, `plan`, `serviceClassType`, and `externalName` fields are immutable. Immutability is not enforced
 with an admission controller, so updates go through initially successfully. However, the controller intercepts such changes and
 changes those fields back to their original values. So although it may seem that updates to those fields are accepted, they are
-in fact reverted by the controller. In the future, we plan to implement updatability for `parameters`._
+in fact reverted by the controller. On the other hand, `parameters` and `tags` are updatable._
 
 The IBM Cloud Operator needs an account context, which indicates the `api-key` and the details of the IBM Public Cloud
-account to be used for service instantiation. The `api-key` is contained in a Secret called `seed-secrets` that is created
+account to be used for service instantiation. The `api-key` is contained in a Secret called `secret-ibm-cloud-operator` that is created
 when the IBM Cloud Operator is installed. Details of the account (such as organization, space, resource group) are held in a
-ConfigMap called `seed-defaults`. To find the secret and configmap the IBM Cloud Operator first looks at the namespace of the
+ConfigMap called `config-ibm-cloud-operator`. To find the secret and configmap the IBM Cloud Operator first looks at the namespace of the
 resource being created, and if not found, in the default namespace. This account information can be overriden by using
 the `context` field in the service yaml, with the following substructure:
 
