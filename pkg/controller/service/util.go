@@ -91,7 +91,7 @@ func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config
 		if strings.Contains(err.Error(), "not found") {
 			namespace := getDefaultNamespace(r)
 			if namespace != "default" {
-				secretName = secretName + "-" + secretNameSpace
+				secretName = secretNameSpace + "-" + secretName
 			}
 			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, secret)
 			if err != nil {
@@ -152,7 +152,7 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 		if strings.Contains(err.Error(), "not found") {
 			namespace := getDefaultNamespace(r)
 			if namespace != "default" {
-				cmName = cmName + "-" + cmNameSpace
+				cmName = cmNameSpace + "-" + cmName
 			}
 			err = r.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: namespace}, cm)
 			if err != nil {
@@ -199,7 +199,7 @@ func getIamToken(r client.Client, instance *ibmcloudv1alpha1.Service) (string, s
 		if strings.Contains(err.Error(), "not found") {
 			namespace := getDefaultNamespace(r)
 			if namespace != "default" {
-				secretName = secretName + "-" + secretNameSpace
+				secretName = secretNameSpace + "-" + secretName
 			}
 			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, secret)
 			if err != nil {
