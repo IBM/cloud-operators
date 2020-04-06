@@ -130,6 +130,18 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, err
 	}
 
+	// Enforce immutability, restore the spec if it has changed
+	if specChanged(instance) {
+		logt.Info("Spec is immutable", "Restoring", instance.ObjectMeta.Name)
+		instance.Spec.Plan = instance.Status.Plan
+		instance.Spec.ExternalName = instance.Status.ExternalName
+		instance.Spec.ServiceClass = instance.Status.ServiceClass
+		instance.Spec.ServiceClassType = instance.Status.ServiceClassType
+		if err := r.Update(context.Background(), instance); err != nil {
+			return reconcile.Result{}, nil
+		}
+	}
+
 	ibmCloudInfo, err := GetIBMCloudInfo(r.Client, instance)
 	if err != nil {
 		logt.Info(err.Error())
@@ -143,18 +155,6 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info(err.Error())
-			return reconcile.Result{}, nil
-		}
-	}
-
-	// Enforce immutability, restore the spec if it has changed
-	if specChanged(instance) {
-		logt.Info("Spec is immutable", "Restoring", instance.ObjectMeta.Name)
-		instance.Spec.Plan = instance.Status.Plan
-		instance.Spec.ExternalName = instance.Status.ExternalName
-		instance.Spec.ServiceClass = instance.Status.ServiceClass
-		instance.Spec.ServiceClassType = instance.Status.ServiceClassType
-		if err := r.Update(context.Background(), instance); err != nil {
 			return reconcile.Result{}, nil
 		}
 	}
@@ -562,6 +562,10 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 }
 
 func specChanged(instance *ibmcloudv1alpha1.Service) bool {
+	if reflect.DeepEqual(instance.Status, ibmcloudv1alpha1.ServiceStatus{}) { // Object does not have a status field yet
+		return false
+	}
+
 	if instance.Status.Plan == "" { // Object has not been fully created yet
 		return false
 	}
