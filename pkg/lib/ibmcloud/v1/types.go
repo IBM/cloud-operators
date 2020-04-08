@@ -30,6 +30,8 @@ type ResourceContext struct {
 	ResourceGroupID string `json:"resourcegroupid,omitempty"`
 	// +optional
 	ResourceLocation string `json:"resourcelocation,omitempty"`
+	// +optional
+	User string `json:"user,omitempty"`
 }
 
 // BindingFrom specifies the binding object

@@ -172,6 +172,7 @@ func getIBMCloudContext(instance *ibmcloudv1alpha1.Service, cm *v1.ConfigMap) ic
 			Region:          cm.Data["region"],
 			ResourceGroup:   cm.Data["resourcegroup"],
 			ResourceGroupID: cm.Data["resourcegroupid"],
+			User:            cm.Data["user"],
 		}
 		return newContext
 	}
@@ -180,6 +181,9 @@ func getIBMCloudContext(instance *ibmcloudv1alpha1.Service, cm *v1.ConfigMap) ic
 	}
 	if instance.Spec.Context.ResourceGroupID == "" {
 		instance.Spec.Context.ResourceGroupID = cm.Data["resourcegroupid"]
+	}
+	if instance.Spec.Context.User == "" {
+		instance.Spec.Context.User = cm.Data["user"]
 	}
 	return instance.Spec.Context
 }

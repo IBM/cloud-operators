@@ -428,7 +428,7 @@ func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 func (r *ReconcileBinding) createCredentials(rctx rcontext.Context, instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) (string, map[string]interface{}, error) {
 	var keyContents map[string]interface{}
 	var keyInstanceID string
-	logt.Info("Creating", "credentials", instance.ObjectMeta.Name)
+	logt.WithValues("User", ibmCloudInfo.Context.User).Info("Creating", "credentials", instance.ObjectMeta.Name)
 	parameters, err := getParams(rctx, instance)
 	if err != nil {
 		logt.Error(err, "Instance ", instance.ObjectMeta.Name, " has problems with its parameters")
@@ -543,7 +543,7 @@ func (r *ReconcileBinding) createSecret(instance *ibmcloudv1alpha1.Binding, keyC
 
 // deleteCredentials also deletes the corresponding secret
 func (r *ReconcileBinding) deleteCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *service.IBMCloudInfo) error {
-	logt.Info("Deleting", "credentials", instance.ObjectMeta.Name)
+	logt.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting", "credentials", instance.ObjectMeta.Name)
 
 	if instance.Spec.Alias == "" { // Delete only if it not alias
 		if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF

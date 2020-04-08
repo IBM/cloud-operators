@@ -23,6 +23,7 @@ if [[ -z "${IC_APIKEY}" ]]; then
 fi
 IC_TARGET=$(ibmcloud target) \
 IC_ORG=$(echo "$IC_TARGET" | grep Org | awk '{print $2}')  \
+IC_USER=$(echo "$IC_TARGET" | grep User | awk '{print $2}')  \
 IC_SPACE=$(echo "$IC_TARGET" | grep Space | awk '{print $2}') \
 IC_REGION=$(echo "$IC_TARGET" | grep Region | awk '{print $2}') \
 IC_GROUP=$(echo "$IC_TARGET" | grep 'Resource' | awk '{print $3}')
@@ -62,4 +63,5 @@ data:
   resourcegroup: "${IC_GROUP}"
   resourcegroupid: "${IC_GROUP_ID}"
   space: "${IC_SPACE}"
+  user: "${IC_USER}"
 EOF
