@@ -51,6 +51,8 @@ spec:
                   type: string
                 space:
                   type: string
+                user:
+                  type: string
               type: object
             externalName:
               type: string
@@ -111,6 +113,8 @@ spec:
                 resourcelocation:
                   type: string
                 space:
+                  type: string
+                user:
                   type: string
               type: object
             externalName:

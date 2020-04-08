@@ -240,7 +240,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				}
 			}
 			// Service is not Alias
-			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+			logt.WithValues("User", ibmCloudInfo.Context.User).Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
 				Name:      externalName,
 				PlanGUID:  ibmCloudInfo.BxPlan.GUID,
@@ -258,7 +258,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
 		if err != nil && !isAlias(instance) {
 			if strings.Contains(err.Error(), "doesn't exist") {
-				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+				logt.WithValues("User", ibmCloudInfo.Context.User).Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 				serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
 					Name:      externalName,
 					PlanGUID:  ibmCloudInfo.BxPlan.GUID,
@@ -356,7 +356,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 
 			// Create the instance, service is not alias
-			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+			logt.WithValues("User", ibmCloudInfo.Context.User).Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 			if err != nil {
 				return r.updateStatusError(instance, "Failed", err)
@@ -382,7 +382,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		serviceInstance, err := GetServiceInstance(serviceInstances, instance.Status.InstanceID)
 		if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
 			if !isAlias(instance) {
-				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+				logt.WithValues("User", ibmCloudInfo.Context.User).Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 				instance.Status.InstanceID = "IN PROGRESS"
 				if err := r.Status().Update(context.Background(), instance); err != nil {
 					logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
@@ -515,7 +515,7 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 		return nil // Nothing to do here, service was not intialized
 	}
 	if ibmCloudInfo.ServiceClassType == "CF" {
-		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+		logt.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
 		err := serviceInstanceAPI.Delete(instance.Status.InstanceID, true, true) // async, recursive (i.e. delete credentials)
 		if err != nil {
@@ -527,7 +527,7 @@ func (r *ReconcileService) deleteService(ibmCloudInfo *IBMCloudInfo, instance *i
 		}
 
 	} else { // Resource is not CF
-		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+		logt.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 		controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
 		if err != nil {
 			logt.Info("Deletion error", "ServiceInstance", err.Error())
