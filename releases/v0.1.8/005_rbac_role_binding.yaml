@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  name: ibmcloud-operator-rolebinding
+  labels:
+    app.kubernetes.io/name: ibmcloud-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ibmcloud-operator-manager-role
+subjects:
+- kind: ServiceAccount
+  name: ibmcloud-operator
+  namespace: ibmcloud-operators
