@@ -299,8 +299,10 @@ func (r *ReconcileBinding) Reconcile(request reconcile.Request) (reconcile.Resul
 		var keyContents map[string]interface{}
 		if instance.Spec.Alias != "" {
 			keyInstanceID, keyContents, err = getAliasCredentials(instance, ibmCloudInfo)
-			if err != nil {
+			if err != nil && strings.Contains(err.Error(), notFound) {
 				return r.resetResource(instance)
+			} else if err != nil {
+				return r.updateStatusError(instance, "Failed", err)
 			}
 		} else {
 			keyInstanceID, keyContents, err = getCredentials(instance, ibmCloudInfo)
@@ -638,7 +640,7 @@ func getAliasCredentials(instance *ibmcloudv1alpha1.Binding, ibmCloudInfo *servi
 	// service type is not CF
 	keyid, annotationFound := instance.ObjectMeta.GetAnnotations()[idkey]
 	if !annotationFound {
-		return "", nil, fmt.Errorf("Alias credential does not have" + keyid + " annotation")
+		return "", nil, fmt.Errorf("Alias credential does not have %s annotation", idkey)
 	}
 	resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
 	key, err := resServiceKeyAPI.GetKey(keyid)
