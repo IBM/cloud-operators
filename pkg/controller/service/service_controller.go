@@ -27,11 +27,13 @@ import (
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/models"
+	"github.com/google/go-cmp/cmp"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	rcontext "github.com/ibm/cloud-operators/pkg/context"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -455,6 +457,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 		err := r.Status().Update(context.Background(), instance)
 		if err != nil {
 			logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
+			r.logDiff(instance)
 			err = r.deleteService(ibmCloudInfo, instance)
 			if err != nil {
 				logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
@@ -463,6 +466,17 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 		return reconcile.Result{}, nil
 	}
 	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+}
+
+func (r *ReconcileService) logDiff(instance *ibmcloudv1alpha1.Service) error {
+	newObj := &ibmcloudv1alpha1.Service{}
+	err := r.Get(context.Background(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, newObj)
+	if err != nil {
+		return err
+	}
+	diff := cmp.Diff(newObj, instance)
+	fmt.Printf("%s", diff)
+	return nil
 }
 
 func getState(serviceInstanceState string) string {
