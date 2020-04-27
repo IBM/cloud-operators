@@ -123,7 +123,8 @@ spec:
 ```
 
 For CF-type services, the name is unique within a context (org & space), therefore the name is sufficient
-to identify an existing service instance. 
+to identify an existing service instance. Note that the `serviceClassType` must be set to `CF` for the service to be
+recognized by the operator.
 
 For IAM-type services, multiple service instances can have the same name.
 The example above will work only if there is one single instance of the service with that name. If multiple
