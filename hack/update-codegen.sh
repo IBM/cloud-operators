@@ -36,3 +36,10 @@ vendor/k8s.io/code-generator/generate-groups.sh \
   github.com/ibm/cloud-operators/pkg/lib \
   "keyvalue:v1" \
   --go-header-file ${SCRIPT_ROOT}/hack/boilerplate.go.txt   
+
+vendor/k8s.io/code-generator/generate-groups.sh \
+  all \
+  github.com/ibm/cloud-operators/pkg/client \
+  github.com/ibm/cloud-operators/pkg/apis \
+  "ibmcloud:v1alpha1" 
+ 
