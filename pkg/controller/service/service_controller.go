@@ -137,6 +137,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		instance.Spec.ExternalName = instance.Status.ExternalName
 		instance.Spec.ServiceClass = instance.Status.ServiceClass
 		instance.Spec.ServiceClassType = instance.Status.ServiceClassType
+		instance.Spec.Context = instance.Status.Context
 		if err := r.Update(context.Background(), instance); err != nil {
 			return reconcile.Result{}, nil
 		}
@@ -565,8 +566,8 @@ func specChanged(instance *ibmcloudv1alpha1.Service) bool {
 	if reflect.DeepEqual(instance.Status, ibmcloudv1alpha1.ServiceStatus{}) { // Object does not have a status field yet
 		return false
 	}
-
-	if instance.Status.Plan == "" { // Object has not been fully created yet
+	// If the Plan has not been set, then there is no need to test is spec has changed, Object has not been fully initialized yet
+	if instance.Status.Plan == "" {
 		return false
 	}
 	if instance.Spec.ExternalName != instance.Status.ExternalName {
@@ -581,6 +582,11 @@ func specChanged(instance *ibmcloudv1alpha1.Service) bool {
 	if instance.Spec.ServiceClassType != instance.Status.ServiceClassType {
 		return true
 	}
+
+	if !reflect.DeepEqual(instance.Spec.Context, instance.Status.Context) {
+		return true
+	}
+
 	return false
 }
 
