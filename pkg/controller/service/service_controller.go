@@ -153,7 +153,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	if reflect.DeepEqual(instance.Status, ibmcloudv1alpha1.ServiceStatus{}) {
 		instance.Status.State = "Pending"
 		instance.Status.Message = "Processing Resource"
-		setStatusFieldsFromSpec(instance, ibmCloudInfo)
+		//setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info(err.Error())
 			return reconcile.Result{}, nil
