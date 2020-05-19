@@ -29,14 +29,15 @@ require (
 	github.com/json-iterator/go v1.1.9
 	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
-	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
+	github.com/modern-go/reflect2 v1.0.1
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/pborman/uuid v0.0.0-20180906182336-adf5a7427709
 	github.com/petar/GoLLRB v0.0.0-20190514000832-33fb24c13b99
+	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/prometheus/client_golang v0.9.4
+	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.9.1
 	github.com/prometheus/procfs v0.0.10
