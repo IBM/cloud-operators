@@ -1,11 +1,9 @@
 # Build the manager binary
-FROM golang:1.10.3 as builder
+FROM golang:1.13.5 as builder
 
 # Copy in the go src
 WORKDIR /go/src/github.com/ibm/cloud-operators
-COPY pkg/    pkg/
-COPY cmd/    cmd/
-COPY vendor/ vendor/
+COPY . .
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager github.com/ibm/cloud-operators/cmd/manager
