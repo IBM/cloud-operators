@@ -1,7 +1,8 @@
 //go:generate go run .
 
-// Command update_codegen runs several scripts from k8s.io/code-generator to update generated code in this project.
-// Currently enables code generation without a vendor directory or GOPATH by using Go Modules instead.
+// Command update_codegen updates generated code in this project.
+//
+// Currently enables code generation without a vendor directory or GOPATH by using Go Modules to detect file paths.
 package main
 
 import (
@@ -17,7 +18,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-const thisPackage = "github.com/ibm/cloud-operators"
+const thisModule = "github.com/ibm/cloud-operators"
 
 func main() {
 	err := run()
@@ -35,51 +36,25 @@ func run() error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	operatorsPath, err := getPackageFilePath(thisPackage, "cmd/update_codegen")
+	operatorsPath, err := getPackageFilePath(thisModule, "cmd/update_codegen")
 	if err != nil {
 		return err
 	}
 
-	codeGeneratorPath, err := getPackageFilePath("k8s.io/code-generator", "pkg/util")
-	if err != nil {
-		return err
+	packages := []string{
+		"pkg/apis/...",
+		"pkg/lib/resource/v1",
+		"pkg/lib/keyvalue/v1",
+	}
+	for i := range packages {
+		packages[i] = thisModule + "/" + packages[i]
 	}
 
 	cmd := exec.Command("go", "run", "k8s.io/code-generator/cmd/deepcopy-gen",
-		"-O", "zz_generated.deepcopy",
-		"-i", thisPackage+"/pkg/apis/...",
-		"--output-base", tmpDir,
 		"--go-header-file", filepath.Join(operatorsPath, "hack", "boilerplate.go.txt"),
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	cmd = exec.Command("bash", filepath.Join(codeGeneratorPath, "generate-groups.sh"),
-		"deepcopy",
-		thisPackage+"/pkg/lib/resource/v1",
-		thisPackage+"/pkg/lib",
-		"resource:v1",
+		"--input-dirs", strings.Join(packages, ","),
 		"--output-base", tmpDir,
-		"--go-header-file", filepath.Join(operatorsPath, "hack", "boilerplate.go.txt"),
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	cmd = exec.Command("bash", filepath.Join(codeGeneratorPath, "generate-groups.sh"),
-		"deepcopy",
-		thisPackage+"/pkg/lib/keyvalue/v1",
-		thisPackage+"/pkg/lib",
-		"keyvalue:v1",
-		"--output-base", tmpDir,
-		"--go-header-file", filepath.Join(operatorsPath, "hack", "boilerplate.go.txt"),
+		"--output-file-base", "zz_generated.deepcopy",
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -89,9 +64,9 @@ func run() error {
 	}
 
 	fmt.Println("Moving generated files back into this repo's path...")
-	generatedPathComps := append([]string{tmpDir}, strings.Split(thisPackage, "/")...)
+	generatedPathComps := append([]string{tmpDir}, strings.Split(thisModule, "/")...)
 	generatedPath := filepath.Join(generatedPathComps...)
-	filepath.Walk(generatedPath, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(generatedPath, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -101,7 +76,6 @@ func run() error {
 		}
 		return os.Rename(path, outputPath)
 	})
-	return nil
 }
 
 // getPackageFilePath returns the file path to the main package, using goFileSubPkg as a means to load its file paths
