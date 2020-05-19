@@ -17,6 +17,7 @@
 package binding
 
 import (
+	goContext "context"
 	"log"
 	"path/filepath"
 	"strings"
@@ -117,7 +118,7 @@ var _ = Describe("binding", func() {
 
 			// check secret is created
 			clientset := test.GetClientsetOrDie(cfg)
-			_, err := clientset.CoreV1().Secrets(namespace).Get(binding.Name, metav1.GetOptions{})
+			_, err := clientset.CoreV1().Secrets(namespace).Get(goContext.Background(), binding.Name, metav1.GetOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 		},
@@ -155,7 +156,7 @@ var _ = Describe("binding", func() {
 // check if secret is deleted
 func isSecretDeleted(clientset *kubernetes.Clientset, secretName string) func() bool {
 	return func() bool {
-		_, err := clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+		_, err := clientset.CoreV1().Secrets(namespace).Get(goContext.Background(), secretName, metav1.GetOptions{})
 		if err != nil && strings.Contains(err.Error(), "not found") {
 			return true
 		}

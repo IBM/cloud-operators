@@ -43,8 +43,12 @@ deploy: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
 manifests:
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go all
-	hack/crd-fix.sh
+# TODO(johnstarich): Generate remaining config types
+	go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen \
+		object:headerFile=hack/boilerplate.go.txt,year=2020 \
+		crd \
+		rbac:roleName=manager \
+		paths=./pkg/apis/...
 
 .PHONY: fmt
 fmt:

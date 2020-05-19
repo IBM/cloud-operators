@@ -70,7 +70,7 @@ func (in *Resource) DeepCopyObject() runtime.Object {
 func (in *ResourceList) DeepCopyInto(out *ResourceList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	return
 }
 

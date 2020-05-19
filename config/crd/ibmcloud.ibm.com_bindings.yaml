@@ -1,9 +1,11 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  labels:
-    controller-tools.k8s.io: "1.0"
   name: bindings.ibmcloud.ibm.com
 spec:
   additionalPrinterColumns:
@@ -16,33 +18,40 @@ spec:
   group: ibmcloud.ibm.com
   names:
     kind: Binding
+    listKind: BindingList
     plural: bindings
+    singular: binding
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: Binding is the Schema for the bindings API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
             of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         spec:
+          description: BindingSpec defines the desired state of Binding
           properties:
             alias:
               type: string
             parameters:
               items:
+                description: KeyValue represents a key-value pair
                 properties:
                   attributes:
+                    additionalProperties:
+                      type: object
                     description: A parameter may have attributes (e.g. message hub
                       topic might have partitions)
                     type: object
@@ -51,16 +60,45 @@ spec:
                     type: string
                   value:
                     description: Defaults to null.
-
+                    type: object
                   valueFrom:
                     description: Source for the value. Cannot be used if value is
                       not empty.
                     properties:
                       configMapKeyRef:
                         description: Selects a key of a ConfigMap.
+                        properties:
+                          key:
+                            description: The key to select.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the ConfigMap or its key
+                              must be defined
+                            type: boolean
+                        required:
+                        - key
                         type: object
                       secretKeyRef:
                         description: Selects a key of a secret in the resource namespace
+                        properties:
+                          key:
+                            description: The key of the secret to select from.  Must
+                              be a valid secret key.
+                            type: string
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?'
+                            type: string
+                          optional:
+                            description: Specify whether the Secret or its key must
+                              be defined
+                            type: boolean
+                        required:
+                        - key
                         type: object
                     type: object
                 required:
@@ -79,6 +117,7 @@ spec:
           - serviceName
           type: object
         status:
+          description: BindingStatus defines the observed state of Binding
           properties:
             generation:
               format: int64
@@ -94,7 +133,12 @@ spec:
             state:
               type: string
           type: object
+      type: object
   version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
 status:
   acceptedNames:
     kind: ""

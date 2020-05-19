@@ -17,6 +17,7 @@
 package test
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -66,7 +67,7 @@ func GetContextNamespaceOrDie() string {
 // EnsureNamespaceOrDie makes sure the given namespace exists.
 func EnsureNamespaceOrDie(namespaces corev1.NamespaceInterface, namespace string) {
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-	_, err := namespaces.Create(ns)
+	_, err := namespaces.Create(context.Background(), ns, metav1.CreateOptions{})
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			panic(err)
@@ -77,7 +78,7 @@ func EnsureNamespaceOrDie(namespaces corev1.NamespaceInterface, namespace string
 // CreateNamespaceOrDie creates a new unique namespace from stem
 func CreateNamespaceOrDie(namespaces corev1.NamespaceInterface, stem string) string {
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: stem}}
-	ns, err := namespaces.Create(ns)
+	ns, err := namespaces.Create(context.Background(), ns, metav1.CreateOptions{})
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			panic(err)
@@ -100,7 +101,7 @@ func ConfigureSeedDefaults(configmaps corev1.ConfigMapInterface) {
 			"resourcegroupid": resourceGroupID,
 		},
 	}
-	configmaps.Create(config)
+	configmaps.Create(context.Background(), config, metav1.CreateOptions{})
 }
 
 // ConfigureSeedSecret sets secret-ibm-cloud-operator and secret-ibm-cloud-operator-tokens
@@ -113,7 +114,7 @@ func ConfigureSeedSecret(secrets corev1.SecretInterface) {
 			"api-key": []byte(apikey),
 		},
 	}
-	secrets.Create(config)
+	secrets.Create(context.Background(), config, metav1.CreateOptions{})
 
 	config = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -124,16 +125,16 @@ func ConfigureSeedSecret(secrets corev1.SecretInterface) {
 			"uaa_refresh_token": []byte(uaaRefreshToken),
 		},
 	}
-	secrets.Create(config)
+	secrets.Create(context.Background(), config, metav1.CreateOptions{})
 }
 
 // DeleteNamespace deletes a kube namespace. Wait for all resources to be really gone.
 func DeleteNamespace(namespaces corev1.NamespaceInterface, namespace string) {
-	namespaces.Delete(namespace, &metav1.DeleteOptions{})
+	namespaces.Delete(context.Background(), namespace, metav1.DeleteOptions{})
 
 	// Wait until it's really gone
 	for retry := 60; retry >= 60; retry-- {
-		_, err := namespaces.Get(namespace, metav1.GetOptions{})
+		_, err := namespaces.Get(context.Background(), namespace, metav1.GetOptions{})
 		if err != nil {
 			return
 		}
