@@ -1,15 +1,23 @@
+//go:generate go run .
+
+// Command update_codegen runs several scripts from k8s.io/code-generator to update generated code in this project.
+// Currently enables code generation without a vendor directory or GOPATH by using Go Modules instead.
 package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/packages"
 )
+
+const thisPackage = "github.com/ibm/cloud-operators"
 
 func main() {
 	err := run()
@@ -21,24 +29,26 @@ func main() {
 
 func run() error {
 	fmt.Println("Updating generated code...")
-	operatorsPath, err := getPackageFilePath("github.com/ibm/cloud-operators/cmd/update_codegen")
+	tmpDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return err
 	}
-	operatorsPath = filepath.Join(operatorsPath, "..", "..") // trim off cmd/update_codegen
+	defer os.RemoveAll(tmpDir)
 
-	codeGeneratorPath, err := getPackageFilePath("k8s.io/code-generator/pkg/util")
+	operatorsPath, err := getPackageFilePath(thisPackage, "cmd/update_codegen")
 	if err != nil {
 		return err
 	}
-	codeGeneratorPath = filepath.Join(codeGeneratorPath, "..", "..") // trim off pkg/util
 
-	cmd := exec.Command("bash", filepath.Join(codeGeneratorPath, "generate-groups.sh"),
-		"deepcopy",
-		"github.com/ibm/cloud-operators/pkg/lib/resource/v1",
-		"github.com/ibm/cloud-operators/pkg/lib",
-		"resource:v1",
-		"--output-base", operatorsPath,
+	codeGeneratorPath, err := getPackageFilePath("k8s.io/code-generator", "pkg/util")
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("go", "run", "k8s.io/code-generator/cmd/deepcopy-gen",
+		"-O", "zz_generated.deepcopy",
+		"-i", thisPackage+"/pkg/apis/...",
+		"--output-base", tmpDir,
 		"--go-header-file", filepath.Join(operatorsPath, "hack", "boilerplate.go.txt"),
 	)
 	cmd.Stdout = os.Stdout
@@ -50,9 +60,10 @@ func run() error {
 
 	cmd = exec.Command("bash", filepath.Join(codeGeneratorPath, "generate-groups.sh"),
 		"deepcopy",
-		"github.com/ibm/cloud-operators/pkg/lib/keyvalue/v1",
-		"github.com/ibm/cloud-operators/pkg/lib",
-		"keyvalue:v1",
+		thisPackage+"/pkg/lib/resource/v1",
+		thisPackage+"/pkg/lib",
+		"resource:v1",
+		"--output-base", tmpDir,
 		"--go-header-file", filepath.Join(operatorsPath, "hack", "boilerplate.go.txt"),
 	)
 	cmd.Stdout = os.Stdout
@@ -62,10 +73,54 @@ func run() error {
 		return err
 	}
 
+	cmd = exec.Command("bash", filepath.Join(codeGeneratorPath, "generate-groups.sh"),
+		"deepcopy",
+		thisPackage+"/pkg/lib/keyvalue/v1",
+		thisPackage+"/pkg/lib",
+		"keyvalue:v1",
+		"--output-base", tmpDir,
+		"--go-header-file", filepath.Join(operatorsPath, "hack", "boilerplate.go.txt"),
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Moving generated files back into this repo's path...")
+	generatedPathComps := append([]string{tmpDir}, strings.Split(thisPackage, "/")...)
+	generatedPath := filepath.Join(generatedPathComps...)
+	filepath.Walk(generatedPath, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		outputPath := filepath.Join(operatorsPath, strings.TrimPrefix(path, generatedPath+string(filepath.Separator)))
+		if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
+			return err
+		}
+		return os.Rename(path, outputPath)
+	})
 	return nil
 }
 
-func getPackageFilePath(packageName string) (string, error) {
+// getPackageFilePath returns the file path to the main package, using goFileSubPkg as a means to load its file paths
+// 'goFileSubPkg' is required for loading packages without Go files at their root
+func getPackageFilePath(mainPkg, goFileSubPkg string) (string, error) {
+	path, err := getSubpackageFilePath(path.Join(mainPkg, goFileSubPkg))
+	if err != nil {
+		return "", err
+	}
+	subPathComponents := strings.Split(goFileSubPkg, "/")
+	for range subPathComponents {
+		path = filepath.Join(path, "..")
+	}
+	return path, nil // trim off subpackage file path
+}
+
+// getSubpackageFilePath loads the file path for the given package using Go Modules. Requires Go files exist in the package.
+// Returns the project's file path for the current module package, and a Go Modules path for all other packages.
+func getSubpackageFilePath(packageName string) (string, error) {
 	cfg := &packages.Config{Mode: packages.NeedFiles}
 	pkgs, err := packages.Load(cfg, packageName)
 	if err != nil {

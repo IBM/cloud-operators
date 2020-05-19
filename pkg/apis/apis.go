@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-// Generate deepcopy for apis
-// Disabling Modules during codegen is a temporary work-around for perf & compile issues in the deepcopy-gen Go script: https://github.com/kubernetes/code-generator/issues/69
-//go:generate env GO111MODULE=off go get k8s.io/code-generator/cmd/deepcopy-gen
-//go:generate env GO111MODULE=off go run k8s.io/code-generator/cmd/deepcopy-gen -O zz_generated.deepcopy -i ./... -h ../../hack/boilerplate.go.txt
-
 // Package apis contains Kubernetes API groups.
 package apis
 
