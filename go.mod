@@ -1,0 +1,78 @@
+module github.com/ibm/cloud-operators
+
+go 1.13
+
+require (
+	cloud.google.com/go v0.54.0
+	github.com/IBM-Cloud/bluemix-go v0.0.0-20200311081714-6714c9368184
+	github.com/appscode/jsonpatch v1.0.1
+	github.com/beorn7/perks v1.0.1
+	github.com/davecgh/go-spew v1.1.1
+	github.com/emicklei/go-restful v2.12.0+incompatible
+	github.com/fsnotify/fsnotify v1.4.9
+	github.com/ghodss/yaml v1.0.0
+	github.com/go-logr/logr v0.1.0
+	github.com/go-logr/zapr v0.1.1
+	github.com/gobuffalo/flect v0.2.1
+	github.com/gogo/protobuf v1.3.1
+	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
+	github.com/golang/protobuf v1.3.5
+	github.com/google/btree v1.0.0
+	github.com/google/gofuzz v1.1.0
+	github.com/google/uuid v1.1.1
+	github.com/googleapis/gnostic v0.4.0
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
+	github.com/hashicorp/golang-lru v0.5.4
+	github.com/hpcloud/tail v1.0.0
+	github.com/imdario/mergo v0.3.8
+	github.com/inconshreveable/mousetrap v1.0.0
+	github.com/json-iterator/go v1.1.9
+	github.com/matttproud/golang_protobuf_extensions v1.0.1
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
+	github.com/onsi/ginkgo v1.12.0
+	github.com/onsi/gomega v1.9.0
+	github.com/pborman/uuid v0.0.0-20180906182336-adf5a7427709
+	github.com/petar/GoLLRB v0.0.0-20190514000832-33fb24c13b99
+	github.com/pkg/errors v0.9.1
+	github.com/pmezard/go-difflib v1.0.0
+	github.com/prometheus/client_golang v0.9.4
+	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/common v0.9.1
+	github.com/prometheus/procfs v0.0.10
+	github.com/spf13/afero v1.2.2
+	github.com/spf13/cobra v0.0.6
+	github.com/spf13/pflag v1.0.5
+	github.com/stretchr/testify v1.5.1
+	go.uber.org/atomic v1.6.0
+	go.uber.org/multierr v1.5.0
+	go.uber.org/zap v1.14.0
+	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
+	golang.org/x/mod v0.2.0
+	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
+	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+	golang.org/x/text v0.3.2
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
+	golang.org/x/tools v0.0.0-20200313205530-4303120df7d8
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+	google.golang.org/appengine v1.6.5
+	gopkg.in/inf.v0 v0.9.1
+	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
+	gopkg.in/yaml.v2 v2.2.8
+	k8s.io/api v0.0.0-20181213150558-05914d821849
+	k8s.io/apiextensions-apiserver v0.0.0-20181213153335-0fe22c71c476
+	k8s.io/apimachinery v0.0.0-20181127025237-2b1284ed4c93
+	k8s.io/client-go v0.0.0-20181213151034-8d9ed539ba31
+	k8s.io/code-generator v0.17.4
+	k8s.io/gengo v0.0.0-20200205140755-e0e292d8aa12
+	k8s.io/klog v1.0.0
+	k8s.io/kube-openapi v0.0.0-20200204173128-addea2498afe
+	sigs.k8s.io/controller-runtime v0.1.12
+	sigs.k8s.io/controller-tools v0.1.12
+	sigs.k8s.io/testing_frameworks v0.1.2-0.20190130140139-57f07443c2d4
+	sigs.k8s.io/yaml v1.2.0
+)
+
+replace gopkg.in/fsnotify.v1 v1.4.9 => github.com/fsnotify/fsnotify v1.4.9
