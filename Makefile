@@ -1,3 +1,5 @@
+GO111MODULE := on
+export
 # Image URL to use all building/pushing image targets
 IMG ?= cloudoperators/ibmcloud-operator
 
