@@ -57,8 +57,7 @@ vet:
 # Generate code
 .PHONY: generate
 generate:
-	go generate ./pkg/... ./cmd/...
-	hack/update-codegen.sh
+	go generate ./...
 
 .PHONY: docker-build
 docker-build: check-tag
