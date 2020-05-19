@@ -17,7 +17,7 @@ all: test manager
 
 .PHONY: test
 test: generate fmt vet manifests
-	go test ./pkg/... ./cmd/... -coverprofile=cover.out -covermode=atomic
+	go test ./... -coverprofile=cover.out -covermode=atomic
 
 # Build manager binary
 .PHONY: manager
