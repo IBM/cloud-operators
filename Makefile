@@ -46,11 +46,11 @@ manifests:
 
 .PHONY: fmt
 fmt:
-	go fmt ./pkg/... ./cmd/...
+	go fmt ./...
 
 .PHONY: vet
 vet:
-	go vet ./pkg/... ./cmd/...
+	go vet ./...
 
 # Generate code
 .PHONY: generate
