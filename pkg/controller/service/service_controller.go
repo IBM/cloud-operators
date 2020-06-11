@@ -139,7 +139,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		instance.Spec.ServiceClassType = instance.Status.ServiceClassType
 		instance.Spec.Context = instance.Status.Context
 		if err := r.Update(context.Background(), instance); err != nil {
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -156,7 +156,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		//setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info(err.Error())
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -167,7 +167,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, serviceFinalizer)
 			if err := r.Update(context.Background(), instance); err != nil {
 				logt.Info("Error adding finalizer", instance.ObjectMeta.Name, err.Error())
-				return reconcile.Result{}, nil
+				return reconcile.Result{}, err
 			}
 		}
 	} else {
@@ -184,7 +184,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			if err := r.Update(context.Background(), instance); err != nil {
 				logt.Info("Error removing finalizers", "in deletion", err.Error())
 			}
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -304,7 +304,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 			instance.Status.InstanceID = inProgress
 			if err := r.Status().Update(context.Background(), instance); err != nil {
 				logt.Info("Error updating InstanceID to be in progress", "Error", err.Error())
-				return reconcile.Result{}, nil
+				return reconcile.Result{}, err
 			}
 
 			// check if using the alias plan, in that case we need to use the existing instance
@@ -387,7 +387,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 				instance.Status.InstanceID = "IN PROGRESS"
 				if err := r.Status().Update(context.Background(), instance); err != nil {
 					logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
-					return reconcile.Result{}, nil
+					return reconcile.Result{}, err
 				}
 				serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 				if err != nil {
@@ -456,12 +456,12 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 		err := r.Status().Update(context.Background(), instance)
 		if err != nil {
 			logt.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
-			err = r.deleteService(ibmCloudInfo, instance)
-			if err != nil {
-				logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
+			errD := r.deleteService(ibmCloudInfo, instance)
+			if errD != nil {
+				logt.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, errD.Error())
 			}
+			return reconcile.Result{}, err
 		}
-		return reconcile.Result{}, nil
 	}
 	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
 }
@@ -500,9 +500,9 @@ func (r *ReconcileService) updateStatusError(instance *ibmcloudv1alpha1.Service,
 		instance.Status.Message = message
 		if err := r.Status().Update(context.Background(), instance); err != nil {
 			logt.Info("Error updating status", state, err.Error())
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, err
 		}
-		return reconcile.Result{}, nil
+		//return reconcile.Result{}, nil
 	}
 	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
 }
