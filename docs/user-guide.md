@@ -245,6 +245,42 @@ mybinding                  Opaque                                6      102s
 When a binding and service are created in the same namespace, there is an ownership relationship. So when when the service is deleted, so is the binding. This relationship does not exist if they are not in the same namespace (since Kubernetes disallows it).
 In this case, the binding needs to be deleted manually and will not be deleted when the services is deleted.
 
+Bindings can also be created by specifying Roles and ServiceIds. The following example shows a binding yaml with a specific Role:
+
+```yaml
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-myes
+spec:
+  serviceName: myes
+  role: Editor
+```
+
+The strings allowed for Roles depend on the service for which credentials are being created. When the role is not specified, the operator lists all the roles for that service types and picks the first one in that list, which defaults to `Manager` for most services.
+
+ServiceIds can be specified by passing a parameter in the binding yaml:
+
+```yaml
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-translator
+spec:
+  serviceName: mytranslator
+  secretName: translator-secret
+  parameters:
+  - name: serviceid_crn
+    value: <crn:v1:bluemix:public:iam-identity::...>
+```
+
+The serviceId crn can be obtained with the following command:
+
+```bash
+ibmcloud iam service-id <serviceId-name>
+```
+
+
 #### Referencing existing credentials
 
 When many bindings are needed on the same service, it is possible to link to the same set of credentials on the service instance,
@@ -272,6 +308,7 @@ ibmcloud resource service-key <name-of-credentials>
 
 If the binding is deleted, this does not cause the deletion of the
 corresponding credentials.
+
 
 ### Deleting a Binding
 
