@@ -145,6 +145,17 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	ibmCloudInfo, err := GetIBMCloudInfo(r.Client, instance)
 	if err != nil {
+		// If secrets have already been deleted and we are in a deletion flow, just delete the finalizers
+		// to not prevent object from finalizing. This would cause orphaned service in IBM Cloud.
+		if errors.IsNotFound(err) && ContainsFinalizer(instance) &&
+			!instance.ObjectMeta.DeletionTimestamp.IsZero() {
+			logt.Info("Cannot get IBMCloud related secrets and configmaps, just remove finalizers", "in deletion", err.Error())
+			instance.ObjectMeta.Finalizers = DeleteFinalizer(instance)
+			if err := r.Update(context.Background(), instance); err != nil {
+				logt.Info("Error removing finalizers", "in deletion", err.Error())
+			}
+			return reconcile.Result{}, nil
+		}
 		logt.Info(err.Error())
 		return r.updateStatusError(instance, "Failed", err)
 	}
