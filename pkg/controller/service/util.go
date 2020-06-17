@@ -29,6 +29,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/catalog"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/management"
 	"github.com/IBM-Cloud/bluemix-go/crn"
 	bxendpoints "github.com/IBM-Cloud/bluemix-go/endpoints"
 	"github.com/IBM-Cloud/bluemix-go/models"
@@ -77,59 +78,73 @@ type IBMCloudInfo struct {
 	Context          icv1.ResourceContext
 }
 
-func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config, error) {
-	c := bx.Config{
-		EndpointLocator: bxendpoints.NewEndpointLocator("us-south"), // TODO: hard wired to us-south!!
+func getConfigOrSecret(r client.Client, instanceNamespace string, objName string, obj runtime.Object) error {
+	defaultNamespace, isManagement := getDefaultNamespace(r)
+	if isManagement {
+		objName = instanceNamespace + "-" + objName
+		err := r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: defaultNamespace}, obj)
+		if err != nil {
+			logt.Info("Unable to find secret or config in namespace", objName, defaultNamespace)
+			return err
+		}
+		return nil
 	}
-
-	secretName := seedSecret
-	secretNameSpace := instance.ObjectMeta.Namespace
-
-	secret := &v1.Secret{}
-	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
+	err := r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: instanceNamespace}, obj)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			namespace := getDefaultNamespace(r)
-			if namespace != "default" {
-				secretName = secretNameSpace + "-" + secretName
-			}
-			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, secret)
+			err = r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: defaultNamespace}, obj)
 			if err != nil {
-				logt.Info("Unable to get secret in namespace", namespace, err)
-				return c, err
+				logt.Info("Unable to find secret or config in namespace", objName, defaultNamespace)
+				return err
 			}
-		} else {
-			logt.Info("Unable to get secret", "Error", err)
-			return c, err
+			return nil
 		}
+		return err
 	}
-
-	APIKey := string(secret.Data["api-key"])
-
-	regionb, ok := secret.Data["region"]
-	if !ok {
-		logt.Info("set default region to us-south")
-		regionb = []byte("us-south")
-	}
-	region := string(regionb)
-	c.Region = region
-	c.BluemixAPIKey = APIKey
-
-	return c, nil
+	return nil
 }
 
-func getDefaultNamespace(r client.Client) string {
+func getDefaultNamespace(r client.Client) (string, bool) {
 	if controllerNamespace == "" {
 		controllerNamespace = os.Getenv("CONTROLLER_NAMESPACE")
 	}
 	cm := &v1.ConfigMap{}
 	err := r.Get(context.Background(), types.NamespacedName{Namespace: controllerNamespace, Name: seedInstall}, cm)
 	if err != nil {
-		return "default"
+		return "default", false
 	}
 
 	// There exists an ico-management configmap in the controller namespace
-	return cm.Data["namespace"]
+	return cm.Data["namespace"], true
+}
+
+func getBxConfig(r client.Client, instance *ibmcloudv1alpha1.Service) (bx.Config, error) {
+	secretName := seedSecret
+	secretNameSpace := instance.ObjectMeta.Namespace
+
+	secret := &v1.Secret{}
+
+	err := getConfigOrSecret(r, secretNameSpace, secretName, secret)
+	if err != nil {
+		logt.Info("Unable to get IBM Cloud Operator secret in namespace", secretNameSpace, err)
+		return bx.Config{}, err
+	}
+
+	APIKey := string(secret.Data["api-key"])
+
+	regionb, ok := secret.Data["region"]
+	if !ok {
+		logt.Info("Setting default region to us-south")
+		regionb = []byte("us-south")
+	}
+	region := string(regionb)
+	c := bx.Config{
+		EndpointLocator: bxendpoints.NewEndpointLocator(region),
+	}
+	c.Region = region
+	c.BluemixAPIKey = APIKey
+
+	return c, nil
 }
 
 func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Service) (icv1.ResourceContext, error) {
@@ -142,24 +157,12 @@ func getIBMCloudDefaultContext(r client.Client, instance *ibmcloudv1alpha1.Servi
 	cmName := seedDefaults
 	cmNameSpace := instance.ObjectMeta.Namespace
 
-	err := r.Get(context.Background(), types.NamespacedName{Namespace: cmNameSpace, Name: cmName}, cm)
+	err := getConfigOrSecret(r, cmNameSpace, cmName, cm)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			namespace := getDefaultNamespace(r)
-			if namespace != "default" {
-				cmName = cmNameSpace + "-" + cmName
-			}
-			err = r.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: namespace}, cm)
-			if err != nil {
-				logt.Info("Failed to find ConfigMap in namespace (in Service)", namespace, err)
-				return icv1.ResourceContext{}, err
-			}
-		} else {
-			logt.Info("Failed to find ConfigMap in namespace (in Service)", cmNameSpace, err)
-			return icv1.ResourceContext{}, err
-		}
-
+		logt.Info("Unable to get IBM Cloud Operator configmap in namespace", cmNameSpace, err)
+		return icv1.ResourceContext{}, err
 	}
+
 	ibmCloudContext := getIBMCloudContext(instance, cm)
 	return ibmCloudContext, nil
 }
@@ -175,6 +178,15 @@ func getIBMCloudContext(instance *ibmcloudv1alpha1.Service, cm *v1.ConfigMap) ic
 			User:            cm.Data["user"],
 		}
 		return newContext
+	}
+	if instance.Spec.Context.Org == "" {
+		instance.Spec.Context.Org = cm.Data["org"]
+	}
+	if instance.Spec.Context.Space == "" {
+		instance.Spec.Context.Space = cm.Data["space"]
+	}
+	if instance.Spec.Context.Region == "" {
+		instance.Spec.Context.Region = cm.Data["region"]
 	}
 	if instance.Spec.Context.ResourceGroup == "" {
 		instance.Spec.Context.ResourceGroup = cm.Data["resourcegroup"]
@@ -193,22 +205,10 @@ func getIamToken(r client.Client, instance *ibmcloudv1alpha1.Service) (string, s
 	secretNameSpace := instance.ObjectMeta.Namespace
 
 	secret := &v1.Secret{}
-	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: secretNameSpace}, secret)
+	err := getConfigOrSecret(r, secretNameSpace, secretName, secret)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			namespace := getDefaultNamespace(r)
-			if namespace != "default" {
-				secretName = secretNameSpace + "-" + secretName
-			}
-			err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, secret)
-			if err != nil {
-				logt.Info("Unable to get secret in namespace", namespace, err)
-				return "", "", "", "", err
-			}
-		} else {
-			logt.Info("Unable to get secret", "Error", err)
-			return "", "", "", "", err
-		}
+		logt.Info("Unable to get IBM Cloud Operator IAM token in namespace", secretNameSpace, err)
+		return "", "", "", "", err
 	}
 
 	return string(secret.Data["access_token"]), string(secret.Data["refresh_token"]), string(secret.Data["uaa_refresh_token"]), string(secret.Data["uaa_token"]), nil
@@ -391,46 +391,23 @@ func getIBMCloudInfoHelper(r client.Client, config *bx.Config, nctx icv1.Resourc
 			catalogCRN = supportedDeployments[0].CatalogCRN
 		}
 
-		// managementClient, err := management.New(sess)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// var resourceGroupID string
-		// resGrpAPI := managementClient.ResourceGroup()
-		// if useCtx.ResourceGroup == "" {
-
-		// 	resourceGroupQuery := management.ResourceGroupQuery{
-		// 		Default: true,
-		// 	}
-
-		// 	grpList, err := resGrpAPI.List(&resourceGroupQuery)
-
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-
-		// 	resourceGroupID = grpList[0].ID
-
-		// } else {
-		// 	grp, err := resGrpAPI.FindByName(nil, useCtx.ResourceGroup)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// 	resourceGroupID = grp[0].ID
-		// }
-
-		// if useCtx.ResourceLocation == "" {
-		// 	useCtx.ResourceLocation = useCtx.Region
-		// }
+		// check that the resourceGroup and resourceGroupId match
+		managementClient, err := management.New(sess)
+		if err != nil {
+			return nil, err
+		}
+		resGrpAPI := managementClient.ResourceGroup()
+		resGrp, err := resGrpAPI.Get(useCtx.ResourceGroupID)
+		if err != nil {
+			return nil, err
+		}
+		if resGrp.Name != useCtx.ResourceGroup {
+			return nil, fmt.Errorf("ResourceGroup and ResourceGroupID are not consistent: %s, %s", useCtx.ResourceGroup, useCtx.ResourceGroupID)
+		}
 
 		ibmCloudInfo := IBMCloudInfo{
-			//BXClient:         bxclient,         // MccpServiceAPI
-			ResourceClient: controllerClient, // IAMServiceAPI
-			CatalogClient:  catalogClient,
-			//Account:          myAccount, // *Account
-			//Org:              myorg,     //*Organization
-			//Space:            myspace,
-			//Region:           regionList,
+			ResourceClient:   controllerClient, // IAMServiceAPI
+			CatalogClient:    catalogClient,
 			ResourceGroupID:  useCtx.ResourceGroupID,
 			ResourceLocation: useCtx.ResourceLocation,
 			Session:          sess,
