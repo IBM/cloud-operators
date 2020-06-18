@@ -480,8 +480,8 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 
 func getDashboardURL(serviceClass, crn string) string {
 	url := "https://cloud.ibm.com/services/" + serviceClass + "/"
-	crn = strings.ReplaceAll(crn, ":", "%3A")
-	crn = strings.ReplaceAll(crn, "/", "%2F")
+	crn = strings.Replace(crn, ":", "%3A", -1)
+	crn = strings.Replace(crn, "/", "%2F", -1)
 	return url + crn
 }
 
