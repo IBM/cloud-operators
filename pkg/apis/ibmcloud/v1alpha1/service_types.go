@@ -60,6 +60,8 @@ type ServiceStatus struct {
 	Parameters []keyvaluev1.KeyValue `json:"parameters,omitempty"`
 	// +optional
 	Tags []string `json:"tags,omitempty"`
+	// +optional
+	DashboardURL string `json:"dashboardURL,omitempty"`
 }
 
 // +genclient
