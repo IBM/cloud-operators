@@ -6,7 +6,7 @@
 
 SCRIPTDIR=$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)
 sed -i.bak "71s/.*//" $SCRIPTDIR/../config/crds/ibmcloud_v1alpha1_service.yaml
-sed -i.bak "141s/.*//" $SCRIPTDIR/../config/crds/ibmcloud_v1alpha1_service.yaml
+sed -i.bak "143s/.*//" $SCRIPTDIR/../config/crds/ibmcloud_v1alpha1_service.yaml
 sed -i.bak "54s/.*//" $SCRIPTDIR/../config/crds/ibmcloud_v1alpha1_binding.yaml
 
 

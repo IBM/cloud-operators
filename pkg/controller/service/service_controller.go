@@ -463,6 +463,7 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 		instance.Status.State = state
 		instance.Status.Message = state
 		instance.Status.InstanceID = instanceID
+		instance.Status.DashboardURL = getDashboardURL(instance.Spec.ServiceClass, instanceID)
 		setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		err := r.Status().Update(context.Background(), instance)
 		if err != nil {
@@ -475,6 +476,13 @@ func (r *ReconcileService) updateStatus(instance *ibmcloudv1alpha1.Service, ibmC
 		}
 	}
 	return reconcile.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+}
+
+func getDashboardURL(serviceClass, crn string) string {
+	url := "https://cloud.ibm.com/services/" + serviceClass + "/"
+	crn = strings.ReplaceAll(crn, ":", "%3A")
+	crn = strings.ReplaceAll(crn, "/", "%2F")
+	return url + crn
 }
 
 func getState(serviceInstanceState string) string {

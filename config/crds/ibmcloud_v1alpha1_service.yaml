@@ -117,6 +117,8 @@ spec:
                 user:
                   type: string
               type: object
+            dashboardURL:
+              type: string
             externalName:
               type: string
             generation:
