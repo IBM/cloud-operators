@@ -37,6 +37,31 @@ crd:
           displayName: Plan
           path: plan
           x-descriptors:
+            - 'urn:alm:descriptor:text'
+        - description: ServiceClassType is set to CF if the service is CloundFoundry
+          displayName: ServiceClassType
+          path: serviceClassType
+          x-descriptors:
+            - 'urn:alm:descriptor:text' 
+        - description: ExternalName for the service as it appears on IBM Cloud
+          displayName: ExternalName
+          path: externalName
+          x-descriptors:
+            - 'urn:alm:descriptor:text' 
+        - description: Parameters for the service 
+          displayName: Parameters
+          path: parameters
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Tags for the service 
+          displayName: Tags
+          path: tags
+          x-descriptors:
+            - 'urn:alm:descriptor:text'    
+        - description: Current context for the service (resource group, resource group ID, user, region, org, space)
+          displayName: Context
+          path: context
+          x-descriptors:
             - 'urn:alm:descriptor:text'    
       statusDescriptors:
         - description: Detailed message on current status
@@ -54,8 +79,8 @@ crd:
           path: serviceClass
           x-descriptors:
             - 'urn:alm:descriptor:text'   
-        - description: Indicates if IAM type or legacy
-          displayName: Service Class Type
+        - description: Current ServiceClassType, set to CF if the service is CloundFoundry
+          displayName: ServiceClassType
           path: serviceClassType
           x-descriptors:
             - 'urn:alm:descriptor:text'  
@@ -64,7 +89,7 @@ crd:
           path: state
           x-descriptors:
             - 'urn:alm:descriptor:text'    
-        - description: Current context for the service (resorce group, region, org, space)
+        - description: Current context for the service (resource group, resource group ID, user, region, org, space)
           displayName: Context
           path: context
           x-descriptors:
@@ -73,7 +98,27 @@ crd:
           displayName: Instance ID
           path: instanceId
           x-descriptors:
-            - 'urn:alm:descriptor:text'      
+            - 'urn:alm:descriptor:text'  
+        - description: ExternalName for the service as it appears on IBM Cloud
+          displayName: ExternalName
+          path: externalName
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Parameters for the service 
+          displayName: Parameters
+          path: parameters
+          x-descriptors:
+            - 'urn:alm:descriptor:text'   
+        - description: Tags for the service 
+          displayName: Tags
+          path: tags
+          x-descriptors:
+            - 'urn:alm:descriptor:text'  
+        - description: DashboardURL for the service 
+          displayName: DashboardURL
+          path: dashboardURL
+          x-descriptors:
+            - 'urn:alm:descriptor:text'     
     - kind: Binding
       description: Represents an instance of a service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
       example: |-
@@ -106,6 +151,26 @@ crd:
           path: secretName
           x-descriptors:
             - 'urn:alm:descriptor:text'    
+        - description: ServiceNamespace of the service resource to bind
+          displayName: ServiceNamespace
+          path: serviceNamespace
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+        - description: Role for the credentials
+          displayName: Role
+          path: role
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+        - description: Alias for the credentials to be aliased
+          displayName: Alias
+          path: alias
+          x-descriptors:
+            - 'urn:alm:descriptor:text'
+        - description: Parameters for the binding 
+          displayName: Parameters
+          path: parameters
+          x-descriptors:
+            - 'urn:alm:descriptor:text'  
       statusDescriptors:
         - description: Detailed message on current status
           displayName: Message
@@ -123,5 +188,16 @@ crd:
           x-descriptors:
             - 'urn:alm:descriptor:text'
             - 'urn:alm:descriptor:io.kubernetes:Secret'
-            - 'binding:env:object:secret'        
+            - 'binding:env:object:secret'   
+        - description: Instance ID for the service
+          displayName: InstanceID
+          path: instanceId
+          x-descriptors:
+            - 'urn:alm:descriptor:text'     
+        - description: Key Instance ID for the credentials
+          displayName: KeyInstanceID
+          path: keyInstanceId
+          x-descriptors:
+            - 'urn:alm:descriptor:text' 
+     
   
