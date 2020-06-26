@@ -48,77 +48,27 @@ crd:
           path: externalName
           x-descriptors:
             - 'urn:alm:descriptor:text' 
-        - description: Parameters for the service 
-          displayName: Parameters
-          path: parameters
-          x-descriptors:
-            - 'urn:alm:descriptor:text'    
-        - description: Tags for the service 
-          displayName: Tags
-          path: tags
-          x-descriptors:
-            - 'urn:alm:descriptor:text'    
-        - description: Current context for the service (resource group, resource group ID, user, region, org, space)
-          displayName: Context
-          path: context
-          x-descriptors:
-            - 'urn:alm:descriptor:text'    
       statusDescriptors:
         - description: Detailed message on current status
           displayName: Message
           path: message
           x-descriptors:
             - 'urn:alm:descriptor:text'    
-        - description: Current plan for service
-          displayName: Plan
-          path: plan
-          x-descriptors:
-            - 'urn:alm:descriptor:text'   
-        - description: Current service class
-          displayName: Service Class
-          path: serviceClass
-          x-descriptors:
-            - 'urn:alm:descriptor:text'   
-        - description: Current ServiceClassType, set to CF if the service is CloundFoundry
-          displayName: ServiceClassType
-          path: serviceClassType
-          x-descriptors:
-            - 'urn:alm:descriptor:text'  
         - description: Current state for the service
           displayName: State
           path: state
           x-descriptors:
             - 'urn:alm:descriptor:text'    
-        - description: Current context for the service (resource group, resource group ID, user, region, org, space)
-          displayName: Context
-          path: context
-          x-descriptors:
-            - 'urn:alm:descriptor:text'   
         - description: Instance ID for the service
           displayName: Instance ID
           path: instanceId
-          x-descriptors:
-            - 'urn:alm:descriptor:text'  
-        - description: ExternalName for the service as it appears on IBM Cloud
-          displayName: ExternalName
-          path: externalName
-          x-descriptors:
-            - 'urn:alm:descriptor:text'   
-        - description: Parameters for the service 
-          displayName: Parameters
-          path: parameters
-          x-descriptors:
-            - 'urn:alm:descriptor:text'   
-        - description: Tags for the service 
-          displayName: Tags
-          path: tags
           x-descriptors:
             - 'urn:alm:descriptor:text'  
         - description: DashboardURL for the service 
           displayName: DashboardURL
           path: dashboardURL
           x-descriptors:
-            - 'urn:alm:descriptor:text'     
+            - 'urn:alm:descriptor:org.w3:link'     
     - kind: Binding
       description: Represents an instance of a service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
       example: |-
@@ -166,11 +116,6 @@ crd:
           path: alias
           x-descriptors:
             - 'urn:alm:descriptor:text'
-        - description: Parameters for the binding 
-          displayName: Parameters
-          path: parameters
-          x-descriptors:
-            - 'urn:alm:descriptor:text'  
       statusDescriptors:
         - description: Detailed message on current status
           displayName: Message
