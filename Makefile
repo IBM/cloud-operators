@@ -6,10 +6,6 @@ IMG ?= cloudoperators/ibmcloud-operator
 .PHONY: deps
 deps:
 	go get golang.org/x/lint/golint
-	go get -u github.com/apg/patter
-	go get -u github.com/wadey/gocovmerge
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
 	pip install --user PyYAML
 
 .PHONY: all
