@@ -29,6 +29,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/models"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/pkg/apis/ibmcloud/v1alpha1"
 	rcontext "github.com/ibm/cloud-operators/pkg/context"
+	commonutils "github.com/ibm/cloud-operators/pkg/controller/common"
 	resv1 "github.com/ibm/cloud-operators/pkg/lib/resource/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,12 +43,10 @@ import (
 )
 
 var logt = logf.Log.WithName("service")
+var syncPeriod = commonutils.GetSyncPeriod()
 
 const serviceFinalizer = "service.ibmcloud.ibm.com"
 const instanceIDKey = "ibmcloud.ibm.com/instanceId"
-
-const syncPeriod = time.Second * 150
-
 const inProgress = "IN PROGRESS"
 
 // ContainsFinalizer checks if the instance contains service finalizer
@@ -87,7 +86,8 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("service-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: 1})
+	maxConcurrentReconciles := commonutils.GetMaxConcurrentReconciles()
+	c, err := controller.New("service-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: maxConcurrentReconciles})
 	if err != nil {
 		return err
 	}
