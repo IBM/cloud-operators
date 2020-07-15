@@ -1,3 +1,7 @@
+KUBEBUILDER_VERSION = 2.3.1
+export KUBEBUILDER_ASSETS = cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
+CONTROLLER_GEN_VERSION = 0.2.5
+CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -11,70 +15,90 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+.PHONY: all
 all: manager
 
-# Run tests
+.PHONY: kubebuilder
+kubebuilder: cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
+
+cache:
+	mkdir -p cache
+
+.PHONY: clean
+clean:
+	rm -rf cache
+
+cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
+	rm -rf cache/kubebuilder_${KUBEBUILDER_VERSION}
+	mkdir -p cache/kubebuilder_${KUBEBUILDER_VERSION}
+	curl -L https://go.kubebuilder.io/dl/${KUBEBUILDER_VERSION}/$(shell go env GOOS)/$(shell go env GOARCH) | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}
+
+.PHONY: test
 test: generate fmt vet manifests
 	go test ./... -coverprofile cover.out
 
 # Build manager binary
+.PHONY: manager
 manager: generate fmt vet
 	go build -o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
+.PHONY: run
 run: generate fmt vet manifests
 	go run ./main.go
 
 # Install CRDs into a cluster
+.PHONY: install
 install: manifests
 	kustomize build config/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
+.PHONY: uninstall
 uninstall: manifests
 	kustomize build config/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
+.PHONY: deploy
 deploy: manifests
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
+.PHONY: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-# Run go fmt against code
+.PHONY: fmt
 fmt:
 	go fmt ./...
 
-# Run go vet against code
+.PHONY: vet
 vet:
 	go vet ./...
 
-# Generate code
+.PHONY: generate
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-# Build the docker image
+.PHONY: docker-build
 docker-build: test
 	docker build . -t ${IMG}
 
-# Push the docker image
+.PHONY: docker-push
 docker-push:
 	docker push ${IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
+.PHONY: controller-gen
+controller-gen: cache/controller-gen_${CONTROLLER_GEN_VERSION}
+
+cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
+	@if [[ ! -f cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen ]]; then \
+		set -ex ;\
+		CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+		trap "rm -rf $$CONTROLLER_GEN_TMP_DIR" EXIT ;\
+		cd $$CONTROLLER_GEN_TMP_DIR ;\
+		go mod init tmp ;\
+		GOBIN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION} go get sigs.k8s.io/controller-tools/cmd/controller-gen@v${CONTROLLER_GEN_VERSION} ;\
+	fi
