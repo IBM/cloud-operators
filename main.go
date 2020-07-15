@@ -26,7 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	ibmcloudibmcomv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/controllers"
 	// +kubebuilder:scaffold:imports
 )
@@ -39,7 +39,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = ibmcloudibmcomv1alpha1.AddToScheme(scheme)
+	_ = ibmcloudv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -59,7 +59,7 @@ func main() {
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "7c16769a.my.domain",
+		LeaderElectionID:   "7c16769a.ibm.com",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

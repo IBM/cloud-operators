@@ -24,7 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ibmcloudibmcomv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 )
 
 // BindingReconciler reconciles a Binding object
@@ -34,8 +34,8 @@ type BindingReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=ibmcloud.ibm.com.my.domain,resources=bindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ibmcloud.ibm.com.my.domain,resources=bindings/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/status,verbs=get;update;patch
 
 func (r *BindingReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
@@ -48,6 +48,6 @@ func (r *BindingReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ibmcloudibmcomv1alpha1.Binding{}).
+		For(&ibmcloudv1.Binding{}).
 		Complete(r)
 }

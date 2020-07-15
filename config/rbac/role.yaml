@@ -7,7 +7,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - ibmcloud.ibm.com.my.domain
+  - ibmcloud.ibm.com
   resources:
   - bindings
   verbs:
@@ -19,7 +19,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ibmcloud.ibm.com.my.domain
+  - ibmcloud.ibm.com
   resources:
   - bindings/status
   verbs:

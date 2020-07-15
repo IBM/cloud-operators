@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	ibmcloudibmcomv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -62,7 +62,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(cfg).ToNot(BeNil())
 
-	err = ibmcloudibmcomv1alpha1.AddToScheme(scheme.Scheme)
+	err = ibmcloudv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme

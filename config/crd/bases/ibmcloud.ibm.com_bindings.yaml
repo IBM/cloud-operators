@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: bindings.ibmcloud.ibm.com.my.domain
+  name: bindings.ibmcloud.ibm.com
 spec:
-  group: ibmcloud.ibm.com.my.domain
+  group: ibmcloud.ibm.com
   names:
     kind: Binding
     listKind: BindingList
@@ -43,9 +43,9 @@ spec:
           description: BindingStatus defines the observed state of Binding
           type: object
       type: object
-  version: v1alpha1
+  version: v1
   versions:
-  - name: v1alpha1
+  - name: v1
     served: true
     storage: true
 status:
