@@ -1,3 +1,7 @@
-version: "1"
-domain: ibm.com
+domain: my.domain
 repo: github.com/ibm/cloud-operators
+resources:
+- group: ibmcloud.ibm.com
+  kind: Binding
+  version: v1alpha1
+version: "2"

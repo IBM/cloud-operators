@@ -1,0 +1,24 @@
+# permissions for end users to edit bindings.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: binding-editor-role
+rules:
+- apiGroups:
+  - ibmcloud.ibm.com.my.domain
+  resources:
+  - bindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ibmcloud.ibm.com.my.domain
+  resources:
+  - bindings/status
+  verbs:
+  - get

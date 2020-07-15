@@ -1,0 +1,7 @@
+apiVersion: ibmcloud.ibm.com.my.domain/v1alpha1
+kind: Binding
+metadata:
+  name: binding-sample
+spec:
+  # Add fields here
+  foo: bar
