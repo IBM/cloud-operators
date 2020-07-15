@@ -1,0 +1,7 @@
+linters:
+  enable:
+    # Default linters plus these:
+    - golint
+    - gofmt
+    - gosec
+    - goimports

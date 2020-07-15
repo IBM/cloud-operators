@@ -2,6 +2,7 @@ KUBEBUILDER_VERSION = 2.3.1
 export KUBEBUILDER_ASSETS = cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
+LINT_VERSION = 1.28.3
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -34,17 +35,17 @@ cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
 	curl -L https://go.kubebuilder.io/dl/${KUBEBUILDER_VERSION}/$(shell go env GOOS)/$(shell go env GOARCH) | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}
 
 .PHONY: test
-test: generate fmt vet manifests
+test: generate lint-fix manifests
 	go test ./... -coverprofile cover.out
 
 # Build manager binary
 .PHONY: manager
-manager: generate fmt vet
+manager: generate lint-fix
 	go build -o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 .PHONY: run
-run: generate fmt vet manifests
+run: generate lint-fix manifests
 	go run ./main.go
 
 # Install CRDs into a cluster
@@ -68,13 +69,19 @@ deploy: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-.PHONY: fmt
-fmt:
-	go fmt ./...
+.PHONY: lint-deps
+lint-deps:
+	@if ! which golangci-lint >/dev/null || [[ "$$(golangci-lint --version)" != *${LINT_VERSION}* ]]; then \
+		curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v${LINT_VERSION}; \
+	fi
 
-.PHONY: vet
-vet:
-	go vet ./...
+.PHONY: lint
+lint: lint-deps
+	golangci-lint run
+
+.PHONY: lint-fix
+lint-fix: lint-deps
+	golangci-lint run --fix
 
 .PHONY: generate
 generate: controller-gen
