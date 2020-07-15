@@ -85,7 +85,7 @@ lint-fix: lint-deps
 
 .PHONY: generate
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt",year=$(shell date +%Y) paths="./..."
 
 .PHONY: docker-build
 docker-build: test
