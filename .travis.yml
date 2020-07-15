@@ -1,46 +1,14 @@
 language: go
+
 go:
-  - "1.11.x"
-dist: xenial
+  - "1.14.x"
+
 services:
   - docker
 
-go_import_path: github.com/ibm/cloud-operators
-
-before_script:
-  - make deps
- 
-before_install:
-  - source ./tools/travis/travis-env.sh
-  - source ./hack/latest_tag
-  - ./tools/travis/k8s-tools.sh
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/set-kube-config.sh; fi
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-install.sh; fi
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-setup.sh; fi
-
-script:
-  - make generate
-  - make lintall
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then make test; fi
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then test/e2e/test.sh; fi
-
-after_success:
-  - make push
-  - test "$TRAVIS_EVENT_TYPE" != "pull_request" && make docker-build || echo "success"
-  - bash <(curl -s https://codecov.io/bash)
-
-#  build only master and tagged/branch releases.
-branches:
-  only: 
-    - master
-    - /^[0-9]+\..*$/
-    - /^v[0-9]+\..*$/
-    - /^release-[0-9]+\..*$/
-
-deploy:
-  skip_cleanup: true
-  provider: script
-  script: bash -c "make docker-push"
-  on:
-    all_branches: true
-    condition: $TRAVIS_BRANCH =~ ^master|[0-9]+\..*|v[0-9]+\..*|release-[0-9]+\..*$
+jobs:
+  include:
+    - name: Lint
+      script: make lint
+    - name: Test
+      script: make test
