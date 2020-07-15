@@ -3,6 +3,7 @@ export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
+KUSTOMIZE = ${PWD}/cache/kustomize
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -34,6 +35,14 @@ cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
 	mkdir -p cache/kubebuilder_${KUBEBUILDER_VERSION}
 	curl -L https://go.kubebuilder.io/dl/${KUBEBUILDER_VERSION}/$(shell go env GOOS)/$(shell go env GOARCH) | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}
 
+.PHONY: kustomize
+kustomize: cache/kustomize
+
+cache/kustomize: cache
+	@rm -f cache/kustomize
+	cd cache && \
+		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+
 .PHONY: test
 test: generate lint-fix manifests
 	go test ./... -coverprofile cover.out
@@ -50,19 +59,19 @@ run: generate lint-fix manifests
 
 # Install CRDs into a cluster
 .PHONY: install
-install: manifests
-	kustomize build config/crd | kubectl apply -f -
+install: manifests kustomize
+	${KUSTOMIZE} build config/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
 .PHONY: uninstall
-uninstall: manifests
-	kustomize build config/crd | kubectl delete -f -
+uninstall: manifests kustomize
+	${KUSTOMIZE} build config/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 .PHONY: deploy
-deploy: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/default | kubectl apply -f -
+deploy: manifests kustomize
+	cd config/manager && ${KUSTOMIZE} edit set image controller=${IMG}
+	${KUSTOMIZE} build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
