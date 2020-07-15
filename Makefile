@@ -44,7 +44,7 @@ cache/kustomize: cache
 		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
 
 .PHONY: test
-test: generate lint-fix manifests
+test: generate lint-fix manifests kubebuilder
 	go test ./... -coverprofile cover.out
 
 # Build manager binary
