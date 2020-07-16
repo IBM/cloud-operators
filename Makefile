@@ -1,3 +1,5 @@
+SHELL := /usr/bin/env bash
+
 KUBEBUILDER_VERSION = 2.3.1
 export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
