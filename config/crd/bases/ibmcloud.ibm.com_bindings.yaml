@@ -38,7 +38,7 @@ spec:
               type: string
             parameters:
               items:
-                description: KeyValue represents a key-value pair
+                description: Param represents a key-value pair
                 properties:
                   attributes:
                     additionalProperties:

@@ -17,7 +17,6 @@
 package v1beta1
 
 import (
-	"github.com/ibm/cloud-operators/api/v1beta1/keyvalue"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,7 +29,7 @@ type ServiceSpec struct {
 	// +optional
 	ExternalName string `json:"externalName,omitempty"`
 	// +optional
-	Parameters []keyvalue.KeyValue `json:"parameters,omitempty"`
+	Parameters []Param `json:"parameters,omitempty"`
 	// +optional
 	Tags []string `json:"tags,omitempty"`
 	// +optional
@@ -52,7 +51,7 @@ type ServiceStatus struct {
 	// +optional
 	Context ServiceContext `json:"context,omitempty"`
 	// +optional
-	Parameters []keyvalue.KeyValue `json:"parameters,omitempty"`
+	Parameters []Param `json:"parameters,omitempty"`
 	// +optional
 	Tags []string `json:"tags,omitempty"`
 	// +optional
