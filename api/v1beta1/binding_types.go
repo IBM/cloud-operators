@@ -38,8 +38,15 @@ type BindingSpec struct {
 
 // BindingStatus defines the observed state of Binding
 type BindingStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	Generation int64 `json:"generation,omitempty"`
+	// +optional
+	InstanceID string `json:"instanceId,omitempty"`
+	// +optional
+	KeyInstanceID string `json:"keyInstanceId,omitempty"`
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // +kubebuilder:object:root=true

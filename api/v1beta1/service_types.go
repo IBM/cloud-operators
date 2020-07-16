@@ -17,25 +17,46 @@
 package v1beta1
 
 import (
+	"github.com/ibm/cloud-operators/api/v1beta1/keyvalue"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ServiceSpec defines the desired state of Service
 type ServiceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Service. Edit Service_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	ServiceClass string `json:"serviceClass"`
+	Plan         string `json:"plan"`
+	// +optional
+	ServiceClassType string `json:"serviceClassType,omitempty"`
+	// +optional
+	ExternalName string `json:"externalName,omitempty"`
+	// +optional
+	Parameters []keyvalue.KeyValue `json:"parameters,omitempty"`
+	// +optional
+	Tags []string `json:"tags,omitempty"`
+	// +optional
+	Context ServiceContext `json:"context,omitempty"`
 }
 
 // ServiceStatus defines the observed state of Service
 type ServiceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	metav1.TypeMeta `json:",inline"`
+	Generation      int64 `json:"generation,omitempty"`
+
+	ServiceClass     string `json:"serviceClass"`
+	ServiceClassType string `json:"serviceClassType"`
+	Plan             string `json:"plan"`
+	// +optional
+	InstanceID string `json:"instanceId,omitempty"`
+	// +optional
+	ExternalName string `json:"externalName,omitempty"`
+	// +optional
+	Context ServiceContext `json:"context,omitempty"`
+	// +optional
+	Parameters []keyvalue.KeyValue `json:"parameters,omitempty"`
+	// +optional
+	Tags []string `json:"tags,omitempty"`
+	// +optional
+	DashboardURL string `json:"dashboardURL,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -60,4 +81,21 @@ type ServiceList struct {
 
 func init() {
 	SchemeBuilder.Register(&Service{}, &ServiceList{})
+}
+
+type ServiceContext struct {
+	// +optional
+	Org string `json:"org,omitempty"`
+	// +optional
+	Space string `json:"space,omitempty"`
+	// +optional
+	Region string `json:"region,omitempty"`
+	// +optional
+	ResourceGroup string `json:"resourcegroup,omitempty"`
+	// +optional
+	ResourceGroupID string `json:"resourcegroupid,omitempty"`
+	// +optional
+	ResourceLocation string `json:"resourcelocation,omitempty"`
+	// +optional
+	User string `json:"user,omitempty"`
 }
