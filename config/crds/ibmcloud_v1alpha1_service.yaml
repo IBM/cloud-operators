@@ -18,10 +18,13 @@ spec:
     kind: Service
     plural: services
   scope: Namespaced
+  preserveUnknownFields: false
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: Services represents a service instance created on IBM Cloud
+      type: object
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -36,27 +39,38 @@ spec:
         metadata:
           type: object
         spec:
+          description: Spec defines the desired state of Services
           properties:
             context:
+              description: Context is used to override default account context to create/retrieve service information on IBM Cloud
               properties:
                 org:
-                  type: string
-                region:
-                  type: string
-                resourcegroup:
-                  type: string
-                resourcegroupid:
-                  type: string
-                resourcelocation:
+                  description:  Org refers to Cloud Foundry organization name when the service instance will be created through Cloud Foundry.
                   type: string
                 space:
+                  description:  Space refers to Cloud Foundry space name when the service instance will be created through Cloud Foundry.
+                  type: string
+                region:
+                  description:  Region refers to IBM Cloud region name
+                  type: string
+                resourcegroup:
+                  description:  ResourceGroup refers to IBM Cloud resource group name
+                  type: string
+                resourcegroupid:
+                  description:  ResourceGroupId refers to IBM Cloud resource group GUID
+                  type: string
+                resourcelocation:
+                  description:  ResourceGroupLocation refers to IBM Cloud resource group location
                   type: string
                 user:
+                  description:  User refers to IBM Cloud user name
                   type: string
               type: object
             externalName:
+              description:  External name refers to the instantiated service on the IBM Public Cloud Dashboard
               type: string
             parameters:
+              description: Parameters passed for service instantiation, the type could be anything
               items:
                 properties:
                   attributes:
@@ -64,13 +78,13 @@ spec:
                       topic might have partitions)
                     type: object
                   name:
-                    description: Name representing the key.
+                    description: Name represents the key of the parameter.
                     type: string
                   value:
-                    description: Defaults to null.
-
+                    description: Value represents the value of the parameter. Defaults to null.
+                    type: string
                   valueFrom:
-                    description: Source for the value. Cannot be used if value is
+                    description: ValueFrom represents the source for the value. Cannot be used if value is
                       not empty.
                     properties:
                       configMapKeyRef:
@@ -85,12 +99,16 @@ spec:
                 type: object
               type: array
             plan:
+              description:  Plan refers to the service plan name
               type: string
             serviceClass:
+              description:  ServiceClass refers to the type of service being instantiated
               type: string
             serviceClassType:
+              description:  Set to CF for Cloud Foundry services, omit otherwise
               type: string
             tags:
+              description:  Tags passed for service instantiation. These tags appear on the instance on the IBM Public Cloud Dashboard
               items:
                 type: string
               type: array
@@ -99,36 +117,51 @@ spec:
           - plan
           type: object
         status:
+          description: Status defines the observed state of Services
           properties:
             context:
+              description: Context represents the context that is used for service instantiation
               properties:
                 org:
-                  type: string
-                region:
-                  type: string
-                resourcegroup:
-                  type: string
-                resourcegroupid:
-                  type: string
-                resourcelocation:
+                  description:  Org refers to Cloud Foundry organization name when the service instance will be created through Cloud Foundry.
                   type: string
                 space:
+                  description:  Space refers to Cloud Foundry space name when the service instance will be created through Cloud Foundry.
+                  type: string
+                region:
+                  description:  Region refers to IBM Cloud region name
+                  type: string
+                resourcegroup:
+                  description:  ResourceGroup refers to IBM Cloud resource group name
+                  type: string
+                resourcegroupid:
+                  description:  ResourceGroupId refers to IBM Cloud resource group GUID
+                  type: string
+                resourcelocation:
+                  description:  ResourceGroupLocation refers to IBM Cloud resource group location
                   type: string
                 user:
+                  description:  User refers to IBM Cloud user name
                   type: string
               type: object
             dashboardURL:
+              description: The dashboard URL of the instantiated service on IBM Cloud
               type: string
             externalName:
+              description: External name refers to the instantiated service on the IBM Public Cloud Dashboard
               type: string
             generation:
+              description: Generation refers to the generation of the resource
               format: int64
               type: integer
             instanceId:
+              description: InstanceId refers to the service instance GUID on IBM Cloud
               type: string
             message:
+              description: Message refers to the status message of the resource
               type: string
             parameters:
+              description: Parameters represents the parameters that is used for service instantiation if any.
               items:
                 properties:
                   attributes:
@@ -136,13 +169,13 @@ spec:
                       topic might have partitions)
                     type: object
                   name:
-                    description: Name representing the key.
+                    description: Name represents the key of the parameter.
                     type: string
                   value:
-                    description: Defaults to null.
-
+                    description: Value represents the value of the parameter. Defaults to null.
+                    type: string
                   valueFrom:
-                    description: Source for the value. Cannot be used if value is
+                    description: ValueFrom represents the source for the value. Cannot be used if value is
                       not empty.
                     properties:
                       configMapKeyRef:
@@ -157,14 +190,19 @@ spec:
                 type: object
               type: array
             plan:
+              description:  Plan refers to the service plan name
               type: string
             serviceClass:
+              description:  ServiceClass refers to the type of service being instantiated.
               type: string
             serviceClassType:
+              description:  Set to CF for Cloud Foundry services, omit otherwise.
               type: string
             state:
+              description: State refers to the status of the resource. "Online" indicates everything is fine.
               type: string
             tags:
+              description:  Tags passed for service instantiation. These tags appear on the instance on the IBM Public Cloud Dashboard
               items:
                 type: string
               type: array

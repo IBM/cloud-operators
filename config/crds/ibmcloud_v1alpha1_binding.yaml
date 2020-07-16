@@ -18,10 +18,13 @@ spec:
     kind: Binding
     plural: bindings
   scope: Namespaced
+  preserveUnknownFields: false
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: Binding represents a service credential of an IBM Cloud service instance
+      type: object
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -36,10 +39,13 @@ spec:
         metadata:
           type: object
         spec:
+          description:  Spec defines the desired state of Bindings
           properties:
             alias:
+              description: Alias represents the name of credentials, if this Binding is linking to existing credentials
               type: string
             parameters:
+              description: Parameters passed for service instantiation, the type could be anything
               items:
                 properties:
                   attributes:
@@ -47,13 +53,13 @@ spec:
                       topic might have partitions)
                     type: object
                   name:
-                    description: Name representing the key.
+                    description: Name represents the key of the parameter.
                     type: string
                   value:
-                    description: Defaults to null.
-
+                    description: Value represents the value of the parameter. Defaults to null.
+                    type: string
                   valueFrom:
-                    description: Source for the value. Cannot be used if value is
+                    description: valueFrom represents the source for the value. Cannot be used if value is
                       not empty.
                     properties:
                       configMapKeyRef:
@@ -68,30 +74,41 @@ spec:
                 type: object
               type: array
             role:
+              description: The role name to be passed for credentials creation
               type: string
             secretName:
+              description: The name of the Secret to be created
               type: string
             serviceName:
+              description: The name of the Service resource corresponding to the service instance on which to create credentials
               type: string
             serviceNamespace:
+              description: The namespace of the Service resource
               type: string
           required:
           - serviceName
           type: object
         status:
+          description: Status defines the observed state of Binding
           properties:
             generation:
+              description: Generation refers to the generation of the resource
               format: int64
               type: integer
             instanceId:
+              description: InstanceId refers to the service instance GUID on IBM Cloud
               type: string
             keyInstanceId:
+              description: KeyInstanceId refers to the service credential GUID on IBM Cloud
               type: string
             message:
+              description: Message refers to the status message of the resource
               type: string
             secretName:
+              description: The name of the Secret that created
               type: string
             state:
+              description: State refers to the status of the resource. "Online" indicates everything is fine.
               type: string
           type: object
   version: v1alpha1
