@@ -43,9 +43,9 @@ spec:
           description: BindingStatus defines the observed state of Binding
           type: object
       type: object
-  version: v1
+  version: v1beta1
   versions:
-  - name: v1
+  - name: v1beta1
     served: true
     storage: true
 status:

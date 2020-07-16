@@ -3,5 +3,5 @@ repo: github.com/ibm/cloud-operators
 resources:
 - group: ibmcloud
   kind: Binding
-  version: v1
+  version: v1beta1
 version: "2"
