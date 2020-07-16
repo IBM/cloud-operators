@@ -1,0 +1,7 @@
+apiVersion: ibmcloud.ibm.com/v1beta1
+kind: Service
+metadata:
+  name: service-sample
+spec:
+  # Add fields here
+  foo: bar
