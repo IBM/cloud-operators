@@ -32,8 +32,10 @@ clean:
 # Ensures kubebuilder is installed into the cache. Run `make kubebuilder CMD="--help"` to run kubebuilder with a custom command.
 .PHONY: kubebuilder
 kubebuilder: cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
-	if [[ -n "${CMD}" ]]; then \
+	@if [[ -n "${CMD}" ]]; then \
+		set -ex; \
 		${KUBEBUILDER_ASSETS}/kubebuilder ${CMD}; \
+		find . -name '*.go' | xargs sed -i '' -e "s/YEAR/$(shell date +%Y)/"; \
 	fi
 
 cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
