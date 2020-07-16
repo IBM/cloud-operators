@@ -20,15 +20,19 @@ endif
 .PHONY: all
 all: manager
 
-.PHONY: kubebuilder
-kubebuilder: cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
-
 cache:
 	mkdir -p cache
 
 .PHONY: clean
 clean:
 	rm -rf cache
+
+# Ensures kubebuilder is installed into the cache. Run `make kubebuilder CMD="--help"` to run kubebuilder with a custom command.
+.PHONY: kubebuilder
+kubebuilder: cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
+	if [[ -n "${CMD}" ]]; then \
+		${KUBEBUILDER_ASSETS}/kubebuilder ${CMD}; \
+	fi
 
 cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
 	rm -rf cache/kubebuilder_${KUBEBUILDER_VERSION}
