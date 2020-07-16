@@ -17,19 +17,23 @@
 package v1beta1
 
 import (
+	"github.com/ibm/cloud-operators/api/v1beta1/keyvalue"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // BindingSpec defines the desired state of Binding
 type BindingSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Binding. Edit Binding_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	ServiceName string `json:"serviceName"`
+	// +optional
+	ServiceNamespace string `json:"serviceNamespace,omitempty"`
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+	// +optional
+	Role string `json:"role,omitempty"`
+	// +optional
+	Alias string `json:"alias,omitempty"`
+	// +optional
+	Parameters []keyvalue.KeyValue `json:"parameters,omitempty"`
 }
 
 // BindingStatus defines the observed state of Binding
