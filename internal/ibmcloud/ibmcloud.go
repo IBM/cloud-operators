@@ -35,8 +35,8 @@ const (
 
 var controllerNamespace string
 
-// IBMCloudInfo kept all the needed client API resource and instance Info
-type IBMCloudInfo struct {
+// Info kept all the needed client API resource and instance Info
+type Info struct {
 	Session          *session.Session
 	BXClient         mccpv2.MccpServiceAPI
 	ResourceClient   controller.ResourceControllerAPI
@@ -61,8 +61,8 @@ type IBMCloudInfo struct {
 	Context          ibmcloudv1beta1.ResourceContext
 }
 
-// GetIBMCloudInfo initializes sessions and sets up a struct to faciliate making calls to bx
-func GetIBMCloudInfo(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*IBMCloudInfo, error) {
+// GetInfo initializes sessions and sets up a struct to faciliate making calls to bx
+func GetInfo(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*Info, error) {
 	// Get Bx Config
 	bxConfig, err := getBxConfig(logt, r, instance)
 	if err != nil {
@@ -74,10 +74,10 @@ func GetIBMCloudInfo(logt logr.Logger, r client.Client, instance *ibmcloudv1beta
 		return nil, err
 	}
 
-	return getIBMCloudInfoHelper(logt, r, &bxConfig, ibmCloudContext, instance)
+	return getInfoHelper(logt, r, &bxConfig, ibmCloudContext, instance)
 }
 
-func getIBMCloudInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nctx ibmcloudv1beta1.ResourceContext, instance *ibmcloudv1beta1.Service) (*IBMCloudInfo, error) {
+func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nctx ibmcloudv1beta1.ResourceContext, instance *ibmcloudv1beta1.Service) (*Info, error) {
 	servicename := instance.Spec.ServiceClass
 	servicetype := instance.Spec.ServiceClassType
 	serviceplan := instance.Spec.Plan
@@ -145,7 +145,7 @@ func getIBMCloudInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Co
 			}
 		}
 
-		ibmCloudInfo := IBMCloudInfo{
+		return &Info{
 			BXClient: bxclient, // MccpServiceAPI
 			//ResourceClient:   controllerClient, // IAMServiceAPI
 			//CatalogClient:    catalogClient,
@@ -162,111 +162,108 @@ func getIBMCloudInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Co
 			//ServicePlanID:    servicePlanID,
 			//TargetCrn:        supportedDeployments[0].CatalogCRN,
 			Context: useCtx,
-		}
-		return &ibmCloudInfo, nil
-
-	} else {
-		IAMAccessToken, IAMRefreshToken, UAAAccessToken, UAARefreshToken, err := getIamToken(logt, r, instance)
-		if err == nil {
-			config.IAMAccessToken = IAMAccessToken
-			config.IAMRefreshToken = IAMRefreshToken
-			config.UAAAccessToken = UAAAccessToken
-			config.UAARefreshToken = UAARefreshToken
-		}
-
-		controllerClient, err := controller.New(sess)
-
-		if err != nil {
-			return nil, err
-		}
-
-		catalogClient, err := catalog.New(sess)
-		if err != nil {
-			return nil, err
-		}
-
-		resCatalogAPI := catalogClient.ResourceCatalog()
-
-		service, err := resCatalogAPI.FindByName(servicename, true)
-		if err != nil {
-			return nil, err
-		}
-
-		servicePlanID := ""
-		catalogCRN := ""
-		if strings.ToLower(instance.Spec.Plan) != aliasPlan {
-			servicePlanID, err = resCatalogAPI.GetServicePlanID(service[0], serviceplan)
-			if err != nil {
-				return nil, err
-			}
-			if servicePlanID == "" {
-				_, err := resCatalogAPI.GetServicePlan(serviceplan)
-				if err != nil {
-					return nil, err
-				}
-				servicePlanID = serviceplan
-			}
-
-			deployments, err := resCatalogAPI.ListDeployments(servicePlanID)
-			if err != nil {
-				return nil, err
-			}
-
-			if len(deployments) == 0 {
-				return nil, fmt.Errorf("Failed: No deployment found for service plan : %s", serviceplan)
-			}
-
-			supportedDeployments := []models.ServiceDeployment{}
-			supportedLocations := make(map[string]bool)
-			for _, d := range deployments {
-				if d.Metadata.RCCompatible {
-					deploymentLocation := d.Metadata.Deployment.Location
-					supportedLocations[deploymentLocation] = true
-					if deploymentLocation == useCtx.Region {
-						supportedDeployments = append(supportedDeployments, d)
-					}
-				}
-			}
-
-			if len(supportedDeployments) == 0 {
-				locationList := make([]string, 0, len(supportedLocations))
-				for l := range supportedLocations {
-					locationList = append(locationList, l)
-				}
-				return nil, fmt.Errorf("Failed: No deployment found for service plan %s at location %s. Valid location(s) are: %q.\nUse service instance example if the service is a Cloud Foundry service", serviceplan, useCtx.Region, locationList)
-			}
-			catalogCRN = supportedDeployments[0].CatalogCRN
-		}
-
-		// check that the resourceGroup and resourceGroupId match
-		managementClient, err := management.New(sess)
-		if err != nil {
-			return nil, err
-		}
-		resGrpAPI := managementClient.ResourceGroup()
-		resGrp, err := resGrpAPI.Get(useCtx.ResourceGroupID)
-		if err != nil {
-			return nil, err
-		}
-		if resGrp.Name != useCtx.ResourceGroup {
-			return nil, fmt.Errorf("ResourceGroup and ResourceGroupID are not consistent: %s, %s", useCtx.ResourceGroup, useCtx.ResourceGroupID)
-		}
-
-		ibmCloudInfo := IBMCloudInfo{
-			ResourceClient:   controllerClient, // IAMServiceAPI
-			CatalogClient:    catalogClient,
-			ResourceGroupID:  useCtx.ResourceGroupID,
-			ResourceLocation: useCtx.ResourceLocation,
-			Session:          sess,
-			ServiceClass:     servicename,
-			ServiceClassType: servicetype,
-			ServicePlan:      serviceplan,
-			ServicePlanID:    servicePlanID,
-			TargetCrn:        catalogCRN,
-			Context:          useCtx,
-		}
-		return &ibmCloudInfo, nil
+		}, nil
 	}
+
+	IAMAccessToken, IAMRefreshToken, UAAAccessToken, UAARefreshToken, err := getIamToken(logt, r, instance)
+	if err == nil {
+		config.IAMAccessToken = IAMAccessToken
+		config.IAMRefreshToken = IAMRefreshToken
+		config.UAAAccessToken = UAAAccessToken
+		config.UAARefreshToken = UAARefreshToken
+	}
+
+	controllerClient, err := controller.New(sess)
+
+	if err != nil {
+		return nil, err
+	}
+
+	catalogClient, err := catalog.New(sess)
+	if err != nil {
+		return nil, err
+	}
+
+	resCatalogAPI := catalogClient.ResourceCatalog()
+
+	service, err := resCatalogAPI.FindByName(servicename, true)
+	if err != nil {
+		return nil, err
+	}
+
+	servicePlanID := ""
+	catalogCRN := ""
+	if strings.ToLower(instance.Spec.Plan) != aliasPlan {
+		servicePlanID, err = resCatalogAPI.GetServicePlanID(service[0], serviceplan)
+		if err != nil {
+			return nil, err
+		}
+		if servicePlanID == "" {
+			_, err := resCatalogAPI.GetServicePlan(serviceplan)
+			if err != nil {
+				return nil, err
+			}
+			servicePlanID = serviceplan
+		}
+
+		deployments, err := resCatalogAPI.ListDeployments(servicePlanID)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(deployments) == 0 {
+			return nil, fmt.Errorf("Failed: No deployment found for service plan : %s", serviceplan)
+		}
+
+		supportedDeployments := []models.ServiceDeployment{}
+		supportedLocations := make(map[string]bool)
+		for _, d := range deployments {
+			if d.Metadata.RCCompatible {
+				deploymentLocation := d.Metadata.Deployment.Location
+				supportedLocations[deploymentLocation] = true
+				if deploymentLocation == useCtx.Region {
+					supportedDeployments = append(supportedDeployments, d)
+				}
+			}
+		}
+
+		if len(supportedDeployments) == 0 {
+			locationList := make([]string, 0, len(supportedLocations))
+			for l := range supportedLocations {
+				locationList = append(locationList, l)
+			}
+			return nil, fmt.Errorf("Failed: No deployment found for service plan %s at location %s. Valid location(s) are: %q.\nUse service instance example if the service is a Cloud Foundry service", serviceplan, useCtx.Region, locationList)
+		}
+		catalogCRN = supportedDeployments[0].CatalogCRN
+	}
+
+	// check that the resourceGroup and resourceGroupId match
+	managementClient, err := management.New(sess)
+	if err != nil {
+		return nil, err
+	}
+	resGrpAPI := managementClient.ResourceGroup()
+	resGrp, err := resGrpAPI.Get(useCtx.ResourceGroupID)
+	if err != nil {
+		return nil, err
+	}
+	if resGrp.Name != useCtx.ResourceGroup {
+		return nil, fmt.Errorf("ResourceGroup and ResourceGroupID are not consistent: %s, %s", useCtx.ResourceGroup, useCtx.ResourceGroupID)
+	}
+
+	return &Info{
+		ResourceClient:   controllerClient, // IAMServiceAPI
+		CatalogClient:    catalogClient,
+		ResourceGroupID:  useCtx.ResourceGroupID,
+		ResourceLocation: useCtx.ResourceLocation,
+		Session:          sess,
+		ServiceClass:     servicename,
+		ServiceClassType: servicetype,
+		ServicePlan:      serviceplan,
+		ServicePlanID:    servicePlanID,
+		TargetCrn:        catalogCRN,
+		Context:          useCtx,
+	}, nil
 }
 
 func getBxConfig(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (bluemix.Config, error) {

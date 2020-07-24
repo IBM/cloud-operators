@@ -143,7 +143,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
 	}
 
-	ibmCloudInfo, err := ibmcloud.GetIBMCloudInfo(logt, r.Client, serviceInstance)
+	ibmCloudInfo, err := ibmcloud.GetInfo(logt, r.Client, serviceInstance)
 	if err != nil {
 		logt.Info("Unable to get", "ibmcloudInfo", instance.Name)
 		if errors.IsNotFound(err) && containsFinalizer(instance) &&
@@ -240,61 +240,61 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		}
 
 		return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
+	}
 
-	} else { // The KeyInstanceID has been set (or is still inProgress), verify that the key and secret still exist
-		logt.Info("ServiceInstance Key", "should already exist, verifying", instance.ObjectMeta.Name)
-		var keyInstanceID string
-		var keyContents map[string]interface{}
-		if instance.Spec.Alias != "" {
-			keyInstanceID, keyContents, err = getAliasCredentials(logt, instance, ibmCloudInfo)
-			if err != nil && strings.Contains(err.Error(), notFound) {
-				return r.resetResource(instance)
-			} else if err != nil {
-				return r.updateStatusError(instance, "Failed", err)
-			}
-		} else {
-			keyInstanceID, keyContents, err = getCredentials(logt, instance, ibmCloudInfo)
-			if err != nil && strings.Contains(err.Error(), notFound) {
-				logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
-				keyInstanceID, keyContents, err = r.createCredentials(ctx, instance, ibmCloudInfo)
-				if err != nil {
-					return r.updateStatusError(instance, "Failed", err)
-				}
-				instance.Status.KeyInstanceID = keyInstanceID
-			}
+	// The KeyInstanceID has been set (or is still inProgress), verify that the key and secret still exist
+	logt.Info("ServiceInstance Key", "should already exist, verifying", instance.ObjectMeta.Name)
+	var keyInstanceID string
+	var keyContents map[string]interface{}
+	if instance.Spec.Alias != "" {
+		_, keyContents, err = getAliasCredentials(logt, instance, ibmCloudInfo)
+		if err != nil && strings.Contains(err.Error(), notFound) {
+			return r.resetResource(instance)
+		} else if err != nil {
+			return r.updateStatusError(instance, "Failed", err)
 		}
-		secret, err := getSecret(r, instance)
-		if err != nil {
-			logt.Info("Secret does not exist", "Recreating", getSecretName(instance))
-			err = r.createSecret(instance, keyContents)
+	} else {
+		_, keyContents, err = getCredentials(logt, instance, ibmCloudInfo)
+		if err != nil && strings.Contains(err.Error(), notFound) {
+			logt.Info("ServiceInstance Key does not exist", "Recreating", instance.ObjectMeta.Name)
+			keyInstanceID, keyContents, err = r.createCredentials(ctx, instance, ibmCloudInfo)
 			if err != nil {
-				logt.Info("Error creating secret", instance.Name, err.Error())
 				return r.updateStatusError(instance, "Failed", err)
 			}
-			return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
-		} else {
-			// The secret exists, make sure it has the right content
-			changed, err := keyContentsChanged(keyContents, secret)
-			if err != nil {
-				logt.Info("Error checking if key contents have changed", instance.Name, err.Error())
-				return r.updateStatusError(instance, "Failed", err)
-			}
-			if instance.Status.KeyInstanceID != secret.Annotations["service-key-id"] || changed { // Warning: the deep comparison may not be needed, the key is probably enough
-				err := r.deleteSecret(instance)
-				if err != nil {
-					logt.Info("Error deleting secret before recreating", instance.Name, err.Error())
-					return r.updateStatusError(instance, "Failed", err)
-				}
-				err = r.createSecret(instance, keyContents)
-				if err != nil {
-					logt.Info("Error re-creating secret", instance.Name, err.Error())
-					return r.updateStatusError(instance, "Failed", err)
-				}
-				return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
-			}
-			return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
+			instance.Status.KeyInstanceID = keyInstanceID
 		}
 	}
+	secret, err := getSecret(r, instance)
+	if err != nil {
+		logt.Info("Secret does not exist", "Recreating", getSecretName(instance))
+		err = r.createSecret(instance, keyContents)
+		if err != nil {
+			logt.Info("Error creating secret", instance.Name, err.Error())
+			return r.updateStatusError(instance, "Failed", err)
+		}
+		return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
+	}
+
+	// The secret exists, make sure it has the right content
+	changed, err := keyContentsChanged(keyContents, secret)
+	if err != nil {
+		logt.Info("Error checking if key contents have changed", instance.Name, err.Error())
+		return r.updateStatusError(instance, "Failed", err)
+	}
+	if instance.Status.KeyInstanceID != secret.Annotations["service-key-id"] || changed { // Warning: the deep comparison may not be needed, the key is probably enough
+		err := r.deleteSecret(instance)
+		if err != nil {
+			logt.Info("Error deleting secret before recreating", instance.Name, err.Error())
+			return r.updateStatusError(instance, "Failed", err)
+		}
+		err = r.createSecret(instance, keyContents)
+		if err != nil {
+			logt.Info("Error re-creating secret", instance.Name, err.Error())
+			return r.updateStatusError(instance, "Failed", err)
+		}
+		return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
+	}
+	return r.updateStatusOnline(instance, serviceInstance, ibmCloudInfo)
 }
 
 func (r *BindingReconciler) getServiceInstance(instance *ibmcloudv1beta1.Binding) (*ibmcloudv1beta1.Service, error) {
@@ -354,7 +354,7 @@ func (r *BindingReconciler) updateStatusError(instance *ibmcloudv1beta1.Binding,
 }
 
 // deleteCredentials also deletes the corresponding secret
-func (r *BindingReconciler) deleteCredentials(instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.IBMCloudInfo) error {
+func (r *BindingReconciler) deleteCredentials(instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info) error {
 	r.Log.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting", "credentials", instance.ObjectMeta.Name)
 
 	if instance.Spec.Alias == "" { // Delete only if it not alias
@@ -376,7 +376,7 @@ func (r *BindingReconciler) deleteCredentials(instance *ibmcloudv1beta1.Binding,
 	return r.deleteSecret(instance)
 }
 
-func getAliasCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.IBMCloudInfo) (string, map[string]interface{}, error) {
+func getAliasCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info) (string, map[string]interface{}, error) {
 	logt.Info("Getting", " alias credentials", instance.ObjectMeta.Name)
 	name := instance.Spec.Alias
 
@@ -410,7 +410,7 @@ func getAliasCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ib
 	return key.ID, key.Credentials, nil
 }
 
-func (r *BindingReconciler) createCredentials(ctx context.Context, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.IBMCloudInfo) (string, map[string]interface{}, error) {
+func (r *BindingReconciler) createCredentials(ctx context.Context, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info) (string, map[string]interface{}, error) {
 	var keyContents map[string]interface{}
 	var keyInstanceID string
 	r.Log.WithValues("User", ibmCloudInfo.Context.User).Info("Creating", "credentials", instance.ObjectMeta.Name)
@@ -526,7 +526,7 @@ func (r *BindingReconciler) createSecret(instance *ibmcloudv1beta1.Binding, keyC
 	return nil
 }
 
-func (r *BindingReconciler) updateStatusOnline(instance *ibmcloudv1beta1.Binding, serviceInstance *ibmcloudv1beta1.Service, ibmCloudInfo *ibmcloud.IBMCloudInfo) (ctrl.Result, error) {
+func (r *BindingReconciler) updateStatusOnline(instance *ibmcloudv1beta1.Binding, serviceInstance *ibmcloudv1beta1.Service, ibmCloudInfo *ibmcloud.Info) (ctrl.Result, error) {
 	instance.Status.State = "Online"
 	instance.Status.Message = "Online"
 	instance.Status.SecretName = getSecretName(instance)
@@ -542,7 +542,7 @@ func (r *BindingReconciler) updateStatusOnline(instance *ibmcloudv1beta1.Binding
 	return ctrl.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
 }
 
-func getCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.IBMCloudInfo) (string, map[string]interface{}, error) {
+func getCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "credentials", instance.ObjectMeta.Name)
 
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
@@ -599,7 +599,7 @@ func (r *BindingReconciler) deleteSecret(instance *ibmcloudv1beta1.Binding) erro
 	return nil
 }
 
-func getCFCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.IBMCloudInfo, name string) (string, map[string]interface{}, error) {
+func getCFCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info, name string) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "CF credentials", name)
 	serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
 
@@ -721,9 +721,4 @@ func paramToJSONFromString(content string) (interface{}, error) {
 		return content, nil
 	}
 	return data, nil
-}
-
-func paramIsJSON(str string) bool {
-	var js json.RawMessage
-	return json.Unmarshal([]byte(str), &js) == nil
 }
