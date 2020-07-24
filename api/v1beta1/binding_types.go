@@ -37,7 +37,9 @@ type BindingSpec struct {
 
 // BindingStatus defines the observed state of Binding
 type BindingStatus struct {
-	metav1.TypeMeta `json:",inline"`
+	State   string `json:"state,omitempty"`
+	Message string `json:"message,omitempty"`
+
 	// +optional
 	Generation int64 `json:"generation,omitempty"`
 	// +optional

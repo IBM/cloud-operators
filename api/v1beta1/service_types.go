@@ -33,7 +33,7 @@ type ServiceSpec struct {
 	// +optional
 	Tags []string `json:"tags,omitempty"`
 	// +optional
-	Context ServiceContext `json:"context,omitempty"`
+	Context ResourceContext `json:"context,omitempty"`
 }
 
 // ServiceStatus defines the observed state of Service
@@ -49,7 +49,7 @@ type ServiceStatus struct {
 	// +optional
 	ExternalName string `json:"externalName,omitempty"`
 	// +optional
-	Context ServiceContext `json:"context,omitempty"`
+	Context ResourceContext `json:"context,omitempty"`
 	// +optional
 	Parameters []Param `json:"parameters,omitempty"`
 	// +optional
@@ -83,6 +83,24 @@ func init() {
 }
 
 type ServiceContext struct {
+	// +optional
+	Org string `json:"org,omitempty"`
+	// +optional
+	Space string `json:"space,omitempty"`
+	// +optional
+	Region string `json:"region,omitempty"`
+	// +optional
+	ResourceGroup string `json:"resourcegroup,omitempty"`
+	// +optional
+	ResourceGroupID string `json:"resourcegroupid,omitempty"`
+	// +optional
+	ResourceLocation string `json:"resourcelocation,omitempty"`
+	// +optional
+	User string `json:"user,omitempty"`
+}
+
+// ResourceContext defines the CloudFoundry context and resource group
+type ResourceContext struct {
 	// +optional
 	Org string `json:"org,omitempty"`
 	// +optional
