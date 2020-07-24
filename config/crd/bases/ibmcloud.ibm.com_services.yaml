@@ -35,6 +35,8 @@ spec:
           description: ServiceSpec defines the desired state of Service
           properties:
             context:
+              description: ResourceContext defines the CloudFoundry context and resource
+                group
               properties:
                 org:
                   type: string
@@ -141,6 +143,8 @@ spec:
                 internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
               type: string
             context:
+              description: ResourceContext defines the CloudFoundry context and resource
+                group
               properties:
                 org:
                   type: string
