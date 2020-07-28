@@ -35,7 +35,7 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(arg, buf.Bytes(), 0644)
+		err = ioutil.WriteFile(arg, buf.Bytes(), 0644) // nolint:gosec // mimics original file permissions from kubebuilder
 		if err != nil {
 			return err
 		}
