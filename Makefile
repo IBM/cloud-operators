@@ -85,6 +85,7 @@ deploy: manifests kustomize
 .PHONY: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	go run ./internal/cmd/fixcrd ./config/crd/bases/*.yaml
 
 .PHONY: lint-deps
 lint-deps:

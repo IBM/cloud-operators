@@ -8,6 +8,7 @@ require (
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
 	github.com/softlayer/softlayer-go v1.0.1 // indirect
+	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.17.2
 	k8s.io/apimachinery v0.17.2
 	k8s.io/client-go v0.17.2

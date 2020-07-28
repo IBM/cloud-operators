@@ -13,13 +13,13 @@ type Param struct {
 
 	// A parameter may have attributes (e.g. message hub topic might have partitions)
 	// +optional
-	Attributes map[string]json.RawMessage `json:"attributes,omitempty"`
+	Attributes map[string]ParamValue `json:"attributes,omitempty"`
 
 	// Mutual exclusive: no more than one of the following may be specified.
 
 	// Defaults to null.
 	// +optional
-	Value json.RawMessage `json:"value,omitempty"`
+	Value *ParamValue `json:"value,omitempty"`
 
 	// Source for the value. Cannot be used if value is not empty.
 	// +optional
@@ -35,4 +35,8 @@ type ParamSource struct {
 	// Selects a key of a secret in the resource namespace
 	// +optional
 	SecretKeyRef *v1.SecretKeySelector `json:"secretKeyRef,omitempty"`
+}
+
+type ParamValue struct {
+	json.RawMessage `json:"-"`
 }
