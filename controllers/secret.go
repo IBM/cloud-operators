@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,8 +26,8 @@ func getSecret(r client.Client, binding *ibmcloudv1beta1.Binding) (*v1.Secret, e
 }
 
 // getKubeSecret gets a kubernetes secret
-func (r *BindingReconciler) getKubeSecret(ctx context.Context, secretname string, fallback bool, namespace string) (*v1.Secret, error) {
-	log := r.Log.WithName(fmt.Sprintf("%s/%s", namespace, secretname))
+func getKubeSecret(ctx context.Context, r client.Client, logt logr.Logger, secretname string, fallback bool, namespace string) (*v1.Secret, error) {
+	log := logt.WithName(fmt.Sprintf("%s/%s", namespace, secretname))
 	log.V(5).Info("getting secret")
 
 	var secret v1.Secret
@@ -46,8 +47,8 @@ func (r *BindingReconciler) getKubeSecret(ctx context.Context, secretname string
 }
 
 // getKubeSecretValue gets the value of a secret in the given namespace. If not found and fallback is true, check default namespace
-func (r *BindingReconciler) getKubeSecretValue(ctx context.Context, name string, key string, fallback bool, namespace string) ([]byte, error) {
-	secret, err := r.getKubeSecret(ctx, name, fallback, namespace)
+func getKubeSecretValue(ctx context.Context, r client.Client, logt logr.Logger, name string, key string, fallback bool, namespace string) ([]byte, error) {
+	secret, err := getKubeSecret(ctx, r, logt, name, fallback, namespace)
 	if err != nil {
 		return nil, err
 	}

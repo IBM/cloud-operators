@@ -38,8 +38,10 @@ type ServiceSpec struct {
 
 // ServiceStatus defines the observed state of Service
 type ServiceStatus struct {
-	metav1.TypeMeta `json:",inline"`
-	Generation      int64 `json:"generation,omitempty"`
+	State   string `json:"state,omitempty"`
+	Message string `json:"message,omitempty"`
+
+	Generation int64 `json:"generation,omitempty"`
 
 	ServiceClass     string `json:"serviceClass"`
 	ServiceClassType string `json:"serviceClassType"`
