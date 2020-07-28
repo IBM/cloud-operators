@@ -694,10 +694,10 @@ func (r *BindingReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmc
 	return nil, fmt.Errorf("Missing secretKeyRef or configMapKeyRef")
 }
 
-func paramToJSONFromRaw(content *ibmcloudv1beta1.ParamValue) (interface{}, error) {
+func paramToJSONFromRaw(content json.RawMessage) (interface{}, error) {
 	var data interface{}
 
-	if err := json.Unmarshal(content.RawMessage, &data); err != nil {
+	if err := json.Unmarshal(content, &data); err != nil {
 		return nil, err
 	}
 

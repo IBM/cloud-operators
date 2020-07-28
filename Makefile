@@ -2,8 +2,7 @@ SHELL := /usr/bin/env bash
 
 KUBEBUILDER_VERSION = 2.3.1
 export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
-# We need to support custom types in CRDs from controller-gen. Once this commit is in a release, switch to that: https://github.com/kubernetes-sigs/controller-tools/commit/820a4a27ea84247e0da004cb4033ae9dc3839849
-CONTROLLER_GEN_VERSION = 820a4a27ea84247e0da004cb4033ae9dc3839849
+CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
 KUSTOMIZE = ${PWD}/cache/kustomize
@@ -86,12 +85,6 @@ deploy: manifests kustomize
 .PHONY: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	# Remove these sed's once this https://github.com/kubernetes-sigs/controller-tools/issues/456 is fixed. Be sure it didn't revert the `type: Any` support.
-	sed -i '' \
-		-e 's/storedVersions: null/storedVersions: []/' \
-		-e 's/conditions: null/conditions: []/' \
-		config/crd/bases/*.yaml
-
 
 .PHONY: lint-deps
 lint-deps:
@@ -131,5 +124,5 @@ cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
 		trap "rm -rf $$CONTROLLER_GEN_TMP_DIR" EXIT ;\
 		cd $$CONTROLLER_GEN_TMP_DIR ;\
 		go mod init tmp ;\
-		GOBIN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION} go get sigs.k8s.io/controller-tools/cmd/controller-gen@${CONTROLLER_GEN_VERSION} ;\
+		GOBIN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION} go get sigs.k8s.io/controller-tools/cmd/controller-gen@v${CONTROLLER_GEN_VERSION} ;\
 	fi
