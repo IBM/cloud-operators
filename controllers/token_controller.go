@@ -18,9 +18,18 @@ package controllers
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
 
+	"github.com/IBM-Cloud/bluemix-go"
+	"github.com/IBM-Cloud/bluemix-go/authentication"
+	"github.com/IBM-Cloud/bluemix-go/endpoints"
+	"github.com/IBM-Cloud/bluemix-go/rest"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,20 +38,94 @@ import (
 // TokenReconciler reconciles a Token object
 type TokenReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log        logr.Logger
+	Scheme     *runtime.Scheme
+	HTTPClient *http.Client
 }
 
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=tokens,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=tokens/status,verbs=get;update;patch
 
-func (r *TokenReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("token", req.NamespacedName)
+// Reconcile computes IAM and UAA tokens
+func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
+	ctx := context.Background()
+	logt := r.Log.WithValues("token", request.NamespacedName)
 
-	// your logic here
+	logt.Info("reconciling IBM cloud IAM tokens", "secretRef", request.Name)
 
-	return ctrl.Result{}, nil
+	secret := &corev1.Secret{}
+	err := r.Get(ctx, request.NamespacedName, secret)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Object not found, return.  Created objects are automatically garbage collected.
+			// For additional cleanup logic use finalizers.
+			logt.Info("object not found")
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		logt.Info("object cannot be read", "error", err)
+		return ctrl.Result{}, err
+	}
+
+	if secret.DeletionTimestamp != nil {
+		// Secret is being deleted... nothing to do.
+		return ctrl.Result{}, nil
+	}
+
+	apikeyb, ok := secret.Data["api-key"]
+	if !ok {
+		logt.Info("missing api-key key in secret", "Namespace", secret.Namespace, "Name", secret.Name)
+		return ctrl.Result{}, nil
+	}
+
+	regionb, ok := secret.Data["region"]
+	if !ok {
+		logt.Info("set default region to us-south")
+		regionb = []byte("us-south")
+	}
+	region := string(regionb)
+
+	config := bluemix.Config{
+		EndpointLocator: endpoints.NewEndpointLocator(region),
+	}
+
+	auth, err := authentication.NewIAMAuthRepository(&config, &rest.Client{HTTPClient: r.HTTPClient})
+	if err != nil {
+		// Invalid region. Do not requeue
+		logt.Info("no endpoint found for region", "region", region)
+		return ctrl.Result{}, nil
+	}
+
+	logt.Info("authenticating...")
+	if err := auth.AuthenticateAPIKey(string(apikeyb)); err != nil {
+		// TODO: check BX Error
+		logt.Info("authentication failed", "error", err)
+		return ctrl.Result{}, err // requeue
+	}
+	tokensRef := secret.Name + "-tokens"
+	logt.Info("creating tokens secret", "name", tokensRef)
+
+	tokens := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tokensRef,
+			Namespace: secret.Namespace,
+		},
+		Data: map[string][]byte{
+			"access_token":      []byte(config.IAMAccessToken),
+			"refresh_token":     []byte(config.IAMRefreshToken),
+			"uaa_token":         []byte(strings.Replace(config.UAAAccessToken, "B", "b", 1)),
+			"uaa_refresh_token": []byte(config.UAARefreshToken),
+		},
+	}
+
+	r.Delete(ctx, tokens)
+
+	if err := r.Create(ctx, tokens); err != nil {
+		logt.Error(err, "failed to update secret (retrying)")
+		return ctrl.Result{}, err
+	}
+	logt.Info("secret created", "name", tokensRef)
+	return ctrl.Result{RequeueAfter: 10 * time.Minute}, nil
 }
 
 func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
