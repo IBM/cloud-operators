@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
+    controller-gen.kubebuilder.io/version: v0.3.1-0.20200517180335-820a4a27ea84
   creationTimestamp: null
   name: bindings.ibmcloud.ibm.com
 spec:
@@ -42,11 +42,7 @@ spec:
                 properties:
                   attributes:
                     additionalProperties:
-                      description: RawMessage is a raw encoded JSON value. It implements
-                        Marshaler and Unmarshaler and can be used to delay JSON decoding
-                        or precompute a JSON encoding.
-                      format: byte
-                      type: string
+                      type: Any
                     description: A parameter may have attributes (e.g. message hub
                       topic might have partitions)
                     type: object
@@ -55,8 +51,7 @@ spec:
                     type: string
                   value:
                     description: Defaults to null.
-                    format: byte
-                    type: string
+                    type: Any
                   valueFrom:
                     description: Source for the value. Cannot be used if value is
                       not empty.
