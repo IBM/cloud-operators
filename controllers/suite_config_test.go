@@ -3,11 +3,11 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,9 +33,7 @@ const (
 
 func setup() error {
 	if err := setupAuth(); err != nil {
-		// TODO restore auth error handling when adding back token controller tests
-		//return err
-		println("Failed auth setup: ", err.Error())
+		return err
 	}
 	return setupConfigs()
 }
@@ -111,8 +109,17 @@ func setupAuth() error {
 		}
 	}
 
-	if org == "" || space == "" || region == "" || uaaAccessToken == "" || uaaRefreshToken == "" || resourceGroupID == "" {
-		return errors.New("set current bx target to run tests")
+	for name, s := range map[string]string{
+		"org":             org,
+		"space":           space,
+		"region":          region,
+		"uaaAccessToken":  uaaAccessToken,
+		"uaaRefreshToken": uaaRefreshToken,
+		"resourceGroupID": resourceGroupID,
+	} {
+		if s == "" {
+			return errors.Errorf("Current ibmcloud target does not have a value for %q", name)
+		}
 	}
 	return nil
 }
