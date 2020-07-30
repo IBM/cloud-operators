@@ -1,0 +1,6 @@
+apiVersion: ibmcloud.ibm.com/v1alpha1
+kind: Binding
+metadata:
+  name: binding-translator
+spec:
+  serviceName: test-translator-2

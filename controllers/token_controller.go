@@ -118,7 +118,10 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		},
 	}
 
-	r.Delete(ctx, tokens)
+	err = r.Delete(ctx, tokens)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	if err := r.Create(ctx, tokens); err != nil {
 		logt.Error(err, "failed to update secret (retrying)")

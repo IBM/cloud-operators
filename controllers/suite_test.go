@@ -17,71 +17,133 @@
 package controllers
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
+var (
+	cfg           *rest.Config
+	k8sClient     client.Client
+	k8sManager    ctrl.Manager
+	testEnv       *envtest.Environment
+	testNameStem  string
+	testNamespace string
+)
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-
-func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+func TestMain(m *testing.M) {
+	exitCode := run(m)
+	os.Exit(exitCode)
 }
 
-var _ = BeforeSuite(func(done Done) {
-	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+func run(m *testing.M) int {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		err := mainTeardown()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Failed to tear down controller test suite:", err)
+		}
+	}()
 
-	By("bootstrapping test environment")
+	if err := mainSetup(ctx); err != nil {
+		panic(err)
+	}
+	return m.Run()
+}
+
+func mainSetup(ctx context.Context) error {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	testNameStem = "ibmcloud-test-"
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
 	}
 
 	var err error
 	cfg, err = testEnv.Start()
-	Expect(err).ToNot(HaveOccurred())
-	Expect(cfg).ToNot(BeNil())
+	if err != nil {
+		return err
+	}
 
 	err = ibmcloudv1beta1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = ibmcloudv1beta1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = ibmcloudv1beta1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return err
+	}
 
 	// +kubebuilder:scaffold:scheme
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(k8sClient).ToNot(BeNil())
+	k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme.Scheme})
+	if err != nil {
+		return err
+	}
 
-	close(done)
-}, 60)
+	if err = (&BindingReconciler{
+		Client: k8sManager.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager); err != nil {
+		return errors.Wrap(err, "Failed to set up binding controller")
+	}
+	if err = (&ServiceReconciler{
+		Client: k8sManager.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Service"),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager); err != nil {
+		return errors.Wrap(err, "Failed to set up service controller")
+	}
+	/*
+		if err = (&TokenReconciler{
+			Client:     k8sManager.GetClient(),
+			Log:        ctrl.Log.WithName("controllers").WithName("Token"),
+			Scheme:     k8sManager.GetScheme(),
+			HTTPClient: http.DefaultClient,
+		}).SetupWithManager(k8sManager); err != nil {
+			return errors.Wrap(err, "Failed to set up token controller")
+		}
+	*/
 
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
-})
+	go func() {
+		err = k8sManager.Start(ctx.Done())
+		if err != nil {
+			panic("Failed to start manager: " + err.Error())
+		}
+	}()
+
+	k8sClient = k8sManager.GetClient()
+
+	testNamespace, err = mainSetupNamespace(ctx)
+	if err != nil {
+		return err
+	}
+	return setup()
+}
+
+func mainTeardown() error {
+	return testEnv.Stop()
+}
+
+func mainSetupNamespace(ctx context.Context) (string, error) {
+	ns := v1.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: testNameStem}}
+	err := k8sClient.Create(ctx, &ns)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return "", err
+	}
+	return ns.Name, nil
+}
