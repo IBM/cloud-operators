@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	// +kubebuilder:scaffold:imports
@@ -69,7 +70,8 @@ func run(m *testing.M) int {
 }
 
 func mainSetup(ctx context.Context) error {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := runtimeZap.New(runtimeZap.UseDevMode(true), runtimeZap.RawZapOpts(zap.AddCaller()))
+	ctrl.SetLogger(logger)
 
 	testNameStem = "ibmcloud-test-"
 	testEnv = &envtest.Environment{

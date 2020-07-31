@@ -27,8 +27,8 @@ var (
 )
 
 const (
-	defaultWait = 10 * time.Second
-	defaultTick = defaultWait / 3
+	defaultWait = 30 * time.Second
+	defaultTick = defaultWait / 5
 )
 
 func setup() error {
