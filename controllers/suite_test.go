@@ -21,10 +21,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,8 +72,32 @@ func run(m *testing.M) int {
 	return m.Run()
 }
 
+func zapEncoderConfig() zapcore.EncoderConfig {
+	encCfg := zap.NewDevelopmentEncoderConfig()
+	// hide most of logger name, since zap.AddCaller includes line numbers
+	encCfg.EncodeName = func(loggerName string, enc zapcore.PrimitiveArrayEncoder) {
+		lastWordIx := strings.LastIndexAny(loggerName, ".-/")
+		if lastWordIx != -1 {
+			loggerName = loggerName[lastWordIx+1:]
+		}
+		enc.AppendString(loggerName)
+	}
+	encCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	encCfg.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendString(t.Format("Jan 2 15:04:05.000"))
+	}
+	return encCfg
+}
+
 func mainSetup(ctx context.Context) error {
-	logger := runtimeZap.New(runtimeZap.UseDevMode(true), runtimeZap.RawZapOpts(zap.AddCaller()))
+	logEncoder := zapcore.NewConsoleEncoder(zapEncoderConfig())
+
+	logger := runtimeZap.New(
+		runtimeZap.UseDevMode(true),
+		runtimeZap.Encoder(logEncoder),
+		runtimeZap.RawZapOpts(zap.AddCaller()),
+	)
+
 	ctrl.SetLogger(logger)
 
 	testNameStem = "ibmcloud-test-"
@@ -110,16 +137,14 @@ func mainSetup(ctx context.Context) error {
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up service controller")
 	}
-	/*
-		if err = (&TokenReconciler{
-			Client:     k8sManager.GetClient(),
-			Log:        ctrl.Log.WithName("controllers").WithName("Token"),
-			Scheme:     k8sManager.GetScheme(),
-			HTTPClient: http.DefaultClient,
-		}).SetupWithManager(k8sManager); err != nil {
-			return errors.Wrap(err, "Failed to set up token controller")
-		}
-	*/
+	if err = (&TokenReconciler{
+		Client: k8sManager.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme: k8sManager.GetScheme(),
+		//HTTPClient: http.DefaultClient, // TODO swap this out for a mock client
+	}).SetupWithManager(k8sManager); err != nil {
+		return errors.Wrap(err, "Failed to set up token controller")
+	}
 
 	go func() {
 		err = k8sManager.Start(ctx.Done())
