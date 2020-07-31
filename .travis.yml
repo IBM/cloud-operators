@@ -12,3 +12,6 @@ jobs:
       script: make lint
     - name: Test
       script: make test
+
+notifications:
+  email: false
