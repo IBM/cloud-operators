@@ -119,7 +119,7 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	}
 
 	err = r.Delete(ctx, tokens)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		return ctrl.Result{}, err
 	}
 
