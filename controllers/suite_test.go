@@ -51,6 +51,10 @@ var (
 	testNamespace string
 )
 
+const (
+	startupWait = 5 * time.Second
+)
+
 func TestMain(m *testing.M) {
 	exitCode := run(m)
 	os.Exit(exitCode)
@@ -159,7 +163,12 @@ func mainSetup(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return setup()
+	err = setup()
+	if err != nil {
+		return err
+	}
+	time.Sleep(startupWait)
+	return nil
 }
 
 func mainTeardown() error {

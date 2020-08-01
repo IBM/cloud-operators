@@ -74,3 +74,7 @@ type BindingList struct {
 func init() {
 	SchemeBuilder.Register(&Binding{}, &BindingList{})
 }
+
+func (b *Binding) GetState() string {
+	return b.Status.State
+}

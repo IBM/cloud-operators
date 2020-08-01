@@ -124,7 +124,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		instance.Status.Message = "Processing Resource"
 		//setStatusFieldsFromSpec(instance, ibmCloudInfo)
 		if err := r.Status().Update(ctx, instance); err != nil {
-			logt.Info(err.Error())
+			logt.Info("Failed setting status for the first time", "error", err.Error())
 			return ctrl.Result{}, err
 		}
 	}
@@ -441,8 +441,9 @@ func deleteServiceFinalizer(instance *ibmcloudv1beta1.Service) []string {
 }
 
 func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1beta1.Service, state string, err error) (ctrl.Result, error) {
+	logt := r.Log.WithValues("namespacedname", instance.Namespace+"/"+instance.Name)
 	message := err.Error()
-	r.Log.Info(message)
+	logt.Info("Updating status with error", "error", message)
 	if strings.Contains(message, "no such host") {
 		// This means that the IBM Cloud server is under too much pressure, we need to backup
 		return ctrl.Result{Requeue: true, RequeueAfter: time.Minute * 5}, nil
@@ -452,7 +453,7 @@ func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1beta1.Service,
 		instance.Status.State = state
 		instance.Status.Message = message
 		if err := r.Status().Update(context.Background(), instance); err != nil {
-			r.Log.Info("Error updating status", state, err.Error())
+			logt.Info("Error updating status", state, err.Error())
 			return ctrl.Result{}, err
 		}
 		//return ctrl.Result{}, nil

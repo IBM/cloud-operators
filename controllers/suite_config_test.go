@@ -27,7 +27,7 @@ var (
 )
 
 const (
-	defaultWait = 30 * time.Second
+	defaultWait = 15 * time.Second
 	defaultTick = defaultWait / 5
 )
 

@@ -119,3 +119,7 @@ type ResourceContext struct {
 	// +optional
 	User string `json:"user,omitempty"`
 }
+
+func (s *Service) GetState() string {
+	return s.Status.State
+}

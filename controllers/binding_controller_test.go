@@ -11,9 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func mustLoadObject(t *testing.T, file string, obj runtime.Object) {
@@ -40,28 +38,16 @@ func TestServiceBinding(t *testing.T) {
 
 		err := k8sClient.Create(ctx, &service)
 		require.NoError(t, err)
-		t.Log("Service name & namespace", service.Name, service.Namespace)
 
 		// make sure service is online
-		var state string
-		require.Eventually(t, func() bool {
-			var fetched ibmcloudv1beta1.Service
-			err := getObject(ctx, service.ObjectMeta, &fetched)
-			t.Logf("Checking state: %v %#v", err, fetched.Status)
-			return err == nil && fetched.Status.State != ""
-		}, defaultWait, defaultTick)
-		assert.Equal(t, bindingStateOnline, state)
+		require.Eventually(t, verifyStatus(ctx, service.ObjectMeta, new(ibmcloudv1beta1.Service), serviceStateOnline), defaultWait, defaultTick)
 
 		// now test creation of binding
 		err = k8sClient.Create(ctx, &binding)
 		require.NoError(t, err)
 
 		// check binding is online
-		require.Eventually(t, func() bool {
-			var fetched ibmcloudv1beta1.Binding
-			err := getObject(ctx, binding.ObjectMeta, &fetched)
-			return err == nil && fetched.Status.State == bindingStateOnline
-		}, defaultWait, defaultTick)
+		require.Eventually(t, verifyStatus(ctx, binding.ObjectMeta, new(ibmcloudv1beta1.Binding), bindingStateOnline), defaultWait, defaultTick)
 
 		// check secret is created
 		err = getObject(ctx, binding.ObjectMeta, &corev1.Secret{})
@@ -91,11 +77,4 @@ func TestServiceBinding(t *testing.T) {
 			return errors.IsNotFound(err)
 		}, defaultWait, defaultTick)
 	})
-}
-
-func getObject(ctx context.Context, meta metav1.ObjectMeta, v runtime.Object) error {
-	return k8sClient.Get(ctx, types.NamespacedName{
-		Name:      meta.Name,
-		Namespace: meta.Namespace,
-	}, v)
 }

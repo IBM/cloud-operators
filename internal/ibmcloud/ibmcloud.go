@@ -63,7 +63,6 @@ type Info struct {
 
 // GetInfo initializes sessions and sets up a struct to faciliate making calls to bx
 func GetInfo(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*Info, error) {
-	// Get Bx Config
 	bxConfig, err := getBxConfig(logt, r, instance)
 	if err != nil {
 		return nil, err
