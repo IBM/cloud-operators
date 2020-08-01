@@ -31,11 +31,9 @@ func TestServiceBinding(t *testing.T) {
 	var service ibmcloudv1beta1.Service
 	mustLoadObject(t, servicefile, &service)
 	service.Namespace = testNamespace
-	service.GenerateName = testNameStem
 	var binding ibmcloudv1beta1.Binding
 	mustLoadObject(t, bindingfile, &binding)
 	binding.Namespace = testNamespace
-	service.GenerateName = testNameStem
 
 	ready := t.Run("should be ready", func(t *testing.T) {
 		ctx := context.TODO()
