@@ -13,6 +13,8 @@ spec:
     plural: services
     singular: service
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Service is the Schema for the services API

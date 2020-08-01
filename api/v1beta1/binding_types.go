@@ -51,6 +51,7 @@ type BindingStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // Binding is the Schema for the bindings API
 type Binding struct {

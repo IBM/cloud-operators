@@ -61,6 +61,7 @@ type ServiceStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // Service is the Schema for the services API
 type Service struct {

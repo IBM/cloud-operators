@@ -13,6 +13,8 @@ spec:
     plural: bindings
     singular: binding
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Binding is the Schema for the bindings API
