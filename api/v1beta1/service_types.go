@@ -123,3 +123,7 @@ type ResourceContext struct {
 func (s *Service) GetState() string {
 	return s.Status.State
 }
+
+func (s *Service) GetMessage() string {
+	return s.Status.Message
+}

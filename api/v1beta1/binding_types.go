@@ -78,3 +78,7 @@ func init() {
 func (b *Binding) GetState() string {
 	return b.Status.State
 }
+
+func (b *Binding) GetMessage() string {
+	return b.Status.Message
+}

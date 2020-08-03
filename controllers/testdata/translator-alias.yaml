@@ -1,7 +1,9 @@
 apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Service
 metadata:
-  name: test-translator-1
+  name: mytranslator
+  namespace: default
 spec:
-  plan: standard
+  plan: Alias
   serviceClass: language-translator
+  externalName: test-translator-1

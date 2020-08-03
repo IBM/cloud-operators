@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,14 +21,31 @@ type statuser interface {
 	GetState() string
 }
 
+type messager interface {
+	statuser
+	GetMessage() string
+}
+
 func getStatus(ctx context.Context, meta metav1.ObjectMeta, v statuser) (string, error) {
 	err := getObject(ctx, meta, v)
 	return v.GetState(), err
 }
 
-func verifyStatus(ctx context.Context, meta metav1.ObjectMeta, v statuser, expectedStatus string) func() bool {
+func verifyStatus(ctx context.Context, t *testing.T, meta metav1.ObjectMeta, v statuser, expectedStatus string) func() bool {
 	return func() bool {
+		t.Helper()
 		status, err := getStatus(ctx, meta, v)
-		return err == nil && status == expectedStatus
+		if err != nil {
+			t.Logf("%s: Failed to fetch status: %v", meta.GetName(), err)
+			return false
+		}
+		message := ""
+		if msgr, ok := v.(messager); ok {
+			message = msgr.GetMessage()
+		}
+		if status != expectedStatus {
+			t.Logf("%s: Expected status %q but got: %q %s", meta.GetName(), expectedStatus, status, message)
+		}
+		return status == expectedStatus
 	}
 }

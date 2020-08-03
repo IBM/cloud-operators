@@ -22,6 +22,11 @@ endif
 .PHONY: all
 all: manager
 
+# Prints exported env vars for use in ad hoc scripts, like 'go test ./... -run TestMyTest'
+.PHONY: env
+env:
+	@env | grep KUBEBUILDER
+
 cache:
 	mkdir -p cache
 

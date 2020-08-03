@@ -1,7 +1,9 @@
 apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Service
 metadata:
-  name: test-translator-1
+  name: mycos
 spec:
   plan: standard
-  serviceClass: language-translator
+  serviceClass: cloud-object-storage
+  context:
+    region: global

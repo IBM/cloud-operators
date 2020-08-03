@@ -6,6 +6,7 @@ require (
 	github.com/IBM-Cloud/bluemix-go v0.0.0-20200716122208-488c9de67b8c
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
+	github.com/go-logr/zapr v0.1.0
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
 	github.com/pkg/errors v0.8.1

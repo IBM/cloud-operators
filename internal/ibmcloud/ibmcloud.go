@@ -341,7 +341,7 @@ func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace stri
 	}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: instanceNamespace}, obj)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if IsNotFound(err) {
 			err = r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: defaultNamespace}, obj)
 			if err != nil {
 				logt.Info("Unable to find secret or config in namespace", objName, defaultNamespace)
