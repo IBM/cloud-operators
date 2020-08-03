@@ -146,6 +146,7 @@ func mainSetup(ctx context.Context) error {
 		Log:    ctrl.Log.WithName("controllers").WithName("Token"),
 		Scheme: k8sManager.GetScheme(),
 		//HTTPClient: http.DefaultClient, // TODO swap this out for a mock client
+		HTTPClient: mockTokenHTTPClient(),
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up token controller")
 	}

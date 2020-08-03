@@ -28,7 +28,7 @@ func mustLoadObject(t *testing.T, file string, obj runtime.Object, meta *metav1.
 	meta.Namespace = testNamespace
 }
 
-func TestServiceBinding(t *testing.T) {
+func TestBinding(t *testing.T) {
 	const (
 		servicefile = "testdata/translator-2.yaml"
 		bindingfile = "testdata/translator-binding.yaml"
