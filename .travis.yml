@@ -16,7 +16,7 @@ jobs:
       script: make test-e2e
     - name: Release
       stage: release
-      script: make release
+      script: make -e RELEASE_VERSION="${TRAVIS_TAG/v}" release
       if: tag =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
       deploy:
         - provider: releases

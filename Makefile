@@ -7,6 +7,8 @@ CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-
 LINT_VERSION = 1.28.3
 KUSTOMIZE = ${PWD}/cache/kustomize
 
+# Version to create release. Value is set in .travis.yml's release job
+RELEASE_VERSION = 0.0.0
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
