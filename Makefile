@@ -60,6 +60,10 @@ cache/kustomize: cache
 test: generate lint-fix manifests kubebuilder
 	go test ./... -coverprofile cover.out
 
+.PHONY: test-e2e
+test-e2e:
+	exit 1  # not implemented
+
 # Build manager binary
 .PHONY: manager
 manager: generate lint-fix
@@ -132,3 +136,7 @@ cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
 		go mod init tmp ;\
 		GOBIN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION} go get sigs.k8s.io/controller-tools/cmd/controller-gen@v${CONTROLLER_GEN_VERSION} ;\
 	fi
+
+.PHONY: release
+release:
+	exit 1  # not implemented

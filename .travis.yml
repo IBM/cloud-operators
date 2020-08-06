@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - "1.13.x"
+  - "1.14.x"
 
 services:
   - docker
@@ -12,6 +12,21 @@ jobs:
       script: make lint
     - name: Test
       script: make test
+    - name: Test End-to-end
+      script: make test-e2e
+    - name: Release
+      stage: release
+      script: make release
+      if: tag =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      deploy:
+        - provider: releases
+          api_key: "TODO"
+          file: out/*
+          file_glob: true
+          skip_cleanup: true
+          overwrite: true
+          on:
+            all_branches: true # earlier 'if:' limits this
 
 notifications:
   email: false
