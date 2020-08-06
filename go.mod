@@ -1,6 +1,6 @@
 module github.com/ibm/cloud-operators
 
-go 1.13
+go 1.14
 
 require (
 	github.com/IBM-Cloud/bluemix-go v0.0.0-20200716122208-488c9de67b8c

@@ -14,12 +14,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var (
+	// setTokenHTTPClient sets the test's token reconciler's HTTP client, then restores it when the test ends
+	setTokenHTTPClient func(testing.TB, *http.Client)
+)
+
 func TestToken(t *testing.T) {
 	// Create the secret object and expect the Reconcile
 	const (
 		secretName   = "dummyapikey"
 		secretAPIKey = "VExS246avaUT6MXZ56SH_I-AeWo_-JmW0u79Jd8LiBH" // nolint:gosec // Fake API key
 	)
+
+	setTokenHTTPClient(t, mockTokenHTTPClient())
+
 	instance := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,

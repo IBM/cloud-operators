@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,13 +142,20 @@ func mainSetup(ctx context.Context) error {
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up service controller")
 	}
-	if err = (&TokenReconciler{
-		Client: k8sManager.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme: k8sManager.GetScheme(),
-		//HTTPClient: http.DefaultClient, // TODO swap this out for a mock client
-		HTTPClient: mockTokenHTTPClient(),
-	}).SetupWithManager(k8sManager); err != nil {
+	tokenReconciler := &TokenReconciler{
+		Client:     k8sManager.GetClient(),
+		Log:        ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme:     k8sManager.GetScheme(),
+		HTTPClient: http.DefaultClient,
+	}
+	setTokenHTTPClient = func(tb testing.TB, c *http.Client) {
+		oldClient := tokenReconciler.HTTPClient
+		tb.Cleanup(func() {
+			tokenReconciler.HTTPClient = oldClient
+		})
+		tokenReconciler.HTTPClient = c
+	}
+	if err = tokenReconciler.SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up token controller")
 	}
 
