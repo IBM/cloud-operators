@@ -112,11 +112,11 @@ lint-deps:
 
 .PHONY: lint
 lint: lint-deps
-	golangci-lint run
+	golangci-lint run --timeout 2m
 
 .PHONY: lint-fix
 lint-fix: lint-deps
-	golangci-lint run --fix
+	golangci-lint run --fix --timeout 2m
 
 .PHONY: generate
 generate: controller-gen
