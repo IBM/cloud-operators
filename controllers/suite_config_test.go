@@ -2,28 +2,30 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
-	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/IBM-Cloud/bluemix-go"
+	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev2/managementv2"
+	"github.com/IBM-Cloud/bluemix-go/authentication"
+	"github.com/IBM-Cloud/bluemix-go/endpoints"
+	"github.com/IBM-Cloud/bluemix-go/models"
+	"github.com/IBM-Cloud/bluemix-go/rest"
+	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	org             = ""
-	space           = ""
-	region          = ""
-	resourceGroup   = ""
+	org             = os.Getenv("BLUEMIX_ORG")
+	space           = os.Getenv("BLUEMIX_SPACE")
+	region          = os.Getenv("BLUEMIX_REGION")
+	resourceGroup   = os.Getenv("BLUEMIX_RESOURCE_GROUP")
 	resourceGroupID = ""
-	apikey          = os.Getenv("BLUEMIX_API_KEY")
-	//auth            = os.Getenv("OW_AUTH")
-	//apihost         = os.Getenv("OW_APIHOST")
+	apiKey          = os.Getenv("BLUEMIX_API_KEY")
 	uaaAccessToken  = ""
 	uaaRefreshToken = ""
-	//ts              = time.Now().Unix()
 )
 
 const (
@@ -64,7 +66,7 @@ func setupConfigs() error {
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			"api-key": []byte(apikey),
+			"api-key": []byte(apiKey),
 		},
 	})
 	if err != nil {
@@ -85,29 +87,52 @@ func setupConfigs() error {
 
 func setupAuth() error {
 	// TODO remove globals, use config object instead
-	if apikey == "" {
+	if apiKey == "" {
 		return errors.New("set BLUEMIX_API_KEY to run tests")
 	}
 
-	home, err := os.UserHomeDir()
+	if region == "" {
+		return errors.New("set BLUEMIX_REGION to run tests")
+	}
+
+	sess, err := session.New(&bluemix.Config{
+		EndpointLocator: endpoints.NewEndpointLocator(region),
+		Region:          region,
+		BluemixAPIKey:   apiKey,
+	})
+	if err != nil {
+		return err
+	}
+	resourceGroupID, resourceGroup, err = getResourceGroup(sess, resourceGroup)
+	if err != nil {
+		return err
+	}
+	uaaAccessToken, uaaRefreshToken, err = getAuthTokens(sess)
 	if err != nil {
 		return err
 	}
 
-	bxConfig, err := ioutil.ReadFile(home + "/.bluemix/config.json")
-	if err == nil {
-		err := setupBluemixAuth(bxConfig)
+	/*
+		home, err := os.UserHomeDir()
 		if err != nil {
 			return err
 		}
-	}
-	cfConfig, err := ioutil.ReadFile(home + "/.bluemix/.cf/config.json")
-	if err == nil {
-		err := setupCFAuth(cfConfig)
-		if err != nil {
-			return err
+
+		bxConfig, err := ioutil.ReadFile(home + "/.bluemix/config.json")
+		if err == nil {
+			err := setupBluemixAuth(bxConfig)
+			if err != nil {
+				return err
+			}
 		}
-	}
+		cfConfig, err := ioutil.ReadFile(home + "/.bluemix/.cf/config.json")
+		if err == nil {
+			err := setupCFAuth(cfConfig)
+			if err != nil {
+				return err
+			}
+		}
+	*/
 
 	for name, s := range map[string]string{
 		"org":             org,
@@ -124,6 +149,7 @@ func setupAuth() error {
 	return nil
 }
 
+/*
 func setupBluemixAuth(configBytes []byte) error {
 	// TODO unmarshal into struct
 	var config map[string]interface{}
@@ -164,4 +190,44 @@ func setupCFAuth(configBytes []byte) error {
 		uaaRefreshToken = refreshToken.(string)
 	}
 	return nil
+}
+*/
+
+func getResourceGroup(sess *session.Session, resourceGroupName string) (id, name string, err error) {
+	management, err := managementv2.New(sess)
+	if err != nil {
+		return "", "", err
+	}
+	var groups []models.ResourceGroupv2
+	if resourceGroupName == "" {
+		groups, err = management.ResourceGroup().List(&managementv2.ResourceGroupQuery{
+			Default: true,
+		})
+	} else {
+		groups, err = management.ResourceGroup().FindByName(&managementv2.ResourceGroupQuery{}, resourceGroupName)
+	}
+	if err != nil {
+		return "", "", err
+	}
+	if len(groups) != 1 {
+		return "", "", errors.Errorf("failed to look up resource group ID: Expected 1 resource group by name %q, found %d: %v", resourceGroupName, len(groups), groups)
+	}
+	group := groups[0]
+	return group.ID, group.Name, nil
+}
+
+func getAuthTokens(sess *session.Session) (uaaAccessToken, uaaRefreshToken string, err error) {
+	config := sess.Config.Copy()
+	tokenRefreher, err := authentication.NewUAARepository(config, &rest.Client{HTTPClient: config.HTTPClient})
+	if err != nil {
+		return "", "", err
+	}
+	err = authentication.PopulateTokens(tokenRefreher, config)
+	if err != nil {
+		return "", "", err
+	}
+	if config.UAAAccessToken == "" || config.UAARefreshToken == "" {
+		return "", "", errors.New("Fetching UAA tokens failed")
+	}
+	return config.UAAAccessToken, config.UAARefreshToken, nil
 }

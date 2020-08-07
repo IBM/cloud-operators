@@ -443,7 +443,7 @@ func deleteServiceFinalizer(instance *ibmcloudv1beta1.Service) []string {
 func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1beta1.Service, state string, err error) (ctrl.Result, error) {
 	logt := r.Log.WithValues("namespacedname", instance.Namespace+"/"+instance.Name)
 	message := err.Error()
-	logt.Info("Updating status with error", "error", message)
+	logt.Error(err, "Updating status with error")
 	if strings.Contains(message, "no such host") {
 		// This means that the IBM Cloud server is under too much pressure, we need to backup
 		return ctrl.Result{Requeue: true, RequeueAfter: time.Minute * 5}, nil

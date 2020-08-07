@@ -7,10 +7,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.0
-	github.com/onsi/ginkgo v1.11.0
-	github.com/onsi/gomega v1.8.1
 	github.com/pkg/errors v0.8.1
-	github.com/softlayer/softlayer-go v1.0.1 // indirect
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/zap v1.10.0
 	gopkg.in/yaml.v2 v2.2.4
