@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/IBM-Cloud/bluemix-go"
@@ -12,21 +11,30 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/rest"
 	"github.com/IBM-Cloud/bluemix-go/session"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	org             = os.Getenv("BLUEMIX_ORG")
-	space           = os.Getenv("BLUEMIX_SPACE")
-	region          = os.Getenv("BLUEMIX_REGION")
-	resourceGroup   = os.Getenv("BLUEMIX_RESOURCE_GROUP")
-	resourceGroupID = ""
-	apiKey          = os.Getenv("BLUEMIX_API_KEY")
-	uaaAccessToken  = ""
-	uaaRefreshToken = ""
+	testCfg testConfig
 )
+
+type testConfig struct {
+	APIKey            string `envconfig:"BLUEMIX_API_KEY"`
+	Org               string `envconfig:"bluemix_org"`
+	Region            string `envconfig:"bluemix_region"`
+	ResourceGroupID   string
+	ResourceGroupName string `envconfig:"bluemix_resource_group"`
+	Space             string `envconfig:"bluemix_space"`
+	UAAAccessToken    string
+	UAARefreshToken   string
+}
+
+func init() {
+	envconfig.MustProcess("", &testCfg)
+}
 
 const (
 	defaultWait = 15 * time.Second
@@ -49,11 +57,11 @@ func setupConfigs() error {
 			Namespace: testNamespace,
 		},
 		Data: map[string]string{
-			"org":             org,
-			"space":           space,
-			"region":          region,
-			"resourcegroup":   resourceGroup,
-			"resourcegroupid": resourceGroupID,
+			"org":             testCfg.Org,
+			"space":           testCfg.Space,
+			"region":          testCfg.Region,
+			"resourcegroup":   testCfg.ResourceGroupName,
+			"resourcegroupid": testCfg.ResourceGroupID,
 		},
 	})
 	if err != nil {
@@ -66,7 +74,7 @@ func setupConfigs() error {
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			"api-key": []byte(apiKey),
+			"api-key": []byte(testCfg.APIKey),
 		},
 	})
 	if err != nil {
@@ -79,35 +87,35 @@ func setupConfigs() error {
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			"uaa_token":         []byte(uaaAccessToken),
-			"uaa_refresh_token": []byte(uaaRefreshToken),
+			"uaa_token":         []byte(testCfg.UAAAccessToken),
+			"uaa_refresh_token": []byte(testCfg.UAARefreshToken),
 		},
 	})
 }
 
 func setupAuth() error {
 	// TODO remove globals, use config object instead
-	if apiKey == "" {
+	if testCfg.APIKey == "" {
 		return errors.New("set BLUEMIX_API_KEY to run tests")
 	}
 
-	if region == "" {
+	if testCfg.Region == "" {
 		return errors.New("set BLUEMIX_REGION to run tests")
 	}
 
 	sess, err := session.New(&bluemix.Config{
-		EndpointLocator: endpoints.NewEndpointLocator(region),
-		Region:          region,
-		BluemixAPIKey:   apiKey,
+		EndpointLocator: endpoints.NewEndpointLocator(testCfg.Region),
+		Region:          testCfg.Region,
+		BluemixAPIKey:   testCfg.APIKey,
 	})
 	if err != nil {
 		return err
 	}
-	resourceGroupID, resourceGroup, err = getResourceGroup(sess, resourceGroup)
+	testCfg.ResourceGroupID, testCfg.ResourceGroupName, err = getResourceGroup(sess, testCfg.ResourceGroupName)
 	if err != nil {
 		return err
 	}
-	uaaAccessToken, uaaRefreshToken, err = getAuthTokens(sess)
+	testCfg.UAAAccessToken, testCfg.UAARefreshToken, err = getAuthTokens(sess)
 	if err != nil {
 		return err
 	}
@@ -135,12 +143,12 @@ func setupAuth() error {
 	*/
 
 	for name, s := range map[string]string{
-		"org":             org,
-		"space":           space,
-		"region":          region,
-		"uaaAccessToken":  uaaAccessToken,
-		"uaaRefreshToken": uaaRefreshToken,
-		"resourceGroupID": resourceGroupID,
+		"org":             testCfg.Org,
+		"space":           testCfg.Space,
+		"region":          testCfg.Region,
+		"uaaAccessToken":  testCfg.UAAAccessToken,
+		"uaaRefreshToken": testCfg.UAARefreshToken,
+		"resourceGroupID": testCfg.ResourceGroupID,
 	} {
 		if s == "" {
 			return errors.Errorf("Current ibmcloud target does not have a value for %q", name)
