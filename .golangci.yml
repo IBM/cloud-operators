@@ -1,3 +1,7 @@
+run:
+  # Extend default timeout for running in single-core CI
+  timeout: 2m
+
 linters:
   enable:
     # Default linters plus these:

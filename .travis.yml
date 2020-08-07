@@ -9,7 +9,7 @@ services:
 jobs:
   include:
     - name: Lint
-      script: cat /proc/cpuinfo; make lint
+      script: make lint
     - name: Test
       script: make test
     - name: Test End-to-end
