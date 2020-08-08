@@ -2,6 +2,11 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/IBM-Cloud/bluemix-go"
@@ -22,7 +27,7 @@ var (
 )
 
 type testConfig struct {
-	APIKey            string `envconfig:"BLUEMIX_API_KEY"`
+	APIKey            string `envconfig:"bluemix_api_key"`
 	Org               string `envconfig:"bluemix_org"`
 	Region            string `envconfig:"bluemix_region"`
 	ResourceGroupID   string
@@ -33,12 +38,44 @@ type testConfig struct {
 }
 
 func init() {
-	envconfig.MustProcess("", &testCfg)
+	bxConfig, ok, err := readBluemixConfig()
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		testCfg.Region = bxConfig.Region
+		testCfg.ResourceGroupID = bxConfig.ResourceGroup.GUID
+		testCfg.ResourceGroupName = bxConfig.ResourceGroup.Name
+	}
+
+	cfConfig, ok, err := readCFConfig()
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		testCfg.Org = cfConfig.OrganizationFields.Name
+		testCfg.Space = cfConfig.SpaceFields.Name
+		testCfg.UAAAccessToken = cfConfig.AccessToken
+		testCfg.UAARefreshToken = cfConfig.RefreshToken
+	}
+
+	envconfig.MustProcess("", &testCfg) // must be last: envconfig overrides bx config
+
+	for name, s := range map[string]string{
+		"API key": testCfg.APIKey,
+		"Org":     testCfg.Org,
+		"Region":  testCfg.Region,
+		"Space":   testCfg.Space,
+	} {
+		if s == "" {
+			panic(fmt.Sprintf("Test config missing value for %q.\n\nTry setting the ibmcloud CLI target or using the environment variable.", name))
+		}
+	}
 }
 
 const (
-	defaultWait = 15 * time.Second
-	defaultTick = defaultWait / 5
+	defaultWait = 60 * time.Second
+	defaultTick = 5 * time.Second
 )
 
 func setup() error {
@@ -94,14 +131,7 @@ func setupConfigs() error {
 }
 
 func setupAuth() error {
-	// TODO remove globals, use config object instead
-	if testCfg.APIKey == "" {
-		return errors.New("set BLUEMIX_API_KEY to run tests")
-	}
-
-	if testCfg.Region == "" {
-		return errors.New("set BLUEMIX_REGION to run tests")
-	}
+	// see init() for variables with hard requirements (i.e. don't need to be checked here)
 
 	sess, err := session.New(&bluemix.Config{
 		EndpointLocator: endpoints.NewEndpointLocator(testCfg.Region),
@@ -111,95 +141,87 @@ func setupAuth() error {
 	if err != nil {
 		return err
 	}
-	testCfg.ResourceGroupID, testCfg.ResourceGroupName, err = getResourceGroup(sess, testCfg.ResourceGroupName)
-	if err != nil {
-		return err
-	}
-	testCfg.UAAAccessToken, testCfg.UAARefreshToken, err = getAuthTokens(sess)
-	if err != nil {
-		return err
-	}
-
-	/*
-		home, err := os.UserHomeDir()
+	if testCfg.ResourceGroupID == "" {
+		testCfg.ResourceGroupID, testCfg.ResourceGroupName, err = getResourceGroup(sess, testCfg.ResourceGroupName)
 		if err != nil {
 			return err
 		}
-
-		bxConfig, err := ioutil.ReadFile(home + "/.bluemix/config.json")
-		if err == nil {
-			err := setupBluemixAuth(bxConfig)
-			if err != nil {
-				return err
-			}
-		}
-		cfConfig, err := ioutil.ReadFile(home + "/.bluemix/.cf/config.json")
-		if err == nil {
-			err := setupCFAuth(cfConfig)
-			if err != nil {
-				return err
-			}
-		}
-	*/
-
-	for name, s := range map[string]string{
-		"org":             testCfg.Org,
-		"space":           testCfg.Space,
-		"region":          testCfg.Region,
-		"uaaAccessToken":  testCfg.UAAAccessToken,
-		"uaaRefreshToken": testCfg.UAARefreshToken,
-		"resourceGroupID": testCfg.ResourceGroupID,
-	} {
-		if s == "" {
-			return errors.Errorf("Current ibmcloud target does not have a value for %q", name)
+	}
+	if testCfg.UAAAccessToken == "" || testCfg.UAARefreshToken == "" {
+		testCfg.UAAAccessToken, testCfg.UAARefreshToken, err = getAuthTokens(sess)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-/*
-func setupBluemixAuth(configBytes []byte) error {
-	// TODO unmarshal into struct
-	var config map[string]interface{}
-	err := json.Unmarshal(configBytes, &config)
+type bluemixConfig struct {
+	Region        string
+	ResourceGroup struct {
+		Name string
+		GUID string
+	}
+}
+
+func getBluemixHome() (string, error) {
+	home := os.Getenv("IBMCLOUD_HOME")
+	if home != "" {
+		return home, nil
+	}
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		return "", err
 	}
-
-	region = config["Region"].(string)
-	if rgfields, ok := config["ResourceGroup"]; ok {
-		resourceGroup = rgfields.(map[string]interface{})["Name"].(string)
-		resourceGroupID = rgfields.(map[string]interface{})["GUID"].(string)
-	}
-	return nil
+	return filepath.Join(home, ".bluemix"), nil
 }
 
-func setupCFAuth(configBytes []byte) error {
-	// TODO unmarshal into struct
-	var config map[string]interface{}
-	err := json.Unmarshal(configBytes, &config)
+// readBluemixConfig attempts to read the ibmcloud CLI config file
+// If file does not exist, then 'ok' is set to false and 'err' is nil.
+func readBluemixConfig() (config bluemixConfig, ok bool, err error) {
+	bxHome, err := getBluemixHome()
 	if err != nil {
-		return err
+		return config, false, err
 	}
-
-	if orgfields, ok := config["OrganizationFields"]; ok {
-		org = orgfields.(map[string]interface{})["Name"].(string)
+	buf, err := ioutil.ReadFile(filepath.Join(bxHome, "config.json"))
+	if os.IsNotExist(err) {
+		return config, false, nil
 	}
-
-	if spacefields, ok := config["SpaceFields"]; ok {
-		space = spacefields.(map[string]interface{})["Name"].(string)
+	if err != nil {
+		return config, false, err
 	}
-
-	if accessToken, ok := config["AccessToken"]; ok {
-		uaaAccessToken = accessToken.(string)
-	}
-
-	if refreshToken, ok := config["RefreshToken"]; ok {
-		uaaRefreshToken = refreshToken.(string)
-	}
-	return nil
+	err = json.Unmarshal(buf, &config)
+	return config, err == nil, err
 }
-*/
+
+type cfConfig struct {
+	OrganizationFields struct {
+		Name string
+	}
+	SpaceFields struct {
+		Name string
+	}
+	AccessToken  string
+	RefreshToken string
+}
+
+// readCFConfig attempts to read the CF CLI config file
+// If file does not exist, then 'ok' is set to false and 'err' is nil.
+func readCFConfig() (config cfConfig, ok bool, err error) {
+	bxHome, err := getBluemixHome()
+	if err != nil {
+		return config, false, err
+	}
+	buf, err := ioutil.ReadFile(filepath.Join(bxHome, ".cf", "config.json"))
+	if os.IsNotExist(err) {
+		return config, false, nil
+	}
+	if err != nil {
+		return config, false, err
+	}
+	err = json.Unmarshal(buf, &config)
+	return config, err == nil, err
+}
 
 func getResourceGroup(sess *session.Session, resourceGroupName string) (id, name string, err error) {
 	management, err := managementv2.New(sess)
