@@ -28,6 +28,7 @@ var (
 
 type testConfig struct {
 	APIKey            string `envconfig:"bluemix_api_key"`
+	AccountID         string `envconfig:"bluemix_account_id"`
 	Org               string `envconfig:"bluemix_org"`
 	Region            string `envconfig:"bluemix_region"`
 	ResourceGroupID   string
@@ -142,9 +143,9 @@ func setupAuth() error {
 		return errors.Wrap(err, "Failed to open IBM Cloud session")
 	}
 	if testCfg.ResourceGroupID == "" {
-		testCfg.ResourceGroupID, testCfg.ResourceGroupName, err = getResourceGroup(sess, testCfg.ResourceGroupName)
+		testCfg.ResourceGroupID, testCfg.ResourceGroupName, err = getResourceGroup(sess, testCfg.AccountID, testCfg.ResourceGroupName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to resolve resource group name")
+			return errors.Wrap(err, "Failed to resolve resource group name. Did you set account ID too?")
 		}
 	}
 	if testCfg.UAAAccessToken == "" || testCfg.UAARefreshToken == "" {
@@ -224,7 +225,7 @@ func readCFConfig() (config cfConfig, ok bool, err error) {
 	return config, err == nil, err
 }
 
-func getResourceGroup(sess *session.Session, resourceGroupName string) (id, name string, err error) {
+func getResourceGroup(sess *session.Session, accountID, resourceGroupName string) (id, name string, err error) {
 	management, err := managementv2.New(sess)
 	if err != nil {
 		return "", "", err
@@ -235,7 +236,10 @@ func getResourceGroup(sess *session.Session, resourceGroupName string) (id, name
 			Default: true,
 		})
 	} else {
-		groups, err = management.ResourceGroup().FindByName(&managementv2.ResourceGroupQuery{}, resourceGroupName)
+		groups, err = management.ResourceGroup().FindByName(
+			&managementv2.ResourceGroupQuery{AccountID: accountID},
+			resourceGroupName,
+		)
 	}
 	if err != nil {
 		return "", "", err
