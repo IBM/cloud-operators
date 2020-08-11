@@ -1,0 +1,11 @@
+apiVersion: ibmcloud.ibm.com/v1beta1
+kind: Service
+metadata:
+  name: mytranslator-alias1
+  namespace: default
+  annotations:
+    ibmcloud.ibm.com/instanceId: "crn:v1:bluemix:public:language-translator:us-south:a/bf384e9f77ea0cd3b2268cbc7a5edba1:f06d26e1-7108-4fd3-a65f-c0f89b5ec7a4::"
+spec:
+  plan: Alias
+  serviceClass: language-translator
+  externalName: mytranslator

@@ -1,0 +1,8 @@
+apiVersion: ibmcloud.ibm.com/v1beta1
+kind: Service
+metadata:
+  name: mydelivery
+spec:
+  plan: lite
+  serviceClass: continuous-delivery
+
