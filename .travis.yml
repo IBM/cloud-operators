@@ -23,7 +23,8 @@ jobs:
       if: tag =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
       deploy:
         - provider: releases
-          api_key: "TODO"
+          api_key:
+            secure: 3QC4hGEHv2usLvRcnZiNVdM6lZPpcj+GAh2UUjO+0FUtuwJ7QkyoI4C6ZId5a/Xniz1UV8tZxd3YnlJR2UTb3GjgJT8uzm3BA8hhl9cl16rKB2Nwva/Dijk6Y8LTPYiUDwErO43XbumTur6hUfxTE7zPrQ3HjA8ZXFPAilQer7/X6EkPClQWwd6VigY56TAxOR107098mDMNNF99rjiFa1zjIfpI0UBXMCz1//9ekjEIbb9e1FshTJs3zeIMnHK2oTM8hFF/0trL+AqlBLKCMLpPXGD7Crp9xVu7ZTeKtF02Ikq/I6LUm7uzC2JMdQDw2xGpoBXifa679hEHkP4Lg1dWguoBBldOzw081Mn+AaEK0299HhF1z88K3t+dqT3KBhHW7vlfDtAJth9SAV5RvIxNnu+1wDBanB77UQDu6XV6Mu8ZI5Dfr4Rfgc+quFjXQh45qSYrNlCWQjL9vQ1aqdUAeiVBaJfChdd3h8083hWw3kcYDG1mhVz2KRbgVhRQ3sDJAuewDE18AcqwBDXJQp8PvCg+YBvtoPqCbbiS64GQUMzXOfXVYUgeu3im5DG978eQID171dVaBwgBz80ab+x1P/JBFrqb1LR8hoiVyEWCt+hIwPwjX2K1ejC8lhIO7pXXtU9BW01wdWq3A4xlK2WWDFeiAP3SCgXO+xL4bU8=
           file: out/*
           file_glob: true
           skip_cleanup: true
@@ -31,6 +32,7 @@ jobs:
           draft: true
           on:
             all_branches: true # earlier 'if:' limits this
+            repo: IBM/cloud-operators
 
 notifications:
   email: false
