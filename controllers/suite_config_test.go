@@ -139,18 +139,19 @@ func setupAuth() error {
 		BluemixAPIKey:   testCfg.APIKey,
 	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to open IBM Cloud session")
 	}
 	if testCfg.ResourceGroupID == "" {
 		testCfg.ResourceGroupID, testCfg.ResourceGroupName, err = getResourceGroup(sess, testCfg.ResourceGroupName)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to resolve resource group name")
 		}
 	}
 	if testCfg.UAAAccessToken == "" || testCfg.UAARefreshToken == "" {
 		testCfg.UAAAccessToken, testCfg.UAARefreshToken, err = getAuthTokens(sess)
 		if err != nil {
-			return err
+			err = errors.Wrap(err, "Failed to fetch UAA tokens")
+			println("FAILED CF SETUP\n\n", err.Error()) // TODO Restore once we add int tests for CF services and switch Travis API key from service ID to functional user
 		}
 	}
 	return nil
