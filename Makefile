@@ -131,7 +131,7 @@ docker-build: test
 	docker build . -t ${IMG}
 
 .PHONY: docker-push
-docker-push:
+docker-push: docker-build
 	docker push ${IMG}
 
 # find or download controller-gen
@@ -150,5 +150,4 @@ cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
 	fi
 
 .PHONY: release
-release:
-	exit 1  # not implemented
+release: docker-push
