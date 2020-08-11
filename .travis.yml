@@ -11,7 +11,7 @@ jobs:
     - name: Lint
       script: make lint
     - name: Test
-      script: make test
+      script: make coverage
       if: type = pull_request  # Don't run int tests on the same account in parallel, risks name conflicts
     - name: Test End-to-end
       script: make test-e2e

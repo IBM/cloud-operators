@@ -72,6 +72,10 @@ test: generate manifests kubebuilder
 test-e2e:
 	exit 0  # not implemented
 
+.PHONY: coverage
+coverage: test
+	bash <(curl -s https://codecov.io/bash)
+
 # Build manager binary
 .PHONY: manager
 manager: generate lint-fix
