@@ -26,6 +26,7 @@ jobs:
           file_glob: true
           skip_cleanup: true
           overwrite: true
+          draft: true
           on:
             all_branches: true # earlier 'if:' limits this
 
