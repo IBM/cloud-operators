@@ -135,6 +135,9 @@ docker-push: docker-build
 	if [[ ${RELEASE_VERSION} == 0.0.0 ]]; then \
 		echo Refusing to push development image version 0.0.0; \
 	else \
+		if [[ -n "$$DOCKER_USERNAME" ]]; then \
+			echo "$$DOCKER_PASSWORD" | docker login -u "$$DOCKER_USERNAME" --password-stdin; \
+		fi; \
 		docker push ${IMG}; \
 	fi
 
