@@ -6,12 +6,12 @@ CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
 # Set PATH to pick up cached tools
-export PATH := ${KUBEBUILDER_ASSETS}:${PATH}
+export PATH := ${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH}
 
 # Version to create release. Value is set in .travis.yml's release job
-RELEASE_VERSION = 0.0.0
+RELEASE_VERSION ?= 0.0.0
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= cloudoperators/ibmcloud-operator:${RELEASE_VERSION}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -38,7 +38,7 @@ cache/bin:
 
 .PHONY: clean
 clean:
-	rm -rf cache
+	rm -rf cache out
 
 # Ensures kubebuilder is installed into the cache. Run `make kubebuilder CMD="--help"` to run kubebuilder with a custom command.
 .PHONY: kubebuilder
@@ -132,7 +132,11 @@ docker-build:
 
 .PHONY: docker-push
 docker-push: docker-build
-	docker push ${IMG}
+	if [[ ${RELEASE_VERSION} == 0.0.0 ]]; then \
+		echo Refusing to push development image version 0.0.0; \
+	else \
+		docker push ${IMG}; \
+	fi
 
 # find or download controller-gen
 # download controller-gen if necessary
@@ -149,5 +153,10 @@ cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
 		GOBIN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION} go get sigs.k8s.io/controller-tools/cmd/controller-gen@v${CONTROLLER_GEN_VERSION} ;\
 	fi
 
+out:
+	mkdir -p out
+
 .PHONY: release
-release: docker-push
+release: docker-push out
+	cd config/manager && kustomize edit set image controller=${IMG}
+	kustomize build config/default --output out/
