@@ -1,27 +1,33 @@
 package config
 
 import (
-	"fmt"
-	"os"
+	"sync"
 	"time"
+
+	"github.com/kelseyhightower/envconfig"
 )
 
-func getConfigFromEnv(key string) (string, error) {
-	if os.Getenv(key) != "" {
-		return os.Getenv(key), nil
-	}
-	return "", fmt.Errorf("Cannot find %s from from environment variable", key)
+var (
+	loadOnce sync.Once
+	config   Config
+)
+
+type Config struct {
+	APIKey            string        `envconfig:"bluemix_api_key"`
+	AccountID         string        `envconfig:"bluemix_account_id"`
+	Org               string        `envconfig:"bluemix_org"`
+	Region            string        `envconfig:"bluemix_region"`
+	ResourceGroupName string        `envconfig:"bluemix_resource_group"`
+	Space             string        `envconfig:"bluemix_space"`
+	SyncPeriod        time.Duration `envconfig:"sync_period"`
 }
 
-func GetSyncPeriod() time.Duration {
-	defaultSyncPeriod := time.Second * 150
-	syncPeriodStr, err := getConfigFromEnv("SYNC_PERIOD")
-	if err != nil {
-		return defaultSyncPeriod
-	}
-	syncPeriod, err := time.ParseDuration(syncPeriodStr)
-	if err != nil {
-		return defaultSyncPeriod
-	}
-	return syncPeriod
+func Get() Config {
+	loadOnce.Do(func() {
+		config = Config{ // default values
+			SyncPeriod: 150 * time.Second,
+		}
+		envconfig.MustProcess("", &config)
+	})
+	return config
 }

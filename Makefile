@@ -87,12 +87,14 @@ run: generate lint-fix manifests
 # Install CRDs into a cluster
 .PHONY: install
 install: manifests kustomize
+	go run ./internal/cmd/firstsetup # Install ICO secret & configmap
 	kustomize build config/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
 .PHONY: uninstall
 uninstall: manifests kustomize
 	kustomize build config/crd | kubectl delete -f -
+	kubectl delete secret/secret-ibm-cloud-operator configmap/config-ibm-cloud-operator
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 .PHONY: deploy

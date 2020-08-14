@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 )
 
@@ -458,7 +459,7 @@ func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1beta1.Service,
 		}
 		//return ctrl.Result{}, nil
 	}
-	return ctrl.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
 func (r *ServiceReconciler) deleteService(ibmCloudInfo *ibmcloud.Info, instance *ibmcloudv1beta1.Service) error {
@@ -600,7 +601,7 @@ func (r *ServiceReconciler) updateStatus(instance *ibmcloudv1beta1.Service, ibmC
 			return ctrl.Result{}, err
 		}
 	}
-	return ctrl.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
 func getState(serviceInstanceState string) string {

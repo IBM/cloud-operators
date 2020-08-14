@@ -43,10 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var (
-	syncPeriod = config.GetSyncPeriod()
-)
-
 const (
 	bindingFinalizer = "binding.ibmcloud.ibm.com"
 	inProgress       = "IN PROGRESS"
@@ -332,7 +328,7 @@ func (r *BindingReconciler) resetResource(instance *ibmcloudv1beta1.Binding) (ct
 	err := r.deleteSecret(instance)
 	if err != nil {
 		r.Log.Info("Unable to delete", "secret", instance.Name)
-		return ctrl.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 	}
 
 	instance.Status.SecretName = ""
@@ -340,7 +336,7 @@ func (r *BindingReconciler) resetResource(instance *ibmcloudv1beta1.Binding) (ct
 		r.Log.Info("Binding could not reset Status", instance.Name, err.Error())
 		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
 func (r *BindingReconciler) updateStatusError(instance *ibmcloudv1beta1.Binding, state string, err error) (ctrl.Result, error) {
@@ -362,7 +358,7 @@ func (r *BindingReconciler) updateStatusError(instance *ibmcloudv1beta1.Binding,
 			return ctrl.Result{}, nil
 		}
 	}
-	return ctrl.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
 // deleteCredentials also deletes the corresponding secret
@@ -551,7 +547,7 @@ func (r *BindingReconciler) updateStatusOnline(instance *ibmcloudv1beta1.Binding
 		}
 	}
 
-	return ctrl.Result{Requeue: true, RequeueAfter: syncPeriod}, nil
+	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
 func getCredentials(logt logr.Logger, instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info) (string, map[string]interface{}, error) {
