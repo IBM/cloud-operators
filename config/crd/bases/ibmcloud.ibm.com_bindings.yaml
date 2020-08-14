@@ -6,6 +6,13 @@ metadata:
   creationTimestamp: null
   name: bindings.ibmcloud.ibm.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: ibmcloud.ibm.com
   names:
     kind: Binding

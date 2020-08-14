@@ -51,6 +51,8 @@ type BindingStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 
 // Binding is the Schema for the bindings API
