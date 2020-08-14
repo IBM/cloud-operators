@@ -1,12 +1,10 @@
-SHELL := /usr/bin/env bash
-
 KUBEBUILDER_VERSION = 2.3.1
 export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
 # Set PATH to pick up cached tools
-export PATH := ${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH}
+SHELL := /usr/bin/env PATH="${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH}" bash
 
 # Version to create release. Value is set in .travis.yml's release job
 RELEASE_VERSION ?= 0.0.0
