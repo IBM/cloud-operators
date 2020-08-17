@@ -161,3 +161,29 @@ func getServiceInstanceFromObj(logt logr.Logger, service *ibmcloudv1beta1.Servic
 	}
 	return getServiceInstance(instances, service.Status.InstanceID)
 }
+
+func TestServiceV1Alpha1Compat(t *testing.T) {
+	service := new(ibmcloudv1beta1.Service)
+	mustLoadObject(t, filepath.Join("testdata", "translator-v1alpha1.yaml"), service, &service.ObjectMeta)
+	ctx := context.TODO()
+	logger := zapr.NewLogger(zaptest.NewLogger(t))
+
+	require.NoError(t, k8sClient.Create(ctx, service))
+	require.Eventually(t, verifyStatus(ctx, t, service.ObjectMeta, service, serviceStateOnline), defaultWait, defaultTick)
+
+	// get instance directly from bx to make sure is there
+	bxsvc, err := getServiceInstanceFromObj(logger, service)
+	require.NoError(t, err)
+	assert.Equal(t, service.ObjectMeta.Name, bxsvc.Name)
+
+	// test delete
+	serviceCopy := service.DeepCopyObject().(*ibmcloudv1beta1.Service)
+	require.NoError(t, k8sClient.Delete(ctx, service))
+	require.Eventually(t, func() bool {
+		err := getObject(ctx, service.ObjectMeta, service)
+		return errors.IsNotFound(err)
+	}, defaultWait, defaultTick)
+
+	_, err = getServiceInstanceFromObj(logger, serviceCopy)
+	assert.True(t, ibmcloud.IsNotFound(err), "Expect service to be deleted")
+}
