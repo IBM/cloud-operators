@@ -1,4 +1,4 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Service
 metadata:
   name: myetcd
@@ -6,7 +6,7 @@ spec:
   plan: standard
   serviceClass: databases-for-etcd
 ---
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Binding
 metadata:
   name: binding-etcd

@@ -1,4 +1,4 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Service
 metadata:
   name: mycos
@@ -8,7 +8,7 @@ spec:
   context:
     region: global
 ---
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Binding
 metadata:
   name: binding-mycos

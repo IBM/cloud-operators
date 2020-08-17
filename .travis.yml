@@ -1,46 +1,38 @@
 language: go
+
 go:
-  - "1.11.x"
-dist: xenial
+  - "1.14.x"
+
 services:
   - docker
 
-go_import_path: github.com/ibm/cloud-operators
+jobs:
+  include:
+    - name: Lint
+      script: make lint
+    - name: Test
+      script: make coverage
+      if: type = pull_request  # Don't run int tests on the same account in parallel, risks name conflicts
+    - name: Test End-to-end
+      script: make test-e2e
+    - name: Docker Build
+      script: make docker-build
+    - name: Release
+      stage: release
+      script: make -e RELEASE_VERSION="${TRAVIS_TAG/v}" release
+      if: tag =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      deploy:
+        - provider: releases
+          api_key:
+            secure: 3QC4hGEHv2usLvRcnZiNVdM6lZPpcj+GAh2UUjO+0FUtuwJ7QkyoI4C6ZId5a/Xniz1UV8tZxd3YnlJR2UTb3GjgJT8uzm3BA8hhl9cl16rKB2Nwva/Dijk6Y8LTPYiUDwErO43XbumTur6hUfxTE7zPrQ3HjA8ZXFPAilQer7/X6EkPClQWwd6VigY56TAxOR107098mDMNNF99rjiFa1zjIfpI0UBXMCz1//9ekjEIbb9e1FshTJs3zeIMnHK2oTM8hFF/0trL+AqlBLKCMLpPXGD7Crp9xVu7ZTeKtF02Ikq/I6LUm7uzC2JMdQDw2xGpoBXifa679hEHkP4Lg1dWguoBBldOzw081Mn+AaEK0299HhF1z88K3t+dqT3KBhHW7vlfDtAJth9SAV5RvIxNnu+1wDBanB77UQDu6XV6Mu8ZI5Dfr4Rfgc+quFjXQh45qSYrNlCWQjL9vQ1aqdUAeiVBaJfChdd3h8083hWw3kcYDG1mhVz2KRbgVhRQ3sDJAuewDE18AcqwBDXJQp8PvCg+YBvtoPqCbbiS64GQUMzXOfXVYUgeu3im5DG978eQID171dVaBwgBz80ab+x1P/JBFrqb1LR8hoiVyEWCt+hIwPwjX2K1ejC8lhIO7pXXtU9BW01wdWq3A4xlK2WWDFeiAP3SCgXO+xL4bU8=
+          file: out/*
+          file_glob: true
+          skip_cleanup: true
+          overwrite: true
+          draft: true
+          on:
+            all_branches: true # earlier 'if:' limits this
+            repo: IBM/cloud-operators
 
-before_script:
-  - make deps
- 
-before_install:
-  - source ./tools/travis/travis-env.sh
-  - source ./hack/latest_tag
-  - ./tools/travis/k8s-tools.sh
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/set-kube-config.sh; fi
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-install.sh; fi
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then ./tools/travis/bx-setup.sh; fi
-
-script:
-  - make generate
-  - make lintall
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then make test; fi
-  - if [ ! -z "$BLUEMIX_API_KEY" ]; then test/e2e/test.sh; fi
-
-after_success:
-  - make push
-  - test "$TRAVIS_EVENT_TYPE" != "pull_request" && make docker-build || echo "success"
-  - bash <(curl -s https://codecov.io/bash)
-
-#  build only master and tagged/branch releases.
-branches:
-  only: 
-    - master
-    - /^[0-9]+\..*$/
-    - /^v[0-9]+\..*$/
-    - /^release-[0-9]+\..*$/
-
-deploy:
-  skip_cleanup: true
-  provider: script
-  script: bash -c "make docker-push"
-  on:
-    all_branches: true
-    condition: $TRAVIS_BRANCH =~ ^master|[0-9]+\..*|v[0-9]+\..*|release-[0-9]+\..*$
+notifications:
+  email: false

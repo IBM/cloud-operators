@@ -1,0 +1,10 @@
+apiVersion: ibmcloud.ibm.com/v1beta1
+kind: Service
+metadata:
+  name: mymessagehub
+spec:
+  plan: standard
+  serviceClass: messagehub
+  parameters:
+  - name: ABC
+    value: XYZ

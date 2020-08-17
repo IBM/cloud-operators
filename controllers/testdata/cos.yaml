@@ -1,0 +1,9 @@
+apiVersion: ibmcloud.ibm.com/v1beta1
+kind: Service
+metadata:
+  name: mycos
+spec:
+  plan: standard
+  serviceClass: cloud-object-storage
+  context:
+    region: global

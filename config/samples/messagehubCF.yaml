@@ -1,4 +1,4 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Service
 metadata:
   name: mymessagehubcf
@@ -7,7 +7,7 @@ spec:
   serviceClass: messagehub
   serviceClassType: CF
 ---
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Binding
 metadata:
   name: binding-messagehubcf

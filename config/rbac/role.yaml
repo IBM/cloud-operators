@@ -1,0 +1,68 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - bindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - bindings/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - services/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - tokens
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - tokens/status
+  verbs:
+  - get
+  - patch
+  - update

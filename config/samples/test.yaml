@@ -1,4 +1,4 @@
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Service
 metadata:
   name: my-cloudant
@@ -6,14 +6,14 @@ spec:
   plan: standard 
   serviceClass: cloudantnosqldb
 ---
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Binding
 metadata:
   name: my-binding-cloudant-1
 spec:
   serviceName: my-cloudant
 ---
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Binding
 metadata:
   name: my-binding-cloudant-2
