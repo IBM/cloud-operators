@@ -79,7 +79,7 @@ curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/unins
 You can create an instance of an IBM public cloud service using the following custom resource:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Service
 metadata:
     name: myservice
@@ -113,7 +113,7 @@ myservice      Online   12s
 You can bind to a service with name `myservice` using the following custom resource:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1beta1
 kind: Binding
 metadata:
     name: mybinding
