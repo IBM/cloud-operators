@@ -57,6 +57,17 @@ func mutateYaml(r io.Reader, w io.Writer) error {
 func removeValueType(v interface{}, inValue bool) (remove bool) {
 	d, set := ptrSetter(v)
 	switch d := d.(type) {
+	case []interface{}:
+		newSlice := make([]interface{}, 0, len(d))
+		for ix := range d {
+			item := d[ix]
+			shouldRemove := removeValueType(&item, inValue)
+			if !shouldRemove {
+				newSlice = append(newSlice, item)
+			}
+		}
+		set(newSlice)
+		return false
 	case yaml.MapSlice:
 		newSlice := make(yaml.MapSlice, 0, len(d))
 		for ix := range d {

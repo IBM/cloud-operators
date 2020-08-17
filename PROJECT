@@ -3,6 +3,12 @@ repo: github.com/ibm/cloud-operators
 resources:
 - group: ibmcloud
   kind: Binding
+  version: v1alpha1
+- group: ibmcloud
+  kind: Service
+  version: v1alpha1
+- group: ibmcloud
+  kind: Binding
   version: v1beta1
 - group: ibmcloud
   kind: Service
