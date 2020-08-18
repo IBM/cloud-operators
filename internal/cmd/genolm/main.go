@@ -19,6 +19,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func main() {
@@ -35,12 +37,17 @@ func main() {
 
 type Data struct {
 	DeploymentSpec appsv1.DeploymentSpec
-	Examples       []json.RawMessage
+	Examples       []runtime.RawExtension
 	Image          string
 	Name           string
 	Now            string
+	RBAC           []roleRules
 	README         string
 	Version        string
+}
+
+type roleRules struct {
+	Rules []rbacv1.PolicyRule `json:"rules"`
 }
 
 func run(output, repoRoot, versionStr string) error {
@@ -78,17 +85,18 @@ func run(output, repoRoot, versionStr string) error {
 	defer readme.Close()
 
 	// Examples
-	var samples []json.RawMessage
+	var samples []runtime.RawExtension
 	for _, name := range []string{"translator.yaml", "translator-binding.yaml"} {
 		sample, err := ioutil.ReadFile(filepath.Join(repoRoot, "config/samples", name))
 		if err != nil {
 			return err
 		}
-		sample, err = yaml.YAMLToJSON(sample)
+		var raw runtime.RawExtension
+		err = yaml.Unmarshal(sample, &raw)
 		if err != nil {
 			return err
 		}
-		samples = append(samples, sample)
+		samples = append(samples, raw)
 	}
 
 	// DeploymentSpec
@@ -103,12 +111,35 @@ func run(output, repoRoot, versionStr string) error {
 	}
 	deploymentSpec := deployment.Spec
 
+	// RBAC
+	var rbac roleRules
+	rbacFiles, err := filepath.Glob(filepath.Join(output, "rbac.*.yaml"))
+	if err != nil {
+		return err
+	}
+	for _, path := range rbacFiles {
+		buf, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var role rbacv1.Role
+		err = yaml.Unmarshal(buf, &role)
+		if err != nil {
+			return err
+		}
+		kind := role.GetObjectKind().GroupVersionKind().Kind
+		if kind == "ClusterRole" || kind == "Role" {
+			rbac.Rules = append(rbac.Rules, role.Rules...)
+		}
+	}
+
 	data := Data{
 		DeploymentSpec: deploymentSpec,
 		Examples:       samples,
 		Image:          "cloudoperators/ibmcloud-operator",
 		Name:           "ibmcloud-operator",
 		Now:            time.Now().UTC().Format(time.RFC3339),
+		RBAC:           []roleRules{rbac},
 		README:         prepREADME(readme),
 		Version:        version.String(),
 	}

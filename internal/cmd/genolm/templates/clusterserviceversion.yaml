@@ -20,7 +20,7 @@ spec:
   - base64data: {{include "ibmcloud.png" . | base64}}
     mediatype: image/png
   description: >
-{{.README | indent 4}}
+    {{.README | indent 4 | trimSpace}}
   version: {{.Version}}
   maturity: alpha
   maintainers:
@@ -62,8 +62,7 @@ spec:
     strategy: deployment
     spec:
       clusterPermissions:
-      - serviceAccountName: PLACEHOLDER
-        rules: # PLACEHOLDER
+      {{.RBAC | yaml | indent 6 | trimSpace}}
       deployments: 
       - {{.DeploymentSpec | yaml | indent 8 | trimSpace}}
   customresourcedefinitions:
