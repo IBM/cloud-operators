@@ -163,3 +163,4 @@ out:
 release: kustomize out docker-push
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default --output out/
+	go run ./internal/cmd/genolm --version ${RELEASE_VERSION}

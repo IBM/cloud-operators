@@ -1,0 +1,4 @@
+packageName: {{.Name}}
+channels:
+  - name: alpha
+    currentCSV: {{.Name}}.v{{.Version}}

@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/IBM-Cloud/bluemix-go v0.0.0-20200716122208-488c9de67b8c
+	github.com/blang/semver/v4 v4.0.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.0
