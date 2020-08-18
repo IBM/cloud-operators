@@ -141,22 +141,22 @@ mybinding                  Opaque                                6      102s
 You can find [additional samples](config/samples), and more information on 
 [using the operator](docs/user-guide.md) in the operator documentation.
 
-### Service Yaml Elements
+### Service Properties
 
-The `Service` yaml includes the following elements:
+A `Service` includes the following properties:
 
-Field | Is required | Format/Type | Comments
------ | ------------|-------------|-----------------
- serviceClass | Yes | String | The type of service being instantiated
- plan | Yes | String |  The plan to use for service instantiation, set to `Alias` for linking to an existing service instance
- serviceClassType | Yes/No | String | Set to `CF` for Cloud Foundry services, omit otherwise
- externalName | No | [string]string | The name that appears for the instantiated service on the IBM Public Cloud Dashboard
- parameters | No | []Any | Parameters passed for service instantiation, the type could be anything (int, string, object, ...)
- tags | No | []String | Tags passed for service instantiation. These tags appear on the instance on the IBM Public Cloud Dashboard
- context | No | Context Type | Used to override default account context (see below)
+| Field            | Required | Type       | Comments                                                                                                   |
+|:-----------------|:---------|:-----------|:-----------------------------------------------------------------------------------------------------------|
+| serviceClass     | Yes      | `string`   | The type of service being instantiated                                                                     |
+| plan             | Yes      | `string`   | The plan to use for service instantiation, set to `Alias` for linking to an existing service instance      |
+| serviceClassType | CF only  | `string`   | Set to `CF` for Cloud Foundry services, omit otherwise                                                     |
+| externalName     | No       | `string`   | The name that appears for the instantiated service on the IBM Public Cloud Dashboard                       |
+| parameters       | No       | `[]Param`  | Parameters passed for service instantiation, the type can be anything (number, string, object, ...)        |
+| tags             | No       | `[]string` | Tags passed for service instantiation. These tags appear on the instance on the IBM Public Cloud Dashboard |
+| context          | No       | `Context`  | Used to override default account context (see below)                                                       |
 
-Each `paramater` is treated as a `RawExtension` by the Operator and parsed into JSON.
-The `plan` is set to `Alias` to link to an existing service instance (see [IBM Cloud Operator User Guide](docs/user-guide.md)
+Each `parameter`'s value is treated as a raw value by the Operator and passed as-is.
+The `plan` can be set to `Alias` to link to an existing service instance (see [IBM Cloud Operator User Guide](docs/user-guide.md)
 for more details).
 
 _Notice that the `serviceClass`, `plan`, `serviceClassType`, and `externalName` fields are immutable. Immutability is not enforced
@@ -174,17 +174,17 @@ resource being created, and if not found, in a management namespace (see below f
 The account information can be overriden by using
 the `context` field in the service yaml, with the following substructure:
 
-Field | Is required | Format/Type 
------ | ------------|-------------
- org | No | String 
- space | No | String 
- region | No | String 
- resourceGroup | No | String 
- resourceGroupID | No | String
- resourceLocation | No | String 
+| Field            | Required | Type     |
+|:-----------------|:---------|:---------|
+| org              | No       | `string` |
+| space            | No       | `string` |
+| region           | No       | `string` |
+| resourceGroup    | No       | `string` |
+| resourceGroupID  | No       | `string` |
+| resourceLocation | No       | `string` |
 
 To override any element, the user can simply indicate that element and omit the others.
-If a resourceGroup is indicated, then the resourceGroupID must also be provided. This can be obtained with the
+If a `resourceGroup` is indicated, then the `resourceGroupID` must also be provided. This can be obtained with the
 following command, and retrieving the field `ID`.
 
 ```bash
@@ -221,30 +221,30 @@ Next the `safe` namespace needs to contain secrets and configmaps corresponding 
 <namespace>-config-ibm-cloud-operator
 ```
 
-These can be created similary to what is done in `hack/configure-operator.sh`.
+These can be created similary to what is done with `make install`.
 
 If we create a service or binding resource in a namespace `XYZ`, the IBM Cloud Operator first looks in the `XYZ` namespace to find `secret-ibm-cloud-operator` and `config-ibm-cloud-operator`, for account context. If they are missing in `XYZ`, it looks for the `ibm-cloud-operator` configmap in the namespace where the operator is installed, to see if there is a management namespace. If there is, it looks in the management namespace for the secret and configmap with the naming convention:
 `XYZ-secret-ibm-cloud-operator` and `XYZ-config-ibm-cloud-operator`. If there is no management namespace, the operator looks in the `default` namespace for the secret and configmap (`secret-ibm-cloud-operator` and `config-ibm-cloud-operator`).
 
 
 
-### Binding Yaml Elements
+### Binding Properties
 
-Field | Is required | Format/Type | Comments
------ | ------------|-------------|-----------------
- serviceName | Yes | String | The name of the Service resource corresponding to the service instance on which to create credentials
- serviceNamespace | No | String |  The namespace of the Service resource
- alias | No | String | The name of credentials, if this Binding is linking to existing credentials
- secretName | No | String | The name of the Secret to be created
- role | No | String | The role to be passed for credentials creation
- parameters | No | []Any | Parameters passed for credentials creation, the type could be anything (int, string, object, ...)
+A `Binding` includes the following properties:
+
+| Field            | Required | Type     | Comments                                                                                              |
+|:-----------------|:---------|:---------|:------------------------------------------------------------------------------------------------------|
+| serviceName      | Yes      | `string` | The name of the `Service` resource corresponding to the service instance on which to create credentials |
+| serviceNamespace | No       | `string` | The namespace of the `Service` resource                                                                 |
+| alias            | No       | `string` | The name of credentials, if this `Binding` is linking to existing credentials                           |
+| secretName       | No       | `string` | The name of the `Secret` to be created                                                                  |
+| role             | No       | `string` | The role to be passed for credentials creation                                                        |
+| parameters       | No       | `[]Any`  | Parameters passed for credentials creation, the type could be anything (int, string, object, ...)     |
  
 The `alias` field is used to link to an existing credentials (see [IBM Cloud Operator User Guide](docs/user-guide.md)
 for more details). If the `secretName` is omitted, then the same name as the `Binding` itself is used. If the `role` is
-omitted, then the Operator sets role to `Manager`, if that is supported by the service (and if not, it picks the first role
+omitted, then the operator sets role to `Manager`, if that is supported by the service (and if not, it picks the first role
 listed by the service). Most services support the `Manager` role.
-
-
 
 ## Learn more about how to contribute
 
@@ -254,4 +254,3 @@ listed by the service). Most services support the `Manager` role.
 
 The [troubleshooting](docs/troubleshooting.md) section provides info on how
 to debug your operator.
-
