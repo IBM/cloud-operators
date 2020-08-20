@@ -4,7 +4,8 @@ metadata:
   name: {{.Name}}.v{{.Version}}
   namespace: placeholder
   annotations:
-    alm-examples: {{.Examples | json}}
+    alm-examples: |-
+      {{.Examples | json | indent 6 | trimSpace}}
     capabilities: Basic Install
     categories: Cloud Provider
     certified: "false"
