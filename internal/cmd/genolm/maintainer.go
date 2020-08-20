@@ -5,9 +5,11 @@ import (
 	"io"
 	"os"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 type Maintainer struct {
@@ -39,8 +41,9 @@ func getMaintainers(repoRoot string) ([]Maintainer, error) {
 		return nil, err
 	}
 
-	var maintainers []*Maintainer
-	uniqueEmails := make(map[string]*Maintainer)
+	maintainersChan := make(chan Maintainer)
+	errsChan := make(chan error)
+	var wg sync.WaitGroup
 	const maxCommits = 200
 	for i := 0; i < maxCommits; i++ {
 		commit, err := commitIter.Next()
@@ -50,33 +53,83 @@ func getMaintainers(repoRoot string) ([]Maintainer, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		maintainer := &Maintainer{Name: commit.Author.Name, Email: commit.Author.Email}
-		if m, ok := uniqueEmails[maintainer.Email]; ok {
-			stats, err := commit.Stats()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			maintainer, err := NewFromCommit(repoRoot, commit.Hash)
 			if err != nil {
-				return nil, err
+				errsChan <- err
+				return
 			}
-			const commitWeight = 100
-			for _, stat := range stats {
-				m.contributions += commitWeight
-				m.contributions += uint64(stat.Addition)
-				m.contributions += uint64(stat.Deletion)
+			maintainersChan <- maintainer
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(maintainersChan)
+	}()
+
+	uniqueEmails := make(map[string]*Maintainer)
+	for {
+		select {
+		case m, ok := <-maintainersChan:
+			if !ok {
+				return topContributors(uniqueEmails), nil
 			}
-		} else {
-			maintainers = append(maintainers, maintainer)
-			uniqueEmails[maintainer.Email] = maintainer
+			_, exists := uniqueEmails[m.Email]
+			if !exists {
+				mCopy := m
+				uniqueEmails[m.Email] = &mCopy
+			} else {
+				uniqueEmails[m.Email].contributions += m.contributions
+			}
+		case err := <-errsChan:
+			return nil, err
 		}
 	}
+}
 
-	var maintainersSlice []Maintainer
-	for _, m := range maintainers {
-		maintainersSlice = append(maintainersSlice, *m)
+func topContributors(uniqueEmails map[string]*Maintainer) []Maintainer {
+	var maintainers []Maintainer
+	for _, m := range uniqueEmails {
+		maintainers = append(maintainers, *m)
 	}
-	sort.Slice(maintainersSlice, func(a, b int) bool {
-		return maintainersSlice[a].contributions >= maintainersSlice[b].contributions
+
+	sort.Slice(maintainers, func(a, b int) bool {
+		return maintainers[a].contributions >= maintainers[b].contributions
 	})
 
 	const maxMaintainers = 5
-	return maintainersSlice[:maxMaintainers], nil
+	if len(maintainers) < maxMaintainers {
+		return maintainers
+	}
+	return maintainers[:maxMaintainers]
+}
+
+// NewFromCommit generates a Maintainer from the given commit hash.
+// NOTE: This is very slow when processing large commits.
+func NewFromCommit(repoRoot string, hash plumbing.Hash) (Maintainer, error) {
+	repo, err := git.PlainOpen(repoRoot)
+	if err != nil {
+		return Maintainer{}, err
+	}
+	commit, err := repo.CommitObject(hash)
+	if err != nil {
+		return Maintainer{}, err
+	}
+	maintainer := Maintainer{
+		Name:  commit.Author.Name,
+		Email: commit.Author.Email,
+	}
+	stats, err := commit.Stats()
+	if err != nil {
+		return Maintainer{}, err
+	}
+	const commitWeight = 100
+	for _, stat := range stats {
+		maintainer.contributions += commitWeight
+		maintainer.contributions += uint64(stat.Addition)
+		maintainer.contributions += uint64(stat.Deletion)
+	}
+	return maintainer, nil
 }
