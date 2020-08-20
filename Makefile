@@ -51,6 +51,7 @@ cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
 	@if [[ ! -d cache/kubebuilder_${KUBEBUILDER_VERSION}/bin ]]; then \
 		rm -rf cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 		mkdir -p cache/kubebuilder_${KUBEBUILDER_VERSION}; \
+		set -o pipefail; \
 		curl -L https://go.kubebuilder.io/dl/${KUBEBUILDER_VERSION}/$(shell go env GOOS)/$(shell go env GOARCH) | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 	fi
 
@@ -60,6 +61,7 @@ kustomize: cache/bin/kustomize
 cache/bin/kustomize: cache/bin
 	@rm -f cache/bin/kustomize
 	cd cache/bin && \
+		set -o pipefail && \
 		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
 
 .PHONY: test
@@ -111,6 +113,7 @@ manifests: controller-gen
 .PHONY: lint-deps
 lint-deps:
 	@if ! which golangci-lint >/dev/null || [[ "$$(golangci-lint --version)" != *${LINT_VERSION}* ]]; then \
+		set -o pipefail; \
 		curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v${LINT_VERSION}; \
 	fi
 
