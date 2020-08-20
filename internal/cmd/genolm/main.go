@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/ghodss/yaml"
+	"github.com/johnstarich/go/regext"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -236,6 +238,8 @@ func prepREADME(readme io.Reader) string {
 	var buf bytes.Buffer
 	for scanner.Scan() {
 		line := scanner.Text()
+		line = convertToAbsoluteLinks(line)
+
 		if include {
 			if line != "" || buf.Len() > 0 { // skip leading blank lines
 				buf.WriteString(line)
@@ -250,6 +254,47 @@ func prepREADME(readme io.Reader) string {
 		panic(err)
 	}
 	return buf.String()
+}
+
+// convertToAbsoluteLinks replaces relative links with absolute links to the repo
+func convertToAbsoluteLinks(s string) string {
+	type readmeReplacement struct {
+		newText    string
+		start, end int
+	}
+
+	const urlPrefix = "https://github.com/IBM/cloud-operators/blob/master"
+	markdownLinkRe := regext.MustCompile(`
+		\[
+			[^ \] ]*      # link text
+		\]
+		\(
+			( [^ \) ]* )  # capture link URL (capture group index 1)
+		\)
+	`)
+
+	matches := markdownLinkRe.FindAllStringSubmatchIndex(s, -1)
+	var replacements []readmeReplacement
+	for _, match := range matches {
+		start, end := match[2], match[3]
+		linkPath := s[start:end]
+		if strings.Contains(linkPath, "://") || strings.HasPrefix(linkPath, "#") {
+			// skip absolute URLs or anchor-only URLs
+			continue
+		}
+		linkPath = urlPrefix + path.Join("/", linkPath)
+		replacements = append(replacements, readmeReplacement{
+			newText: linkPath,
+			start:   start,
+			end:     end,
+		})
+	}
+	for i := len(replacements) - 1; i >= 0; i-- {
+		// replace matches going backward, so indexes don't change
+		r := replacements[i]
+		s = s[:r.start] + r.newText + s[r.end:]
+	}
+	return s
 }
 
 func indentLines(spaces int, s string) string {
