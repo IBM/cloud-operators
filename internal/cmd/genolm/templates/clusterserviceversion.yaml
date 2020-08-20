@@ -1,0 +1,61 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: {{.Name}}.v{{.Version}}
+  namespace: placeholder
+  annotations:
+    alm-examples: |-
+      {{.Examples | json | indent 6 | trimSpace}}
+    capabilities: Basic Install
+    categories: Cloud Provider
+    certified: "false"
+    containerImage: {{.Image}}:{{.Version}}
+    createdAt: {{.Now}}
+    description: The IBM Cloud Operator provides a Kubernetes CRD-Based API to manage the lifecycle of IBM public cloud services.
+    repository: https://github.com/IBM/cloud-operators
+    support: IBM
+spec:
+  displayName: IBM Cloud Operator
+  icon:
+  # image should be 175x175
+  - base64data: {{include "ibmcloud.png" . | base64}}
+    mediatype: image/png
+  description: >
+    {{.README | indent 4 | trimSpace}}
+  version: {{.Version}}
+  replaces: {{.Name}}.v{{.ReplaceVersion}}
+  maturity: alpha
+  maintainers:
+  {{.Maintainers | yaml | indent 2 | trimSpace}}
+  provider:
+    name: IBM
+  links:
+  - name: Source on GitHub
+    url: https://github.com/ibm/cloud-operators
+  keywords: 
+  - IBM
+  - Cloud
+  labels:
+    name: {{.Name}}
+  selector:
+    matchLabels:
+      name: {{.Name}}
+  installModes:
+  - type: OwnNamespace
+    supported: true
+  - type: SingleNamespace
+    supported: false
+  - type: MultiNamespace
+    supported: false
+  - type: AllNamespaces
+    supported: true
+  install:
+    strategy: deployment
+    spec:
+      clusterPermissions:
+      {{.RBAC | yaml | indent 6 | trimSpace}}
+      deployments: 
+      - {{.DeploymentSpec | yaml | indent 8 | trimSpace}}
+  customresourcedefinitions:
+    owned:
+      {{.CRDs | yaml | indent 6 | trimSpace}}
