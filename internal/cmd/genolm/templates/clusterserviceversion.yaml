@@ -23,6 +23,7 @@ spec:
   description: >
     {{.README | indent 4 | trimSpace}}
   version: {{.Version}}
+  replaces: {{.Name}}.v{{.ReplaceVersion}}
   maturity: alpha
   maintainers:
   {{.Maintainers | yaml | indent 2 | trimSpace}}

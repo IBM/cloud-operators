@@ -44,6 +44,7 @@ type Data struct {
 	Now            string
 	RBAC           []roleRules
 	README         string
+	ReplaceVersion string
 	Version        string
 }
 
@@ -74,6 +75,11 @@ func run(output, repoRoot, versionStr string) error {
 		"trimSpace": strings.TrimSpace,
 		"yaml":      templateYAMLMarshal,
 	}).ParseGlob(filepath.Join(templateDir, "*"))
+	if err != nil {
+		return err
+	}
+
+	replaceVersion, err := getReplaceVersion(repoRoot, version)
 	if err != nil {
 		return err
 	}
@@ -127,6 +133,7 @@ func run(output, repoRoot, versionStr string) error {
 		Now:            time.Now().UTC().Format(time.RFC3339),
 		RBAC:           []roleRules{rbac},
 		README:         readme,
+		ReplaceVersion: replaceVersion,
 		Version:        version.String(),
 	}
 
