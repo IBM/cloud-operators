@@ -7,10 +7,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -18,11 +16,9 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/ghodss/yaml"
-	"github.com/johnstarich/go/regext"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -81,26 +77,16 @@ func run(output, repoRoot, versionStr string) error {
 		return err
 	}
 
-	// README
-	readme, err := os.Open(filepath.Join(repoRoot, "README.md"))
+	readmeFile, err := os.Open(filepath.Join(repoRoot, "README.md"))
 	if err != nil {
 		return err
 	}
-	defer readme.Close()
+	defer readmeFile.Close()
+	readme := prepREADME(readmeFile)
 
-	// Examples
-	var samples []runtime.RawExtension
-	for _, name := range []string{"translator.yaml", "translator-binding.yaml"} {
-		sample, err := ioutil.ReadFile(filepath.Join(repoRoot, "config/samples", name))
-		if err != nil {
-			return err
-		}
-		var raw runtime.RawExtension
-		err = yaml.Unmarshal(sample, &raw)
-		if err != nil {
-			return err
-		}
-		samples = append(samples, raw)
+	samples, err := getSamples(repoRoot)
+	if err != nil {
+		return err
 	}
 
 	// DeploymentSpec
@@ -115,75 +101,14 @@ func run(output, repoRoot, versionStr string) error {
 	}
 	deploymentSpec := deployment.Spec
 
-	// RBAC
-	var rbac roleRules
-	rbacFiles, err := filepath.Glob(filepath.Join(output, "rbac.*.yaml"))
+	rbac, err := getRBAC(output)
 	if err != nil {
 		return err
 	}
-	for _, path := range rbacFiles {
-		buf, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		var role rbacv1.Role
-		err = yaml.Unmarshal(buf, &role)
-		if err != nil {
-			return err
-		}
-		kind := role.GetObjectKind().GroupVersionKind().Kind
-		if kind == "ClusterRole" || kind == "Role" {
-			rbac.Rules = append(rbac.Rules, role.Rules...)
-		}
-	}
 
-	// CRDs
-	var crds []CRD
-	{
-		var bindingCRD apiextensionsv1beta1.CustomResourceDefinition
-		bindingCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_bindings.ibmcloud.ibm.com.yaml"))
-		if err != nil {
-			return errors.Wrap(err, "Error reading generated CRD file. Did kustomize run yet?")
-		}
-		err = yaml.Unmarshal(bindingCRDBytes, &bindingCRD)
-		if err != nil {
-			return err
-		}
-		crds = append(crds, NewCRD(
-			bindingCRD,
-			[]TypeMeta{
-				{Kind: "Secret", Name: "", Version: "v1"},
-				{Kind: "ConfigMap", Name: "", Version: "v1"},
-				{Kind: "Binding", Name: "", Version: "v1beta1"},
-				{Kind: "Service", Name: "", Version: "v1beta1"},
-			},
-			map[string][]string{
-				"secretName": {"urn:alm:descriptor:text", "urn:alm:descriptor:io.kubernetes:Secret", "binding:env:object:secret"},
-			},
-		)) // TODO
-	}
-	{
-		var serviceCRD apiextensionsv1beta1.CustomResourceDefinition
-		serviceCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_services.ibmcloud.ibm.com.yaml"))
-		if err != nil {
-			return errors.Wrap(err, "Error reading generated CRD file. Did kustomize run yet?")
-		}
-		err = yaml.Unmarshal(serviceCRDBytes, &serviceCRD)
-		if err != nil {
-			return err
-		}
-		crds = append(crds, NewCRD(
-			serviceCRD,
-			[]TypeMeta{
-				{Kind: "Secret", Name: "", Version: "v1"},
-				{Kind: "ConfigMap", Name: "", Version: "v1"},
-				{Kind: "Binding", Name: "", Version: "v1beta1"},
-				{Kind: "Service", Name: "", Version: "v1beta1"},
-			},
-			map[string][]string{
-				"secretName": {"urn:alm:descriptor:text", "urn:alm:descriptor:io.kubernetes:Secret", "binding:env:object:secret"},
-			},
-		)) // TODO
+	crds, err := getCRDs(repoRoot)
+	if err != nil {
+		return err
 	}
 
 	data := Data{
@@ -194,7 +119,7 @@ func run(output, repoRoot, versionStr string) error {
 		Name:           "ibmcloud-operator",
 		Now:            time.Now().UTC().Format(time.RFC3339),
 		RBAC:           []roleRules{rbac},
-		README:         prepREADME(readme),
+		README:         readme,
 		Version:        version.String(),
 	}
 
@@ -232,71 +157,6 @@ func renderTemplateFile(templates *template.Template) func(name string, data int
 	}
 }
 
-func prepREADME(readme io.Reader) string {
-	scanner := bufio.NewScanner(readme)
-	include := false
-	var buf bytes.Buffer
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = convertToAbsoluteLinks(line)
-
-		if include {
-			if line != "" || buf.Len() > 0 { // skip leading blank lines
-				buf.WriteString(line)
-				buf.WriteRune('\n')
-			}
-		} else if strings.HasPrefix(line, "# ") {
-			// skip up to and including main header lines
-			include = true
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		panic(err)
-	}
-	return buf.String()
-}
-
-// convertToAbsoluteLinks replaces relative links with absolute links to the repo
-func convertToAbsoluteLinks(s string) string {
-	type readmeReplacement struct {
-		newText    string
-		start, end int
-	}
-
-	const urlPrefix = "https://github.com/IBM/cloud-operators/blob/master"
-	markdownLinkRe := regext.MustCompile(`
-		\[
-			[^ \] ]*      # link text
-		\]
-		\(
-			( [^ \) ]* )  # capture link URL (capture group index 1)
-		\)
-	`)
-
-	matches := markdownLinkRe.FindAllStringSubmatchIndex(s, -1)
-	var replacements []readmeReplacement
-	for _, match := range matches {
-		start, end := match[2], match[3]
-		linkPath := s[start:end]
-		if strings.Contains(linkPath, "://") || strings.HasPrefix(linkPath, "#") {
-			// skip absolute URLs or anchor-only URLs
-			continue
-		}
-		linkPath = urlPrefix + path.Join("/", linkPath)
-		replacements = append(replacements, readmeReplacement{
-			newText: linkPath,
-			start:   start,
-			end:     end,
-		})
-	}
-	for i := len(replacements) - 1; i >= 0; i-- {
-		// replace matches going backward, so indexes don't change
-		r := replacements[i]
-		s = s[:r.start] + r.newText + s[r.end:]
-	}
-	return s
-}
-
 func indentLines(spaces int, s string) string {
 	indent := fmt.Sprintf(fmt.Sprintf("%%%ds", spaces), "")
 
@@ -319,4 +179,45 @@ func templateJSONMarshal(v interface{}) (string, error) {
 func templateYAMLMarshal(v interface{}) (string, error) {
 	buf, err := yaml.Marshal(v)
 	return string(buf), err
+}
+
+func getRBAC(output string) (roleRules, error) {
+	var rbac roleRules
+	rbacFiles, err := filepath.Glob(filepath.Join(output, "rbac.*.yaml"))
+	if err != nil {
+		return roleRules{}, err
+	}
+	for _, path := range rbacFiles {
+		buf, err := ioutil.ReadFile(path)
+		if err != nil {
+			return roleRules{}, err
+		}
+		var role rbacv1.Role
+		err = yaml.Unmarshal(buf, &role)
+		if err != nil {
+			return roleRules{}, err
+		}
+		kind := role.GetObjectKind().GroupVersionKind().Kind
+		if kind == "ClusterRole" || kind == "Role" {
+			rbac.Rules = append(rbac.Rules, role.Rules...)
+		}
+	}
+	return rbac, nil
+}
+
+func getSamples(repoRoot string) ([]runtime.RawExtension, error) {
+	var samples []runtime.RawExtension
+	for _, name := range []string{"translator.yaml", "translator-binding.yaml"} {
+		sample, err := ioutil.ReadFile(filepath.Join(repoRoot, "config/samples", name))
+		if err != nil {
+			return nil, err
+		}
+		var raw runtime.RawExtension
+		err = yaml.Unmarshal(sample, &raw)
+		if err != nil {
+			return nil, err
+		}
+		samples = append(samples, raw)
+	}
+	return samples, nil
 }

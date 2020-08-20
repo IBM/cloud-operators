@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode"
 
+	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 )
 
@@ -32,6 +36,54 @@ type Descriptor struct {
 	Description  string   `json:"description"`
 	Path         string   `json:"path"`
 	XDescriptors []string `json:"x-descriptors,omitempty"`
+}
+
+func getCRDs(repoRoot string) ([]CRD, error) {
+	var crds []CRD
+	var bindingCRD apiextensionsv1beta1.CustomResourceDefinition
+	bindingCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_bindings.ibmcloud.ibm.com.yaml"))
+	if err != nil {
+		return nil, errors.Wrap(err, "Error reading generated CRD file. Did kustomize run yet?")
+	}
+	err = yaml.Unmarshal(bindingCRDBytes, &bindingCRD)
+	if err != nil {
+		return nil, err
+	}
+	crds = append(crds, NewCRD(
+		bindingCRD,
+		[]TypeMeta{
+			{Kind: "Secret", Name: "", Version: "v1"},
+			{Kind: "ConfigMap", Name: "", Version: "v1"},
+			{Kind: "Binding", Name: "", Version: "v1beta1"},
+			{Kind: "Service", Name: "", Version: "v1beta1"},
+		},
+		map[string][]string{
+			"secretName": {"urn:alm:descriptor:text", "urn:alm:descriptor:io.kubernetes:Secret", "binding:env:object:secret"},
+		},
+	))
+
+	var serviceCRD apiextensionsv1beta1.CustomResourceDefinition
+	serviceCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_services.ibmcloud.ibm.com.yaml"))
+	if err != nil {
+		return nil, errors.Wrap(err, "Error reading generated CRD file. Did kustomize run yet?")
+	}
+	err = yaml.Unmarshal(serviceCRDBytes, &serviceCRD)
+	if err != nil {
+		return nil, err
+	}
+	crds = append(crds, NewCRD(
+		serviceCRD,
+		[]TypeMeta{
+			{Kind: "Secret", Name: "", Version: "v1"},
+			{Kind: "ConfigMap", Name: "", Version: "v1"},
+			{Kind: "Binding", Name: "", Version: "v1beta1"},
+			{Kind: "Service", Name: "", Version: "v1beta1"},
+		},
+		map[string][]string{
+			"secretName": {"urn:alm:descriptor:text", "urn:alm:descriptor:io.kubernetes:Secret", "binding:env:object:secret"},
+		},
+	))
+	return crds, nil
 }
 
 func NewCRD(src apiextensionsv1beta1.CustomResourceDefinition, ownedResources []TypeMeta, xDescriptors map[string][]string) CRD {
