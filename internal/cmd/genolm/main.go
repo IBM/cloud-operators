@@ -39,6 +39,7 @@ type Data struct {
 	DeploymentSpec appsv1.DeploymentSpec
 	Examples       []runtime.RawExtension
 	Image          string
+	Maintainers    []Maintainer
 	Name           string
 	Now            string
 	RBAC           []roleRules
@@ -111,11 +112,17 @@ func run(output, repoRoot, versionStr string) error {
 		return err
 	}
 
+	maintainers, err := getMaintainers(repoRoot)
+	if err != nil {
+		return err
+	}
+
 	data := Data{
 		CRDs:           crds,
 		DeploymentSpec: deploymentSpec,
 		Examples:       samples,
 		Image:          "cloudoperators/ibmcloud-operator",
+		Maintainers:    maintainers,
 		Name:           "ibmcloud-operator",
 		Now:            time.Now().UTC().Format(time.RFC3339),
 		RBAC:           []roleRules{rbac},

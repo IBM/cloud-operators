@@ -25,18 +25,7 @@ spec:
   version: {{.Version}}
   maturity: alpha
   maintainers:
-  - name: Paolo Dettori
-    email: dettori@us.ibm.com
-  - name: Yew Huey Liu
-    email: yhliu@us.ibm.com  
-  - name: Laura Zaihua Luan
-    email: luan@us.ibm.com      
-  - name: John Starich
-    email: jstarich@us.ibm.com
-  - name: Mandana Vaziri
-    email: mvaziri@us.ibm.com
-  - name: Lionel Villard
-    email: villard@us.ibm.com
+  {{.Maintainers | yaml | indent 2 | trimSpace}}
   provider:
     name: IBM
   links:
