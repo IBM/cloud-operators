@@ -22,12 +22,17 @@ import (
 
 // ServiceSpec defines the desired state of Service
 type ServiceSpec struct {
+	// ServiceClass is the name of the service from the IBM Cloud Catalog
 	ServiceClass string `json:"serviceClass"`
-	Plan         string `json:"plan"`
+	// Plan for the service from the IBM Cloud Catalog
+	Plan string `json:"plan"`
+	// ServiceClassType is set to CF if the service is CloundFoundry
 	// +optional
 	ServiceClassType string `json:"serviceClassType,omitempty"`
+	// ExternalName is the name for the service as it appears on IBM Cloud
 	// +optional
 	ExternalName string `json:"externalName,omitempty"`
+	// Parameters pass configuration to the service during creation
 	// +optional
 	Parameters []Param `json:"parameters,omitempty"`
 	// +optional
@@ -38,24 +43,33 @@ type ServiceSpec struct {
 
 // ServiceStatus defines the observed state of Service
 type ServiceStatus struct {
-	State   string `json:"state,omitempty"`
+	// State is a short name for the current status
+	State string `json:"state,omitempty"`
+	// Message is a detailed message on current status
 	Message string `json:"message,omitempty"`
 
 	Generation int64 `json:"generation,omitempty"`
 
-	ServiceClass     string `json:"serviceClass"`
+	// ServiceClass is the name of the service from the IBM Cloud Catalog
+	ServiceClass string `json:"serviceClass"`
+	// ServiceClassType is set to CF if the service is CloundFoundry
 	ServiceClassType string `json:"serviceClassType"`
-	Plan             string `json:"plan"`
+	// Plan for the service from the IBM Cloud Catalog
+	Plan string `json:"plan"`
+	// InstanceID is the instance ID for the service
 	// +optional
 	InstanceID string `json:"instanceId,omitempty"`
+	// ExternalName is the name for the service as it appears on IBM Cloud
 	// +optional
 	ExternalName string `json:"externalName,omitempty"`
 	// +optional
 	Context ResourceContext `json:"context,omitempty"`
+	// Parameters pass configuration to the service during creation
 	// +optional
 	Parameters []Param `json:"parameters,omitempty"`
 	// +optional
 	Tags []string `json:"tags,omitempty"`
+	// DashboardURL is the dashboard URL for the service
 	// +optional
 	DashboardURL string `json:"dashboardURL,omitempty"`
 }
@@ -66,7 +80,7 @@ type ServiceStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 
-// Service is the Schema for the services API
+// Service is an instance of a Service resource on IBM Cloud.
 type Service struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

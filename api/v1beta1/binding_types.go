@@ -22,30 +22,41 @@ import (
 
 // BindingSpec defines the desired state of Binding
 type BindingSpec struct {
+	// ServiceClass is the name of the service resource to bind
 	ServiceName string `json:"serviceName"`
+	// ServiceNamespace is the namespace of the service resource to bind
 	// +optional
 	ServiceNamespace string `json:"serviceNamespace,omitempty"`
+	// SecretName is the name of the secret where credentials will be stored
 	// +optional
 	SecretName string `json:"secretName,omitempty"`
+	// Role is the role for the credentials
 	// +optional
 	Role string `json:"role,omitempty"`
+	// Alias is the name for the credentials to be aliased
 	// +optional
 	Alias string `json:"alias,omitempty"`
+	// Parameters pass configuration to the service during creation
 	// +optional
 	Parameters []Param `json:"parameters,omitempty"`
 }
 
 // BindingStatus defines the observed state of Binding
 type BindingStatus struct {
-	State   string `json:"state,omitempty"`
+	// State is a short name for the current status
+	State string `json:"state,omitempty"`
+	// Message is a detailed message on current status
 	Message string `json:"message,omitempty"`
 
 	// +optional
 	Generation int64 `json:"generation,omitempty"`
+	// InstanceID is the instance ID for the service
 	// +optional
 	InstanceID string `json:"instanceId,omitempty"`
+	// KeyInstanceID is the key instance ID for the credentials
 	// +optional
 	KeyInstanceID string `json:"keyInstanceId,omitempty"`
+	// SecretName is the name of the generated secret with service credentials
 	// +optional
 	SecretName string `json:"secretName,omitempty"`
 }
@@ -56,7 +67,7 @@ type BindingStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 
-// Binding is the Schema for the bindings API
+// Binding is an instance of a service binding resource on IBM Cloud. A Binding creates a secret with the service instance credentials.
 type Binding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

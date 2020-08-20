@@ -66,4 +66,5 @@ spec:
       deployments: 
       - {{.DeploymentSpec | yaml | indent 8 | trimSpace}}
   customresourcedefinitions:
-    owned: # PLACEHOLDER
+    owned:
+      {{.CRDs | yaml | indent 6 | trimSpace}}

@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -36,6 +37,7 @@ func main() {
 }
 
 type Data struct {
+	CRDs           []CRD
 	DeploymentSpec appsv1.DeploymentSpec
 	Examples       []runtime.RawExtension
 	Image          string
@@ -133,7 +135,39 @@ func run(output, repoRoot, versionStr string) error {
 		}
 	}
 
+	// CRDs
+	var crds []CRD
+	{
+		var bindingCRD apiextensionsv1beta1.CustomResourceDefinition
+		bindingCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_bindings.ibmcloud.ibm.com.yaml"))
+		if err != nil {
+			return errors.Wrap(err, "Error reading generated deployment file. Did kustomize run yet?")
+		}
+		err = yaml.Unmarshal(bindingCRDBytes, &bindingCRD)
+		if err != nil {
+			return err
+		}
+		crds = append(crds, NewCRD(bindingCRD, nil, map[string][]string{
+			"secretName": {"urn:alm:descriptor:text", "urn:alm:descriptor:io.kubernetes:Secret", "binding:env:object:secret"},
+		})) // TODO
+	}
+	{
+		var serviceCRD apiextensionsv1beta1.CustomResourceDefinition
+		serviceCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_services.ibmcloud.ibm.com.yaml"))
+		if err != nil {
+			return errors.Wrap(err, "Error reading generated deployment file. Did kustomize run yet?")
+		}
+		err = yaml.Unmarshal(serviceCRDBytes, &serviceCRD)
+		if err != nil {
+			return err
+		}
+		crds = append(crds, NewCRD(serviceCRD, nil, map[string][]string{
+			"secretName": {"urn:alm:descriptor:text", "urn:alm:descriptor:io.kubernetes:Secret", "binding:env:object:secret"},
+		})) // TODO
+	}
+
 	data := Data{
+		CRDs:           crds,
 		DeploymentSpec: deploymentSpec,
 		Examples:       samples,
 		Image:          "cloudoperators/ibmcloud-operator",
