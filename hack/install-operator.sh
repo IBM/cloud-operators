@@ -125,5 +125,14 @@ pushd "$tmpdir"
 xargs -P 10 -n1 curl --silent --location --remote-name <<<"${file_urls[@]}"
 ls "$tmpdir"
 popd
+set +x
+
+# Apply specially prefixed resources first. Typically these are namespaces and services.
+for f in "$tmpdir"/*; do
+    if [[ "$f" == "$tmpdir"/g_* ]]; then
+        echo "Installing pre-requisite resource: $f"
+        kubectl apply -f "$f"
+    fi
+done
 
 kubectl apply -f "$tmpdir"
