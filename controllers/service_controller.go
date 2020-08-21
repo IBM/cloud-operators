@@ -272,12 +272,6 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
-		instance.Status.InstanceID = inProgress
-		if err := r.Status().Update(ctx, instance); err != nil {
-			logt.Info("Error updating InstanceID to be in progress", "Error", err.Error())
-			return ctrl.Result{}, err
-		}
-
 		// check if using the alias plan, in that case we need to use the existing instance
 		if isAlias(instance) {
 			logt.Info("Using `Alias` plan, checking if instance exists")
@@ -327,6 +321,12 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		}
 
 		// Create the instance, service is not alias
+		instance.Status.InstanceID = inProgress
+		if err := r.Status().Update(ctx, instance); err != nil {
+			logt.Info("Error updating InstanceID to be in progress", "Error", err.Error())
+			return ctrl.Result{}, err
+		}
+
 		logt.WithValues("User", ibmCloudInfo.Context.User).Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 		serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 		if err != nil {
