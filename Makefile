@@ -3,8 +3,8 @@ export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
-# Set PATH to pick up cached tools
-SHELL := /usr/bin/env PATH="${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH}" bash
+# Set PATH to pick up cached tools. The additional 'sed' is required for cross-platform support of quoting the args to 'env'
+SHELL := /usr/bin/env PATH=$(shell printf ${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH} | sed 's/ /\ /g') bash
 
 # Version to create release. Value is set in .travis.yml's release job
 RELEASE_VERSION ?= 0.0.0
@@ -63,6 +63,7 @@ cache/bin/kustomize: cache/bin
 	cd cache/bin && \
 		set -o pipefail && \
 		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+	[[ "$$(which kustomize)" =~ cache/bin/kustomize ]]
 
 .PHONY: test
 test: generate manifests kubebuilder
