@@ -163,8 +163,12 @@ cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
 out:
 	mkdir -p out
 
-.PHONY: release
-release: kustomize out docker-push
+# Prepares Kubernetes yaml files for release. Useful for testing against your own cluster.
+.PHONY: release-prep
+release-prep: kustomize out 
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default --output out/
+
+.PHONY: release
+release: release-prep docker-push
 	go run ./internal/cmd/genolm --version ${RELEASE_VERSION}

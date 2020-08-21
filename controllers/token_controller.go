@@ -43,9 +43,6 @@ type TokenReconciler struct {
 	HTTPClient *http.Client
 }
 
-// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=tokens,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=tokens/status,verbs=get;update;patch
-
 // Reconcile computes IAM and UAA tokens
 func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
