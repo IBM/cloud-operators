@@ -12,7 +12,6 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/catalog"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
-	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/management"
 	"github.com/IBM-Cloud/bluemix-go/crn"
 	"github.com/IBM-Cloud/bluemix-go/endpoints"
 	"github.com/IBM-Cloud/bluemix-go/models"
@@ -237,18 +236,18 @@ func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nc
 	}
 
 	// check that the resourceGroup and resourceGroupId match
-	managementClient, err := management.New(sess)
-	if err != nil {
-		return nil, err
-	}
-	resGrpAPI := managementClient.ResourceGroup()
-	resGrp, err := resGrpAPI.Get(useCtx.ResourceGroupID)
-	if err != nil {
-		return nil, err
-	}
-	if resGrp.Name != useCtx.ResourceGroup {
-		return nil, fmt.Errorf("ResourceGroup and ResourceGroupID are not consistent: %s, %s", useCtx.ResourceGroup, useCtx.ResourceGroupID)
-	}
+	// managementClient, err := management.New(sess)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// resGrpAPI := managementClient.ResourceGroup()
+	// resGrp, err := resGrpAPI.Get(useCtx.ResourceGroupID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if resGrp.Name != useCtx.ResourceGroup {
+	// 	return nil, fmt.Errorf("ResourceGroup and ResourceGroupID are not consistent: %s, %s", useCtx.ResourceGroup, useCtx.ResourceGroupID)
+	// }
 
 	return &Info{
 		ResourceClient:   controllerClient, // IAMServiceAPI
@@ -357,10 +356,10 @@ func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace stri
 func getIBMCloudContext(instance *ibmcloudv1beta1.Service, cm *v1.ConfigMap) ibmcloudv1beta1.ResourceContext {
 	if (ibmcloudv1beta1.ResourceContext{}) == instance.Spec.Context {
 		newContext := ibmcloudv1beta1.ResourceContext{
-			Org:             cm.Data["org"],
-			Space:           cm.Data["space"],
-			Region:          cm.Data["region"],
-			ResourceGroup:   cm.Data["resourcegroup"],
+			Org:    cm.Data["org"],
+			Space:  cm.Data["space"],
+			Region: cm.Data["region"],
+			//ResourceGroup:   cm.Data["resourcegroup"],
 			ResourceGroupID: cm.Data["resourcegroupid"],
 			User:            cm.Data["user"],
 		}
@@ -375,9 +374,9 @@ func getIBMCloudContext(instance *ibmcloudv1beta1.Service, cm *v1.ConfigMap) ibm
 	if instance.Spec.Context.Region == "" {
 		instance.Spec.Context.Region = cm.Data["region"]
 	}
-	if instance.Spec.Context.ResourceGroup == "" {
-		instance.Spec.Context.ResourceGroup = cm.Data["resourcegroup"]
-	}
+	// if instance.Spec.Context.ResourceGroup == "" {
+	// 	instance.Spec.Context.ResourceGroup = cm.Data["resourcegroup"]
+	// }
 	if instance.Spec.Context.ResourceGroupID == "" {
 		instance.Spec.Context.ResourceGroupID = cm.Data["resourcegroupid"]
 	}
