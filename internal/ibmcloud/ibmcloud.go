@@ -115,19 +115,6 @@ func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nc
 			return nil, err
 		}
 
-		// accClient, err := accountv2.New(sess)
-		// if err != nil {
-		// 	return nil, err
-		// }
-
-		// logt.Info("here4")
-
-		// accountAPI := accClient.Accounts()
-		// myAccount, err := accountAPI.FindByOrg(myorg.GUID, useCtx.Region)
-		// if err != nil {
-		// 	return nil, err
-		// }
-
 		servicePlan := &mccpv2.ServicePlan{}
 		if strings.ToLower(instance.Spec.Plan) != aliasPlan {
 			serviceOfferingAPI := bxclient.ServiceOfferings()
@@ -144,22 +131,16 @@ func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nc
 		}
 
 		return &Info{
-			BXClient: bxclient, // MccpServiceAPI
-			//ResourceClient:   controllerClient, // IAMServiceAPI
-			//CatalogClient:    catalogClient,
-			//Account: myAccount, // *Account
-			Org:    myorg, //*Organization
-			Space:  myspace,
-			Region: regionList,
-			//ResourceGroupID:  resourceGroupID,
+			BXClient:         bxclient,
+			Org:              myorg,
+			Space:            myspace,
+			Region:           regionList,
 			ResourceLocation: useCtx.ResourceLocation,
 			Session:          sess,
 			ServiceClass:     servicename,
 			ServiceClassType: servicetype,
 			BxPlan:           servicePlan,
-			//ServicePlanID:    servicePlanID,
-			//TargetCrn:        supportedDeployments[0].CatalogCRN,
-			Context: useCtx,
+			Context:          useCtx,
 		}, nil
 	}
 
@@ -234,20 +215,6 @@ func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nc
 		}
 		catalogCRN = supportedDeployments[0].CatalogCRN
 	}
-
-	// check that the resourceGroup and resourceGroupId match
-	// managementClient, err := management.New(sess)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// resGrpAPI := managementClient.ResourceGroup()
-	// resGrp, err := resGrpAPI.Get(useCtx.ResourceGroupID)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if resGrp.Name != useCtx.ResourceGroup {
-	// 	return nil, fmt.Errorf("ResourceGroup and ResourceGroupID are not consistent: %s, %s", useCtx.ResourceGroup, useCtx.ResourceGroupID)
-	// }
 
 	return &Info{
 		ResourceClient:   controllerClient, // IAMServiceAPI
@@ -356,10 +323,9 @@ func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace stri
 func getIBMCloudContext(instance *ibmcloudv1beta1.Service, cm *v1.ConfigMap) ibmcloudv1beta1.ResourceContext {
 	if (ibmcloudv1beta1.ResourceContext{}) == instance.Spec.Context {
 		newContext := ibmcloudv1beta1.ResourceContext{
-			Org:    cm.Data["org"],
-			Space:  cm.Data["space"],
-			Region: cm.Data["region"],
-			//ResourceGroup:   cm.Data["resourcegroup"],
+			Org:             cm.Data["org"],
+			Space:           cm.Data["space"],
+			Region:          cm.Data["region"],
 			ResourceGroupID: cm.Data["resourcegroupid"],
 			User:            cm.Data["user"],
 		}
@@ -374,9 +340,6 @@ func getIBMCloudContext(instance *ibmcloudv1beta1.Service, cm *v1.ConfigMap) ibm
 	if instance.Spec.Context.Region == "" {
 		instance.Spec.Context.Region = cm.Data["region"]
 	}
-	// if instance.Spec.Context.ResourceGroup == "" {
-	// 	instance.Spec.Context.ResourceGroup = cm.Data["resourcegroup"]
-	// }
 	if instance.Spec.Context.ResourceGroupID == "" {
 		instance.Spec.Context.ResourceGroupID = cm.Data["resourcegroupid"]
 	}
