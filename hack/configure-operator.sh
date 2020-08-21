@@ -146,12 +146,14 @@ ls "$tmpdir"
 popd
 set +x
 
-# Apply specially prefixed resources first. Typically these are namespaces and services.
-for f in "$tmpdir"/*; do
-    if [[ "$f" == "$tmpdir"/g_* ]]; then
-        echo "Installing pre-requisite resource: $f"
-        kubectl apply -f "$f"
-    fi
-done
+if [[ "$ACTION" == apply ]]; then
+    # Apply specially prefixed resources first. Typically these are namespaces and services.
+    for f in "$tmpdir"/*; do
+        if [[ "$f" == "$tmpdir"/g_* ]]; then
+            echo "Installing pre-requisite resource: $f"
+            kubectl apply -f "$f"
+        fi
+    done
+fi
 
 kubectl "$ACTION" -f "$tmpdir"
