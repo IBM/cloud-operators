@@ -278,7 +278,7 @@ spec:
                     type: string
                   region:
                     type: string
-                  resourceGroupID:
+                  resourcegroupid:
                     type: string
                   resourcelocation:
                     type: string
@@ -380,7 +380,7 @@ spec:
                     type: string
                   region:
                     type: string
-                  resourceGroupID:
+                  resourcegroupid:
                     type: string
                   resourcelocation:
                     type: string

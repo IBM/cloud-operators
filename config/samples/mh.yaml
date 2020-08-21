@@ -5,7 +5,7 @@ metadata:
   ibmcloud.ibm.com/instanceId: "crn:v1:bluemix:public:messagehub:us-south:a/bf384e9f77ea0cd3b2268cbc7a5edba1:f9ec65c5-ec75-408d-8fa8-b2c9231952ca::"
 spec:
   context:
-    resourceGroupID: ce4f672161e04c56a313e06a39b0abcc
+    resourcegroupid: ce4f672161e04c56a313e06a39b0abcc
   plan: Alias
   serviceClass: messagehub
   externalName: mymes

@@ -12,3 +12,10 @@ metadata:
   name: binding-cloudant
 spec:
   serviceName: mycloudant
+---
+apiVersion: ibmcloud.ibm.com/v1beta1
+kind: Binding
+metadata:
+  name: binding-cloudant1
+spec:
+  serviceName: mycloudant
