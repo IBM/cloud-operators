@@ -49,7 +49,7 @@ json_grep() {
     done
 }
 
-# json_grep_after runs json_grep for $1 only after finding a line matching $2
+# json_grep_after runs json_grep for $2 only after finding a line matching $1
 json_grep_after() {
     local after=$1
     local pattern=$2
