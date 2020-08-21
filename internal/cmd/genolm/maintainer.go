@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/pkg/errors"
 )
 
 type Maintainer struct {
@@ -27,23 +29,17 @@ func getMaintainers(repoRoot string) ([]Maintainer, error) {
 
 	repo, err := git.PlainOpen(repoRoot)
 	if err != nil {
-		return nil, err
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to open repo at %s", repoRoot)
 	}
 
 	commitIter, err := repo.Log(&git.LogOptions{
-		From: head.Hash(),
+		Order: git.LogOrderBSF,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get commit log")
 	}
 
-	maintainersChan := make(chan Maintainer)
-	errsChan := make(chan error)
-	var wg sync.WaitGroup
+	var commits []*object.Commit
 	const maxCommits = 200
 	for i := 0; i < maxCommits; i++ {
 		commit, err := commitIter.Next()
@@ -51,12 +47,22 @@ func getMaintainers(repoRoot string) ([]Maintainer, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			fmt.Fprintln(os.Stderr, "Error processing next commit:", err)
+			continue
 		}
+		commits = append(commits, commit)
+	}
+	commitIter.Close()
+
+	maintainersChan := make(chan Maintainer)
+	errsChan := make(chan error)
+	var wg sync.WaitGroup
+	for _, commit := range commits {
 		wg.Add(1)
+		hash := commit.Hash
 		go func() {
 			defer wg.Done()
-			maintainer, err := NewFromCommit(repoRoot, commit.Hash)
+			maintainer, err := NewFromCommit(repoRoot, hash)
 			if err != nil {
 				errsChan <- err
 				return
@@ -84,7 +90,7 @@ func getMaintainers(repoRoot string) ([]Maintainer, error) {
 				uniqueEmails[m.Email].contributions += m.contributions
 			}
 		case err := <-errsChan:
-			return nil, err
+			return nil, errors.Wrap(err, "Failed to fetch contributor info from git repo")
 		}
 	}
 }
@@ -111,11 +117,11 @@ func topContributors(uniqueEmails map[string]*Maintainer) []Maintainer {
 func NewFromCommit(repoRoot string, hash plumbing.Hash) (Maintainer, error) {
 	repo, err := git.PlainOpen(repoRoot)
 	if err != nil {
-		return Maintainer{}, err
+		return Maintainer{}, errors.Wrapf(err, "Failed to get repo at %q", repoRoot)
 	}
 	commit, err := repo.CommitObject(hash)
 	if err != nil {
-		return Maintainer{}, err
+		return Maintainer{}, errors.Wrapf(err, "Failed to get commit for hash %s", hash.String())
 	}
 	maintainer := Maintainer{
 		Name:  commit.Author.Name,
@@ -123,7 +129,7 @@ func NewFromCommit(repoRoot string, hash plumbing.Hash) (Maintainer, error) {
 	}
 	stats, err := commit.Stats()
 	if err != nil {
-		return Maintainer{}, err
+		return Maintainer{}, errors.Wrapf(err, "Failed to get stats for hash %s", hash.String())
 	}
 	const commitWeight = 100
 	for _, stat := range stats {

@@ -98,7 +98,7 @@ func run(output, repoRoot, versionStr string) error {
 
 	// DeploymentSpec
 	var deployment appsv1.Deployment
-	deploymentBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apps_v1_deployment_ibmcloud-operator-controller-manager.yaml"))
+	deploymentBytes, err := ioutil.ReadFile(filepath.Join(output, "apps_v1_deployment_ibmcloud-operators-controller-manager.yaml"))
 	if err != nil {
 		return errors.Wrap(err, "Error reading generated deployment file. Did kustomize run yet?")
 	}

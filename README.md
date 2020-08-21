@@ -53,7 +53,7 @@ Notice that the `org` and `space` must be included, even if no Cloud Foundry ser
 To install the latest release of the operator, run the following script:
 
 ```
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/install-operator.sh | bash 
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash 
 ```
 
 The script above first creates an IBM Cloud API Key and stores it in a Kubernetes secret that can be
@@ -71,7 +71,7 @@ Next log into the IBM Cloud account that owns the ServiceId and follow the instr
 To remove the operator, run the following script:
 
 ```
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/uninstall-operator.sh | bash 
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- delete
 ```
 
 ## Using the IBM Cloud Operator
