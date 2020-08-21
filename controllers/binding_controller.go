@@ -74,6 +74,11 @@ func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=services/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile reads the state of the cluster for a Binding object and makes changes based on the state read
 // and what is in the Binding.Spec.

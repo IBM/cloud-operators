@@ -7,9 +7,45 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - ibmcloud.ibm.com
   resources:
   - bindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ibmcloud.ibm.com
+  resources:
+  - bindings/finalizers
   verbs:
   - create
   - delete
@@ -41,15 +77,7 @@ rules:
 - apiGroups:
   - ibmcloud.ibm.com
   resources:
-  - services/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ibmcloud.ibm.com
-  resources:
-  - tokens
+  - services/finalizers
   verbs:
   - create
   - delete
@@ -61,7 +89,7 @@ rules:
 - apiGroups:
   - ibmcloud.ibm.com
   resources:
-  - tokens/status
+  - services/status
   verbs:
   - get
   - patch
