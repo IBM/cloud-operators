@@ -128,7 +128,7 @@ type ResourceContext struct {
 	// +optional
 	Region string `json:"region,omitempty"`
 	// +optional
-	ResourceGroupID string `json:"resourceGroupID,omitempty"`
+	ResourceGroupID string `json:"resourcegroupid,omitempty"`
 	// +optional
 	ResourceLocation string `json:"resourcelocation,omitempty"`
 	// +optional
