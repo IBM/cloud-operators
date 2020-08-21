@@ -16,7 +16,7 @@
 #
 
 #
-# install-operator.sh
+# install-operator.sh [ACTION]
 #
 # This script installs the IBM Cloud Operator from the latest release.
 # It attempts to pick up as much as it can from the 'ibmcloud' CLI target context when configuring the operator.
@@ -27,8 +27,6 @@
 set -e
 # Fail a pipe if any of the commands fail
 set -o pipefail
-
-## Ensure API key Secret and operator ConfigMap are set up
 
 # json_grep assumes stdin is an indented JSON blob, then looks for a matching JSON key for $1.
 # The value must be a string type.
@@ -62,6 +60,19 @@ json_grep_after() {
         fi
     done
 }
+
+
+ACTION=${1:-apply}
+case "$ACTION" in
+    apply | delete) ;;
+    *)
+        echo "Invalid action: $ACTION" >&2
+        echo "Valid actions: delete"
+        exit 2
+esac
+
+
+## Ensure API key Secret and operator ConfigMap are set up
 
 if ! kubectl get secret -n default secret-ibm-cloud-operator; then
     if [[ -z "$IBMCLOUD_API_KEY" ]]; then
@@ -143,4 +154,4 @@ for f in "$tmpdir"/*; do
     fi
 done
 
-kubectl apply -f "$tmpdir"
+kubectl "$ACTION" -f "$tmpdir"
