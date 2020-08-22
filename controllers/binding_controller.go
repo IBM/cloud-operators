@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	iam "github.com/IBM-Cloud/bluemix-go/api/iam/iamv1"
-	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	"github.com/IBM-Cloud/bluemix-go/api/iam/iamv1"
+	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/crn"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/utils"
@@ -453,7 +453,7 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, instance *ibm
 			return "", nil, err
 		}
 
-		iamClient, err := iam.New(ibmCloudInfo.Session)
+		iamClient, err := iamv1.New(ibmCloudInfo.Session)
 		if err != nil {
 			return "", nil, err
 		}
@@ -494,7 +494,7 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, instance *ibm
 		parameters["role_crn"] = roleID
 
 		resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-		params := bxcontroller.CreateServiceKeyRequest{
+		params := controller.CreateServiceKeyRequest{
 			Name:       instance.ObjectMeta.Name,
 			SourceCRN:  serviceInstanceModel.Crn,
 			Parameters: parameters,

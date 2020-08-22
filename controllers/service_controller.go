@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
-	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/go-logr/logr"
@@ -256,13 +256,13 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	// resource is not CF
-	controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
+	controllerClient, err := controller.New(ibmCloudInfo.Session)
 	if err != nil {
 		return r.updateStatusError(instance, serviceStatePending, err)
 	}
 
 	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
-	var serviceInstancePayload = bxcontroller.CreateServiceInstanceRequest{
+	var serviceInstancePayload = controller.CreateServiceInstanceRequest{
 		Name:            externalName,
 		ServicePlanID:   ibmCloudInfo.ServicePlanID,
 		ResourceGroupID: ibmCloudInfo.ResourceGroupID,
@@ -275,7 +275,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		// check if using the alias plan, in that case we need to use the existing instance
 		if isAlias(instance) {
 			logt.Info("Using `Alias` plan, checking if instance exists")
-			serviceInstanceQuery := bxcontroller.ServiceInstanceQuery{
+			serviceInstanceQuery := controller.ServiceInstanceQuery{
 				// Warning: Do not add the ServiceID to this query
 				ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 				ServicePlanID:   ibmCloudInfo.ServicePlanID,
@@ -338,7 +338,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	// ServiceInstance was previously created, verify that it is still there
 	logt.Info("ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
 
-	serviceInstanceQuery := bxcontroller.ServiceInstanceQuery{
+	serviceInstanceQuery := controller.ServiceInstanceQuery{
 		// Warning: Do not add the ServiceID to this query
 		ResourceGroupID: ibmCloudInfo.ResourceGroupID,
 		ServicePlanID:   ibmCloudInfo.ServicePlanID,
@@ -373,7 +373,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	// Update Params and Tags if they have changed
 	if tagsOrParamsChanged(instance) {
 		logt.Info("ServiceInstance ", "updating tags and/or parameters", instance.ObjectMeta.Name)
-		serviceInstanceUpdatePayload := bxcontroller.UpdateServiceInstanceRequest{
+		serviceInstanceUpdatePayload := controller.UpdateServiceInstanceRequest{
 			Name:          externalName,
 			ServicePlanID: ibmCloudInfo.ServicePlanID,
 			Parameters:    params,
@@ -484,7 +484,7 @@ func (r *ServiceReconciler) deleteService(ibmCloudInfo *ibmcloud.Info, instance 
 
 	} else { // Resource is not CF
 		r.Log.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-		controllerClient, err := bxcontroller.New(ibmCloudInfo.Session)
+		controllerClient, err := controller.New(ibmCloudInfo.Session)
 		if err != nil {
 			r.Log.Info("Deletion error", "ServiceInstance", err.Error())
 			return err
