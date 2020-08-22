@@ -180,6 +180,14 @@ if [[ "$ACTION" == apply ]]; then
                 kubectl apply -f "$f"
                 rm "$f"  # Do not reprocess
                 ;;
+            monitoring.*)
+                if ! kubectl apply -f "$f"; then
+                    # Bypass failures on missing Prometheus Operator CRDs
+                    error Failed to install monitoring, skipping...
+                    error Install the Prometheus Operator and re-run this script to include monitoring.
+                fi
+                rm "$f"  # Do not reprocess
+                ;;
         esac
     done
 fi
