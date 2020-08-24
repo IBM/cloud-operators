@@ -91,7 +91,73 @@ fetch_assets() {
     printf "$TMPDIR"
 }
 
+# compare_semver prints 0 if the semver $1 is equal to $2, -1 for $1 < $2, and 1 for $1 > $2
+compare_semver() {
+    local semver_pattern='([0-9]+)\.([0-9]+)\.([0-9]+)'
+    local semver1=(0 0 0)
+    local semver2=(0 0 0)
+    if [[ "$1" =~ $semver_pattern ]]; then
+        semver1=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}")
+    fi
+    if [[ "$2" =~ $semver_pattern ]]; then
+        semver2=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}")
+    fi
+
+    if (( ${semver1[0]} != ${semver2[0]} )); then
+        if (( ${semver1[0]} > ${semver2[0]} )); then
+            echo 1
+            return
+        fi
+        echo -1
+        return
+    fi
+    if (( ${semver1[1]} != ${semver2[1]} )); then
+        if (( ${semver1[1]} > ${semver2[1]} )); then
+            echo 1
+            return
+        fi
+        echo -1
+        return
+    fi
+    if (( ${semver1[2]} != ${semver2[2]} )); then
+        if (( ${semver1[2]} > ${semver2[2]} )); then
+            echo 1
+            return
+        fi
+        echo -1
+        return
+    fi
+    echo 0
+}
+
+usage() {
+    cat >&2 <<EOT
+Usage: $(basename "$0") [-h] [-v VERSION] [ACTION]
+
+    -h            Shows this help message.
+    -v VERSION    Uses the given semantic version (e.g. 1.2.3) to install or uninstall. Default is latest.
+
+    ACTION        What action to perform. Options: apply, delete. Default is apply.
+
+EOT
+}
+
+
 ## Validate args
+
+VERSION=latest
+while getopts "hv:" opt; do
+    case "$opt" in 
+        h)
+            usage
+            exit 0
+            ;;
+        v)
+            VERSION=$OPTARG
+            ;;
+    esac
+done
+shift $((OPTIND-1))
 
 ACTION=${1:-apply}
 case "$ACTION" in
@@ -102,6 +168,20 @@ case "$ACTION" in
         exit 2
 esac
 
+if [[ "$VERSION" != latest && "$(compare_semver "$VERSION" 0.2.0)" == -1 ]]; then
+    # This back-compatible installer runs in the style of v0.1.x's installer, but pulls v0.1.x's source code instead of latest.
+    pushd "$TMPDIR"
+    download_version=0.1.11
+    tmpzip="${TMPDIR}/v${download_version}.zip"
+    curl -sL "https://github.com/IBM/cloud-operators/archive/v${download_version}.zip" > "$tmpzip"
+    unzip -qq "$tmpzip"
+    pushd "cloud-operators-${download_version}"
+    if [[ "$ACTION" == apply ]]; then
+        ./hack/config-operator.sh
+    fi
+    kubectl "$ACTION" -f "./releases/v${VERSION}"
+    exit 0
+fi
 
 ## Ensure API key Secret and operator ConfigMap are set up
 
@@ -159,8 +239,8 @@ fi
 
 ## Install ibmcloud-operators
 
-latest=$(curl -H 'Accept: application/vnd.github.v3+json' https://api.github.com/repos/IBM/cloud-operators/releases/latest)
-urls=$(json_grep browser_download_url -1 <<<"$latest")
+release=$(curl -H 'Accept: application/vnd.github.v3+json' "https://api.github.com/repos/IBM/cloud-operators/releases/$VERSION")
+urls=$(json_grep browser_download_url -1 <<<"$release")
 file_urls=()
 while read -r url; do
     if ! [[ "$url" =~ package.yaml|clusterserviceversion.yaml ]]; then
