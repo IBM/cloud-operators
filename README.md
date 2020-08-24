@@ -52,13 +52,19 @@ Notice that the `org` and `space` must be included, even if no Cloud Foundry ser
 
 To install the latest release of the operator, run the following script:
 
-```
+```bash
 curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash 
 ```
 
 The script above first creates an IBM Cloud API Key and stores it in a Kubernetes secret that can be
 accessed by the operator, then it sets defaults such as the default resource group and region 
 used to provision IBM Cloud Services; finally, it deploys the operator in your cluster. You can always override the defaults in the `Service` custom resource. If you prefer to create the secret and the defaults manually, consult the [IBM Cloud Operator documentation](docs/install.md).
+
+To install a specific version of the operator, you can pass a semantic version:
+
+```bash
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0
+```
 
 ### Using a ServiceId
 
@@ -70,7 +76,7 @@ Next log into the IBM Cloud account that owns the ServiceId and follow the instr
 
 To remove the operator, run the following script:
 
-```
+```bash
 curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- delete
 ```
 
