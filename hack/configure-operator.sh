@@ -28,6 +28,18 @@ set -e
 # Fail a pipe if any of the commands fail
 set -o pipefail
 
+TMPDIR=$(mktemp -d)
+trap "set -x; rm -rf '$TMPDIR'" EXIT
+
+# error prints the arguments to stderr. If printing to a TTY, adds red color.
+error() {
+    if [[ -t 2 ]]; then
+        printf '\033[1;31m%s\033[m\n' "$*" >&2
+    else
+        echo "$*" >&2
+    fi
+}
+
 # json_grep assumes stdin is an indented JSON blob, then looks for a matching JSON key for $1.
 # The value must be a string type.
 #
@@ -61,6 +73,25 @@ json_grep_after() {
     done
 }
 
+# fetch_assets retrieves the given URLs and saves them to a temporary directory. The directory is printed to stdout.
+fetch_assets() {
+    local file_urls=("$@")
+    if [[ -n "$DEBUG_OUT" ]]; then
+        # Use custom assets directory for debugging purposes.
+        printf "$DEBUG_OUT"
+        return
+    fi
+
+    pushd "$TMPDIR" >/dev/null
+    xargs -P 10 -n1 curl --silent --location --remote-name <<<"${file_urls[@]}"
+    echo "Downloaded:" >&2
+    ls "$TMPDIR" >&2
+    popd >/dev/null
+
+    printf "$TMPDIR"
+}
+
+## Validate args
 
 ACTION=${1:-apply}
 case "$ACTION" in
@@ -137,23 +168,28 @@ while read -r url; do
     fi
 done <<<"$urls"
 
-tmpdir=$(mktemp -d)
-trap 'rm -rf "$tmpdir"' EXIT
-set -x
-pushd "$tmpdir"
-xargs -P 10 -n1 curl --silent --location --remote-name <<<"${file_urls[@]}"
-ls "$tmpdir"
-popd
+assets=$(fetch_assets "${file_urls[@]}")
 set +x
 
 if [[ "$ACTION" == apply ]]; then
     # Apply specially prefixed resources first. Typically these are namespaces and services.
-    for f in "$tmpdir"/*; do
-        if [[ "$f" == "$tmpdir"/g_* ]]; then
-            echo "Installing pre-requisite resource: $f"
-            kubectl apply -f "$f"
-        fi
+    for f in "$assets"/*; do
+        case "$(basename "$f")" in
+            ~g_* | g_*)
+                echo "Installing pre-requisite resource: $f"
+                kubectl apply -f "$f"
+                rm "$f"  # Do not reprocess
+                ;;
+            monitoring.*)
+                if ! kubectl apply -f "$f"; then
+                    # Bypass failures on missing Prometheus Operator CRDs
+                    error Failed to install monitoring, skipping...
+                    error Install the Prometheus Operator and re-run this script to include monitoring.
+                fi
+                rm "$f"  # Do not reprocess
+                ;;
+        esac
     done
 fi
 
-kubectl "$ACTION" -f "$tmpdir"
+kubectl "$ACTION" -f "$assets"
