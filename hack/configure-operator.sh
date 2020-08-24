@@ -161,7 +161,7 @@ shift $((OPTIND-1))
 
 ACTION=${1:-apply}
 case "$ACTION" in
-    apply | delete) ;;
+    apply | delete | store-creds) ;;
     *)
         echo "Invalid action: $ACTION" >&2
         echo "Valid actions: delete"
@@ -176,10 +176,15 @@ if [[ "$VERSION" != latest && "$(compare_semver "$VERSION" 0.2.0)" == -1 ]]; the
     curl -sL "https://github.com/IBM/cloud-operators/archive/v${download_version}.zip" > "$tmpzip"
     unzip -qq "$tmpzip"
     pushd "cloud-operators-${download_version}"
-    if [[ "$ACTION" == apply ]]; then
-        ./hack/config-operator.sh
-    fi
-    kubectl "$ACTION" -f "./releases/v${VERSION}"
+    case "$ACTION" in
+        store-creds)
+            ./hack/config-operator.sh
+            ;;
+        *)
+            ./hack/config-operator.sh
+            kubectl "$ACTION" -f "./releases/v${VERSION}"
+            ;;
+    esac
     exit 0
 fi
 
@@ -235,6 +240,10 @@ data:
   space: "${space}"
   user: "${user}"
 EOT
+fi
+
+if [[ "$ACTION" == store-creds ]]; then
+    exit 0
 fi
 
 ## Install ibmcloud-operators
