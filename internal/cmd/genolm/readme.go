@@ -12,19 +12,31 @@ import (
 
 func prepREADME(readme io.Reader) string {
 	scanner := bufio.NewScanner(readme)
-	hiding := false
+	showing := false
+	codeFence := false
 	var buf bytes.Buffer
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = convertToAbsoluteLinks(line)
 
 		switch {
-		case strings.HasPrefix(line, `<!-- HIDE `) && strings.HasSuffix(line, ` -->`):
-			hiding = true
-		case strings.HasPrefix(line, `<!-- END HIDE `) && strings.HasSuffix(line, ` -->`):
-			hiding = false
-		case !hiding:
-			if line != "" || buf.Len() > 0 { // skip leading blank lines
+		case strings.HasPrefix(line, `<!-- SHOW `) && strings.HasSuffix(line, ` -->`):
+			showing = true
+		case strings.HasPrefix(line, `<!-- END SHOW `) && strings.HasSuffix(line, ` -->`):
+			showing = false
+		case line == "" && buf.Len() == 0: // skip leading blank lines
+		case showing:
+			const codeFenceStr = "```"
+			switch {
+			case codeFence && strings.HasPrefix(line, codeFenceStr):
+				codeFence = false
+			case strings.HasPrefix(line, codeFenceStr):
+				codeFence = true
+			case codeFence:
+				buf.WriteString("    ") // indent code line
+				buf.WriteString(line)
+				buf.WriteRune('\n')
+			default:
 				buf.WriteString(line)
 				buf.WriteRune('\n')
 			}

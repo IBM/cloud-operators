@@ -1,12 +1,10 @@
-<!-- HIDE operator hub -->
-
 [![Build Status](https://travis-ci.com/IBM/cloud-operators.svg?branch=master)](https://travis-ci.com/IBM/cloud-operators)
 [![Go Report Card](https://goreportcard.com/badge/github.com/IBM/cloud-operators)](https://goreportcard.com/report/github.com/IBM/cloud-operators)
 [![GoDoc](https://godoc.org/github.com/IBM/cloud-operators?status.svg)](https://godoc.org/github.com/IBM/cloud-operators)
 
 # IBM Cloud Operator
 
-<!-- END HIDE operator hub -->
+<!-- SHOW operator hub -->
 
 The IBM Cloud Operator provides a simple Kubernetes CRD-Based API to provision and bind 
 IBM public cloud services on your Kubernetes cluster. With this operator, you no longer need
@@ -63,7 +61,8 @@ To instantiate services and bindings on behalf of a ServiceId, set the environme
 
 Next log into the IBM Cloud account that owns the ServiceId and follow the instructions above.
 
-<!-- HIDE operator hub -->
+<!-- END SHOW operator hub -->
+
 ### Install
 
 To install the latest release of the operator, run the following script:
@@ -93,7 +92,7 @@ To remove the operator, run the following script:
 curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- delete
 ```
 
-<!-- END HIDE operator hub -->
+<!-- SHOW operator hub -->
 
 ### Configure the operator for OpenShift
 
@@ -181,6 +180,8 @@ mybinding                  Opaque                                6      102s
 
 You can find [additional samples](config/samples), and more information on 
 [using the operator](docs/user-guide.md) in the operator documentation.
+
+<!-- END SHOW operator hub -->
 
 ### Service Properties
 
