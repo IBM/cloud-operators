@@ -172,3 +172,13 @@ release-prep: kustomize out
 .PHONY: release
 release: release-prep docker-push
 	go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
+
+.PHONY: operator-courier
+operator-courier:
+	@if ! which operator-courier; then \
+		pip3 install operator-courier; \
+	fi
+
+.PHONY: verify-operator-meta
+verify-operator-meta: release-prep operator-courier
+	operator-courier verify --ui_validate_io out/
