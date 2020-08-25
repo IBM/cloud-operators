@@ -190,16 +190,15 @@ fi
 
 ## Ensure API key Secret and operator ConfigMap are set up
 
-if ! kubectl get secret -n default secret-ibm-cloud-operator; then
-    if [[ -z "$IBMCLOUD_API_KEY" ]]; then
-        key_output=$(ibmcloud iam api-key-create ibmcloud-operator-key -d "Key for IBM Cloud Operator" --output json)
-        IBMCLOUD_API_KEY=$(json_grep apikey <<<"$key_output")
-    fi
-    target=$(ibmcloud target --output json)
-    b64_region=$(json_grep_after region name <<<"$target" | base64)
-    b64_apikey=$(printf "$IBMCLOUD_API_KEY" | base64)
+if [[ -z "$IBMCLOUD_API_KEY" ]]; then
+    key_output=$(ibmcloud iam api-key-create ibmcloud-operator-key -d "Key for IBM Cloud Operator" --output json)
+    IBMCLOUD_API_KEY=$(json_grep apikey <<<"$key_output")
+fi
+target=$(ibmcloud target --output json)
+b64_region=$(json_grep_after region name <<<"$target" | base64)
+b64_apikey=$(printf "$IBMCLOUD_API_KEY" | base64)
 
-    kubectl apply -f - <<EOT
+kubectl apply -f - <<EOT
 apiVersion: v1
 kind: Secret
 metadata:
@@ -213,18 +212,15 @@ data:
   api-key: $b64_apikey
   region: $b64_region
 EOT
-fi
 
-if ! kubectl get configmap -n default config-ibm-cloud-operator; then
-    target=$(ibmcloud target --output json)
-    region=$(json_grep_after region name <<<"$target")
-    org=$(json_grep_after org name <<<"$target")
-    space=$(json_grep_after space name <<<"$target")
-    resource_group=$(json_grep_after resource_group name <<<"$target")
-    resource_group_id=$(json_grep_after resource_group guid <<<"$target")
-    user=$(json_grep_after user display_name <<<"$target")
+region=$(json_grep_after region name <<<"$target")
+org=$(json_grep_after org name <<<"$target")
+space=$(json_grep_after space name <<<"$target")
+resource_group=$(json_grep_after resource_group name <<<"$target")
+resource_group_id=$(json_grep_after resource_group guid <<<"$target")
+user=$(json_grep_after user display_name <<<"$target")
 
-    kubectl apply -f - <<EOT
+kubectl apply -f - <<EOT
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -240,7 +236,6 @@ data:
   space: "${space}"
   user: "${user}"
 EOT
-fi
 
 if [[ "$ACTION" == store-creds ]]; then
     exit 0
