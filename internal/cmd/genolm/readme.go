@@ -12,20 +12,34 @@ import (
 
 func prepREADME(readme io.Reader) string {
 	scanner := bufio.NewScanner(readme)
-	include := false
+	showing := false
+	codeFence := false
 	var buf bytes.Buffer
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = convertToAbsoluteLinks(line)
 
-		if include {
-			if line != "" || buf.Len() > 0 { // skip leading blank lines
+		switch {
+		case strings.HasPrefix(line, `<!-- SHOW `) && strings.HasSuffix(line, ` -->`):
+			showing = true
+		case strings.HasPrefix(line, `<!-- END SHOW `) && strings.HasSuffix(line, ` -->`):
+			showing = false
+		case line == "" && buf.Len() == 0: // skip leading blank lines
+		case showing:
+			const codeFenceStr = "```"
+			switch {
+			case codeFence && strings.HasPrefix(line, codeFenceStr):
+				codeFence = false
+			case strings.HasPrefix(line, codeFenceStr):
+				codeFence = true
+			case codeFence:
+				buf.WriteString("    ") // indent code line
+				buf.WriteString(line)
+				buf.WriteRune('\n')
+			default:
 				buf.WriteString(line)
 				buf.WriteRune('\n')
 			}
-		} else if strings.HasPrefix(line, "# ") {
-			// skip up to and including main header lines
-			include = true
 		}
 	}
 	if err := scanner.Err(); err != nil {

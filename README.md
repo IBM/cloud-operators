@@ -1,9 +1,10 @@
-
 [![Build Status](https://travis-ci.com/IBM/cloud-operators.svg?branch=master)](https://travis-ci.com/IBM/cloud-operators)
 [![Go Report Card](https://goreportcard.com/badge/github.com/IBM/cloud-operators)](https://goreportcard.com/report/github.com/IBM/cloud-operators)
 [![GoDoc](https://godoc.org/github.com/IBM/cloud-operators?status.svg)](https://godoc.org/github.com/IBM/cloud-operators)
 
 # IBM Cloud Operator
+
+<!-- SHOW operator hub -->
 
 The IBM Cloud Operator provides a simple Kubernetes CRD-Based API to provision and bind 
 IBM public cloud services on your Kubernetes cluster. With this operator, you no longer need
@@ -48,7 +49,21 @@ ibmcloud target -g <resource-group>
 
 Notice that the `org` and `space` must be included, even if no Cloud Foundry services will be instantiated.
 
-## Installing the operator
+## Set up the operator
+
+To set up the operator after logging in with `ibmcloud`, run the below installer.
+
+By default, the script will create a new API key for use in the operator. To use a custom API key, set the `IBMCLOUD_API_KEY` environment variable to the key.
+
+#### Using a ServiceId
+
+To instantiate services and bindings on behalf of a ServiceId, set the environment variable `IBMCLOUD_API_KEY` to the `api-key` of the ServiceId. This can be obtained via the IBM Cloud Console or [CLI](https://cloud.ibm.com/docs/iam?topic=iam-serviceids). Be sure to give proper access permissions to the ServiceId.
+
+Next log into the IBM Cloud account that owns the ServiceId and follow the instructions above.
+
+<!-- END SHOW operator hub -->
+
+### Install
 
 To install the latest release of the operator, run the following script:
 
@@ -56,9 +71,12 @@ To install the latest release of the operator, run the following script:
 curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash 
 ```
 
-The script above first creates an IBM Cloud API Key and stores it in a Kubernetes secret that can be
-accessed by the operator, then it sets defaults such as the default resource group and region 
-used to provision IBM Cloud Services; finally, it deploys the operator in your cluster. You can always override the defaults in the `Service` custom resource. If you prefer to create the secret and the defaults manually, consult the [IBM Cloud Operator documentation](docs/install.md).
+The above script stores an API key in a Kubernetes secret that can be accessed by the operator.
+Next, it sets default values used in provisioning IBM Cloud Services, like the resource group and region.
+You can override any default value in the `Service` custom resource.
+Finally, the script deploys the operator in your cluster.
+
+If you prefer to create the secret and the defaults manually, consult the [IBM Cloud Operator documentation](docs/install.md).
 
 To install a specific version of the operator, you can pass a semantic version:
 
@@ -66,18 +84,34 @@ To install a specific version of the operator, you can pass a semantic version:
 curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0
 ```
 
-### Using a ServiceId
-
-To instantiate services and bindings on behalf of a ServiceId, set the environment variable `IC_APIKEY` to the `api-key` of the ServiceId. This can be obtained via the IBM Cloud Console or [CLI](https://cloud.ibm.com/docs/iam?topic=iam-serviceids). Be sure to give proper access permissions to the ServiceId.
-
-Next log into the IBM Cloud account that owns the ServiceId and follow the instructions above.
-
-## Removing the operator
+### Uninstall
 
 To remove the operator, run the following script:
 
 ```bash
 curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- delete
+```
+
+<!-- SHOW operator hub -->
+
+### Configure the operator for OpenShift
+
+To configure the latest release for OpenShift before install, run the following script:
+
+```bash
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- store-creds
+```
+
+The above script stores an API key in a Kubernetes secret that can be accessed by the operator.
+Next, it sets default values used in provisioning IBM Cloud Services, like the resource group and region.
+You can override any default value in the `Service` custom resource.
+
+If you prefer to create the secret and the defaults manually, consult the [IBM Cloud Operator documentation](docs/install.md).
+
+To configure with a specific version of the operator, you can pass a semantic version:
+
+```bash
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0 store-creds
 ```
 
 ## Using the IBM Cloud Operator
@@ -146,6 +180,8 @@ mybinding                  Opaque                                6      102s
 
 You can find [additional samples](config/samples), and more information on 
 [using the operator](docs/user-guide.md) in the operator documentation.
+
+<!-- END SHOW operator hub -->
 
 ### Service Properties
 
