@@ -29,7 +29,6 @@ import (
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/resourceservicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -138,12 +137,12 @@ func mainSetup(ctx context.Context) error {
 		Log:                      ctrl.Log.WithName("controllers").WithName("Binding"),
 		Scheme:                   k8sManager.GetScheme(),
 		CreateServiceKey:         servicekey.Create,
-		CreateResourceServiceKey: resourceservicekey.Create,
+		CreateResourceServiceKey: resource.CreateKey,
 		GetServiceInstanceCRN:    resource.GetServiceInstanceCRN,
 		GetServiceName:           resource.GetServiceName,
 		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
 		DeleteServiceKey:         servicekey.Delete,
-		DeleteResourceServiceKey: resourceservicekey.Delete,
+		DeleteResourceServiceKey: resource.DeleteKey,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}

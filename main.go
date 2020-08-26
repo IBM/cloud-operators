@@ -25,7 +25,6 @@ import (
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/resourceservicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -79,11 +78,11 @@ func main() {
 		Log:                      ctrl.Log.WithName("controllers").WithName("Binding"),
 		Scheme:                   mgr.GetScheme(),
 		CreateServiceKey:         servicekey.Create,
-		CreateResourceServiceKey: resourceservicekey.Create,
+		CreateResourceServiceKey: resource.CreateKey,
 		GetServiceName:           resource.GetServiceName,
 		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
 		DeleteServiceKey:         servicekey.Delete,
-		DeleteResourceServiceKey: resourceservicekey.Delete,
+		DeleteResourceServiceKey: resource.DeleteKey,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Binding")
 		os.Exit(1)

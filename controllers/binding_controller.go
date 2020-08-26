@@ -30,7 +30,6 @@ import (
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/resourceservicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -64,12 +63,12 @@ type BindingReconciler struct {
 	Log                      logr.Logger
 	Scheme                   *runtime.Scheme
 	CreateServiceKey         servicekey.Creator
-	CreateResourceServiceKey resourceservicekey.Creator
+	CreateResourceServiceKey resource.KeyCreator
 	GetServiceInstanceCRN    resource.ServiceInstanceCRNGetter
 	GetServiceName           resource.ServiceNameGetter
 	GetServiceRoleCRN        iam.ServiceRolesGetter
 	DeleteServiceKey         servicekey.Deleter
-	DeleteResourceServiceKey resourceservicekey.Deleter
+	DeleteResourceServiceKey resource.KeyDeleter
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
