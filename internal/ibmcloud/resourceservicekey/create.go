@@ -1,4 +1,4 @@
-package serviceresourcekey
+package resourceservicekey
 
 import (
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"

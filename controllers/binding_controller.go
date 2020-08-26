@@ -30,8 +30,8 @@ import (
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/resourceservicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/serviceresourcekey"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,12 +64,12 @@ type BindingReconciler struct {
 	Log                      logr.Logger
 	Scheme                   *runtime.Scheme
 	CreateServiceKey         servicekey.Creator
-	CreateServiceResourceKey serviceresourcekey.Creator
+	CreateResourceServiceKey resourceservicekey.Creator
 	GetServiceInstanceCRN    resource.ServiceInstanceCRNGetter
 	GetServiceName           resource.ServiceNameGetter
 	GetServiceRoleCRN        iam.ServiceRolesGetter
 	DeleteServiceKey         servicekey.Deleter
-	DeleteServiceResourceKey serviceresourcekey.Deleter
+	DeleteResourceServiceKey resourceservicekey.Deleter
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -383,7 +383,7 @@ func (r *BindingReconciler) deleteCredentials(instance *ibmcloudv1beta1.Binding,
 				return err
 			}
 		} else { // service type is not CF
-			err := r.DeleteServiceResourceKey(ibmCloudInfo.Session, instance.Status.KeyInstanceID)
+			err := r.DeleteResourceServiceKey(ibmCloudInfo.Session, instance.Status.KeyInstanceID)
 			if err != nil {
 				return err
 			}
@@ -455,7 +455,7 @@ func (r *BindingReconciler) getResourceServiceCredentials(instance *ibmcloudv1be
 		return "", nil, err
 	}
 
-	return r.CreateServiceResourceKey(ibmCloudInfo.Session, instance.ObjectMeta.Name, instanceCRN, parameters)
+	return r.CreateResourceServiceKey(ibmCloudInfo.Session, instance.ObjectMeta.Name, instanceCRN, parameters)
 }
 
 func (r *BindingReconciler) createSecret(instance *ibmcloudv1beta1.Binding, keyContents map[string]interface{}) error {

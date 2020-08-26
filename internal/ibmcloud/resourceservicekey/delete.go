@@ -1,4 +1,4 @@
-package serviceresourcekey
+package resourceservicekey
 
 import (
 	"strings"
