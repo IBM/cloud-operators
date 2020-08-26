@@ -29,9 +29,9 @@ import (
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,17 +61,18 @@ const (
 // BindingReconciler reconciles a Binding object
 type BindingReconciler struct {
 	client.Client
-	Log                      logr.Logger
-	Scheme                   *runtime.Scheme
-	CreateServiceKey         servicekey.Creator
-	CreateResourceServiceKey resource.KeyCreator
-	GetServiceInstanceCRN    resource.ServiceInstanceCRNGetter
-	GetServiceName           resource.ServiceNameGetter
-	GetServiceRoleCRN        iam.ServiceRolesGetter
-	DeleteServiceKey         servicekey.Deleter
-	DeleteResourceServiceKey resource.KeyDeleter
-	GetServiceKeyCredentials servicekey.Getter
-	GetResourceServiceKey    resource.KeyGetter
+	Log    logr.Logger
+	Scheme *runtime.Scheme
+
+	CreateResourceServiceKey   resource.KeyCreator
+	CreateCFServiceKey         cfservice.KeyCreator
+	DeleteResourceServiceKey   resource.KeyDeleter
+	DeleteCFServiceKey         cfservice.KeyDeleter
+	GetResourceServiceKey      resource.KeyGetter
+	GetServiceInstanceCRN      resource.ServiceInstanceCRNGetter
+	GetCFServiceKeyCredentials cfservice.KeyGetter
+	GetServiceName             resource.ServiceNameGetter
+	GetServiceRoleCRN          iam.ServiceRolesGetter
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -387,7 +388,7 @@ func (r *BindingReconciler) deleteCredentials(session *session.Session, instance
 
 	if instance.Spec.Alias == "" { // Delete only if it not alias
 		if serviceClassType == "CF" { // service type is CF
-			err := r.DeleteServiceKey(session, instance.Status.KeyInstanceID)
+			err := r.DeleteCFServiceKey(session, instance.Status.KeyInstanceID)
 			if err != nil {
 				return err
 			}
@@ -439,7 +440,7 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, session *sess
 		return "", nil, err
 	}
 	if serviceClassType == "CF" { // service type is CF
-		return r.CreateServiceKey(session, instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
+		return r.CreateCFServiceKey(session, instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
 	} else { // service type is not CF
 		return r.getResourceServiceCredentials(session, instance, parameters)
 	}
@@ -556,7 +557,7 @@ func (r *BindingReconciler) deleteSecret(instance *ibmcloudv1beta1.Binding) erro
 
 func (r *BindingReconciler) getCFCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1beta1.Binding, name string) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "CF credentials", name)
-	return r.GetServiceKeyCredentials(session, instance.Status.InstanceID, name)
+	return r.GetCFServiceKeyCredentials(session, instance.Status.InstanceID, name)
 }
 
 func (r *BindingReconciler) getParams(ctx context.Context, instance *ibmcloudv1beta1.Binding) (map[string]interface{}, error) {

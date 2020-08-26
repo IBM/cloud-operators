@@ -27,9 +27,9 @@ import (
 	"time"
 
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -133,18 +133,19 @@ func mainSetup(ctx context.Context) error {
 	}
 
 	if err = (&BindingReconciler{
-		Client:                   k8sManager.GetClient(),
-		Log:                      ctrl.Log.WithName("controllers").WithName("Binding"),
-		Scheme:                   k8sManager.GetScheme(),
-		CreateServiceKey:         servicekey.Create,
-		CreateResourceServiceKey: resource.CreateKey,
-		GetServiceInstanceCRN:    resource.GetServiceInstanceCRN,
-		GetServiceName:           resource.GetServiceName,
-		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
-		DeleteServiceKey:         servicekey.Delete,
-		DeleteResourceServiceKey: resource.DeleteKey,
-		GetServiceKeyCredentials: servicekey.Get,
-		GetResourceServiceKey:    resource.GetKey,
+		Client: k8sManager.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
+		Scheme: k8sManager.GetScheme(),
+
+		CreateResourceServiceKey:   resource.CreateKey,
+		CreateCFServiceKey:         cfservice.CreateKey,
+		DeleteResourceServiceKey:   resource.DeleteKey,
+		DeleteCFServiceKey:         cfservice.DeleteKey,
+		GetResourceServiceKey:      resource.GetKey,
+		GetServiceInstanceCRN:      resource.GetServiceInstanceCRN,
+		GetCFServiceKeyCredentials: cfservice.GetKey,
+		GetServiceName:             resource.GetServiceName,
+		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}

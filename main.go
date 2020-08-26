@@ -23,9 +23,9 @@ import (
 
 	"github.com/ibm/cloud-operators/controllers"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
@@ -74,17 +74,18 @@ func main() {
 	}
 
 	if err = (&controllers.BindingReconciler{
-		Client:                   mgr.GetClient(),
-		Log:                      ctrl.Log.WithName("controllers").WithName("Binding"),
-		Scheme:                   mgr.GetScheme(),
-		CreateServiceKey:         servicekey.Create,
-		CreateResourceServiceKey: resource.CreateKey,
-		GetServiceName:           resource.GetServiceName,
-		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
-		DeleteServiceKey:         servicekey.Delete,
-		DeleteResourceServiceKey: resource.DeleteKey,
-		GetServiceKeyCredentials: servicekey.Get,
-		GetResourceServiceKey:    resource.GetKey,
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
+		Scheme: mgr.GetScheme(),
+
+		CreateResourceServiceKey:   resource.CreateKey,
+		CreateCFServiceKey:         cfservice.CreateKey,
+		DeleteResourceServiceKey:   resource.DeleteKey,
+		DeleteCFServiceKey:         cfservice.DeleteKey,
+		GetResourceServiceKey:      resource.GetKey,
+		GetCFServiceKeyCredentials: cfservice.GetKey,
+		GetServiceName:             resource.GetServiceName,
+		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Binding")
 		os.Exit(1)
