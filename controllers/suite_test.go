@@ -154,8 +154,9 @@ func mainSetup(ctx context.Context) error {
 		Log:    ctrl.Log.WithName("controllers").WithName("Service"),
 		Scheme: k8sManager.GetScheme(),
 
-		CreateCFServiceInstance: cfservice.CreateInstance,
-		GetCFServiceInstance:    cfservice.GetInstance,
+		CreateCFServiceInstance:       cfservice.CreateInstance,
+		GetCFServiceInstance:          cfservice.GetInstance,
+		CreateResourceServiceInstance: resource.CreateServiceInstance,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up service controller")
 	}

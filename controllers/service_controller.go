@@ -36,6 +36,7 @@ import (
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 )
 
 const (
@@ -59,8 +60,9 @@ type ServiceReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	GetCFServiceInstance    cfservice.InstanceGetter
-	CreateCFServiceInstance cfservice.InstanceCreator
+	GetCFServiceInstance          cfservice.InstanceGetter
+	CreateCFServiceInstance       cfservice.InstanceCreator
+	CreateResourceServiceInstance resource.ServiceInstanceCreator
 }
 
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -253,15 +255,10 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		return r.updateStatusError(instance, serviceStatePending, err)
 	}
 
-	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
-	var serviceInstancePayload = controller.CreateServiceInstanceRequest{
-		Name:            externalName,
-		ServicePlanID:   ibmCloudInfo.ServicePlanID,
-		ResourceGroupID: ibmCloudInfo.ResourceGroupID,
-		TargetCrn:       ibmCloudInfo.TargetCrn,
-		Parameters:      params,
-		Tags:            tags,
+	createServiceInstance := func() (id, state string, err error) {
+		return r.CreateResourceServiceInstance(ibmCloudInfo.Session, externalName, ibmCloudInfo.ServicePlanID, ibmCloudInfo.ResourceGroupID, ibmCloudInfo.TargetCrn, params, tags)
 	}
+	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
 
 	if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
 		// check if using the alias plan, in that case we need to use the existing instance
@@ -320,11 +317,11 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		}
 
 		logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-		serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
+		id, state, err := createServiceInstance()
 		if err != nil {
 			return r.updateStatusError(instance, serviceStateFailed, err)
 		}
-		return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
+		return r.updateStatus(instance, ibmCloudInfo, id, state)
 	}
 
 	// ServiceInstance was previously created, verify that it is still there
@@ -351,11 +348,11 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 				logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
 				return ctrl.Result{}, err
 			}
-			serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
+			id, state, err := createServiceInstance()
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, err)
 			}
-			return r.updateStatus(instance, ibmCloudInfo, serviceInstance.ID, serviceInstance.State)
+			return r.updateStatus(instance, ibmCloudInfo, id, state)
 		}
 		instance.Status.InstanceID = ""
 		return r.updateStatusError(instance, serviceStatePending, fmt.Errorf("aliased service instance no longer exists"))

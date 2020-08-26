@@ -30,11 +30,11 @@ func GetInstance(session *session.Session, name string) (guid, state string, err
 	return serviceInstance.GUID, serviceInstance.LastOperation.State, nil
 }
 
-type InstanceCreator func(session *session.Session, externalName string, planID, spaceID string, params map[string]interface{}, tags []string) (guid, state string, err error)
+type InstanceCreator func(session *session.Session, externalName, planID, spaceID string, params map[string]interface{}, tags []string) (guid, state string, err error)
 
 var _ InstanceCreator = CreateInstance
 
-func CreateInstance(session *session.Session, externalName string, planID, spaceID string, params map[string]interface{}, tags []string) (guid, state string, err error) {
+func CreateInstance(session *session.Session, externalName, planID, spaceID string, params map[string]interface{}, tags []string) (guid, state string, err error) {
 	bxClient, err := mccpv2.New(session)
 	if err != nil {
 		return "", "", err

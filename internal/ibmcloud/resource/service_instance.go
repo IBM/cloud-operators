@@ -19,3 +19,24 @@ func GetServiceInstanceCRN(session *session.Session, instanceID string) (instanc
 	model, err := resServiceInstanceAPI.GetInstance(instanceID)
 	return model.Crn, model.ServiceID, err
 }
+
+type ServiceInstanceCreator func(session *session.Session, externalName, servicePlanID, resourceGroupID, targetCrn string, params map[string]interface{}, tags []string) (id, state string, err error)
+
+var _ ServiceInstanceCreator = CreateServiceInstance
+
+func CreateServiceInstance(session *session.Session, externalName, servicePlanID, resourceGroupID, targetCrn string, params map[string]interface{}, tags []string) (id, state string, err error) {
+	controllerClient, err := controller.New(session)
+	if err != nil {
+		return "", "", err
+	}
+	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
+	serviceInstance, err := resServiceInstanceAPI.CreateInstance(controller.CreateServiceInstanceRequest{
+		Name:            externalName,
+		ServicePlanID:   servicePlanID,
+		ResourceGroupID: resourceGroupID,
+		TargetCrn:       targetCrn,
+		Parameters:      params,
+		Tags:            tags,
+	})
+	return serviceInstance.ID, serviceInstance.LastOperation.State, err
+}
