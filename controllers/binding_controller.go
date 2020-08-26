@@ -63,9 +63,10 @@ const (
 // BindingReconciler reconciles a Binding object
 type BindingReconciler struct {
 	client.Client
-	Log              logr.Logger
-	Scheme           *runtime.Scheme
-	CreateServiceKey servicekey.Creator
+	Log                      logr.Logger
+	Scheme                   *runtime.Scheme
+	CreateServiceKey         servicekey.Creator
+	CreateServiceResourceKey serviceresourcekey.Creator
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -491,8 +492,7 @@ func (r *BindingReconciler) getResourceServiceCredentials(instance *ibmcloudv1be
 
 	parameters["role_crn"] = roleID
 
-	resServiceKeyAPI := serviceresourcekey.New()
-	return resServiceKeyAPI.Create(ibmCloudInfo.Session, instance.ObjectMeta.Name, serviceInstanceModel.Crn, parameters)
+	return r.CreateServiceResourceKey(ibmCloudInfo.Session, instance.ObjectMeta.Name, serviceInstanceModel.Crn, parameters)
 }
 
 func (r *BindingReconciler) createSecret(instance *ibmcloudv1beta1.Binding, keyContents map[string]interface{}) error {
