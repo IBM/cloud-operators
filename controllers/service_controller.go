@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/models"
@@ -36,6 +35,7 @@ import (
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 )
 
 const (
@@ -58,6 +58,9 @@ type ServiceReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	GetCFServiceInstance    cfservice.InstanceGetter
+	CreateCFServiceInstance cfservice.InstanceCreator
 }
 
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -118,6 +121,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		logt.Info(err.Error())
 		return r.updateStatusError(instance, serviceStateFailed, err)
 	}
+	logt = logt.WithValues("User", ibmCloudInfo.Context.User)
 
 	// Set the Status field for the first time
 	if reflect.DeepEqual(instance.Status, ibmcloudv1beta1.ServiceStatus{}) {
@@ -196,50 +200,38 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 
 	if ibmCloudInfo.ServiceClassType == "CF" {
 		logt.Info("ServiceInstance ", "is CF", instance.ObjectMeta.Name)
-		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
 			// check if using the alias plan, in that case we need to use the existing instance
 			if isAlias(instance) {
 				logt.Info("Using `Alias` plan, checking if instance exists")
 
-				serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
+				instanceID, _, err := r.GetCFServiceInstance(ibmCloudInfo.Session, externalName)
 				if err != nil {
 					logt.Error(err, "Instance ", instance.ObjectMeta.Name, " with `Alias` plan does not exists")
 					return r.updateStatusError(instance, serviceStateFailed, err)
 				}
-				return r.updateStatus(instance, ibmCloudInfo, serviceInstance.GUID, serviceStateOnline)
+				return r.updateStatus(instance, ibmCloudInfo, instanceID, serviceStateOnline)
 			}
 			// Service is not Alias
-			logt.WithValues("User", ibmCloudInfo.Context.User).Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-			serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
-				Name:      externalName,
-				PlanGUID:  ibmCloudInfo.BxPlan.GUID,
-				SpaceGUID: ibmCloudInfo.Space.GUID,
-				Params:    params,
-				Tags:      tags,
-			})
+			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+			guid, state, err := r.CreateCFServiceInstance(ibmCloudInfo.Session, externalName, ibmCloudInfo.BxPlan.GUID, ibmCloudInfo.Space.GUID, params, tags)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, err)
 			}
-			return r.updateStatus(instance, ibmCloudInfo, serviceInstance.Metadata.GUID, serviceInstance.Entity.LastOperation.State)
+			return r.updateStatus(instance, ibmCloudInfo, guid, state)
 		}
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
-		serviceInstance, err := serviceInstanceAPI.FindByName(externalName)
+		_, state, err := r.GetCFServiceInstance(ibmCloudInfo.Session, externalName)
 		if err != nil && !isAlias(instance) {
-			if strings.Contains(err.Error(), "doesn't exist") {
-				logt.WithValues("User", ibmCloudInfo.Context.User).Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-				serviceInstance, err := serviceInstanceAPI.Create(mccpv2.ServiceInstanceCreateRequest{
-					Name:      externalName,
-					PlanGUID:  ibmCloudInfo.BxPlan.GUID,
-					SpaceGUID: ibmCloudInfo.Space.GUID,
-					Params:    params,
-					Tags:      tags,
-				})
+			if _, notFound := err.(cfservice.NotFoundError); notFound {
+				logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+
+				guid, state, err := r.CreateCFServiceInstance(ibmCloudInfo.Session, externalName, ibmCloudInfo.BxPlan.GUID, ibmCloudInfo.Space.GUID, params, tags)
 				if err != nil {
 					return r.updateStatusError(instance, serviceStateFailed, err)
 				}
-				return r.updateStatus(instance, ibmCloudInfo, serviceInstance.Metadata.GUID, serviceInstance.Entity.LastOperation.State)
+				return r.updateStatus(instance, ibmCloudInfo, guid, state)
 			}
 			return r.updateStatusError(instance, serviceStateFailed, err)
 		} else if err != nil && isAlias(instance) {
@@ -251,7 +243,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
 		// Verification was successful, service exists, update the status if necessary
-		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.LastOperation.State)
+		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, state)
 
 	}
 
@@ -327,7 +319,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			return ctrl.Result{}, err
 		}
 
-		logt.WithValues("User", ibmCloudInfo.Context.User).Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+		logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 		serviceInstance, err := resServiceInstanceAPI.CreateInstance(serviceInstancePayload)
 		if err != nil {
 			return r.updateStatusError(instance, serviceStateFailed, err)
@@ -353,7 +345,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	serviceInstance, err := getServiceInstance(serviceInstances, instance.Status.InstanceID)
 	if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
 		if !isAlias(instance) {
-			logt.WithValues("User", ibmCloudInfo.Context.User).Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
 			if err := r.Status().Update(ctx, instance); err != nil {
 				logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
