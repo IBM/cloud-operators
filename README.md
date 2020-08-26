@@ -65,10 +65,12 @@ Next log into the IBM Cloud account that owns the ServiceId and follow the instr
 
 ### Install
 
-To install the latest release of the operator, run the following script:
+To install the latest stable release of the operator, run the below script.
+
+To install the latest release of the operator, remove `-v 0.1.11`. NOTE: `v0.2.x` involved major changes and is undergoing further testing to ensure a smoother transition.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- install
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.1.11 install
 ```
 
 The above script stores an API key in a Kubernetes secret that can be accessed by the operator.
