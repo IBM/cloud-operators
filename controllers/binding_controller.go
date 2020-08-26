@@ -32,6 +32,7 @@ import (
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/serviceresourcekey"
 	corev1 "k8s.io/api/core/v1"
@@ -67,6 +68,7 @@ type BindingReconciler struct {
 	Scheme                   *runtime.Scheme
 	CreateServiceKey         servicekey.Creator
 	CreateServiceResourceKey serviceresourcekey.Creator
+	GetServiceInstanceCRN    resource.ServiceInstanceCRNGetter
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -441,13 +443,12 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, instance *ibm
 }
 
 func (r *BindingReconciler) getResourceServiceCredentials(instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info, parameters map[string]interface{}) (string, map[string]interface{}, error) {
-	resServiceInstanceAPI := ibmCloudInfo.ResourceClient.ResourceServiceInstance()
-	serviceInstanceModel, err := resServiceInstanceAPI.GetInstance(instance.Status.InstanceID)
+	instanceCRN, serviceID, err := r.GetServiceInstanceCRN(ibmCloudInfo.Session, instance.Status.InstanceID)
 	if err != nil {
 		return "", nil, err
 	}
 	resCatalogAPI := ibmCloudInfo.CatalogClient.ResourceCatalog()
-	serviceresp, err := resCatalogAPI.Get(serviceInstanceModel.ServiceID, true)
+	serviceresp, err := resCatalogAPI.Get(serviceID, true)
 	if err != nil {
 		return "", nil, err
 	}
@@ -492,7 +493,7 @@ func (r *BindingReconciler) getResourceServiceCredentials(instance *ibmcloudv1be
 
 	parameters["role_crn"] = roleID
 
-	return r.CreateServiceResourceKey(ibmCloudInfo.Session, instance.ObjectMeta.Name, serviceInstanceModel.Crn, parameters)
+	return r.CreateServiceResourceKey(ibmCloudInfo.Session, instance.ObjectMeta.Name, instanceCRN, parameters)
 }
 
 func (r *BindingReconciler) createSecret(instance *ibmcloudv1beta1.Binding, keyContents map[string]interface{}) error {
