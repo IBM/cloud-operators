@@ -217,7 +217,6 @@ release_action() {
     done <<<"$urls"
 
     local assets=$(fetch_assets "${file_urls[@]}")
-    set +x
 
     if [[ "$action" == apply ]]; then
         # Apply specially prefixed resources first. Typically these are namespaces and services.
