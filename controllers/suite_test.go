@@ -40,6 +40,7 @@ import (
 	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -143,17 +144,16 @@ func mainSetup(ctx context.Context) error {
 		return errors.Wrap(err, "Failed to set up service controller")
 	}
 	tokenReconciler := &TokenReconciler{
-		Client:     k8sManager.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme:     k8sManager.GetScheme(),
-		HTTPClient: http.DefaultClient,
+		Client:        k8sManager.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme:        k8sManager.GetScheme(),
+		Authenticator: auth.New(http.DefaultClient),
 	}
 	setTokenHTTPClient = func(tb testing.TB, c *http.Client) {
-		oldClient := tokenReconciler.HTTPClient
+		tokenReconciler.Authenticator = auth.New(c)
 		tb.Cleanup(func() {
-			tokenReconciler.HTTPClient = oldClient
+			tokenReconciler.Authenticator = auth.New(http.DefaultClient)
 		})
-		tokenReconciler.HTTPClient = c
 	}
 	if err = tokenReconciler.SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up token controller")

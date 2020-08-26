@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ibm/cloud-operators/controllers"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
@@ -29,7 +31,6 @@ import (
 
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
-	"github.com/ibm/cloud-operators/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -86,10 +87,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.TokenReconciler{
-		Client:     mgr.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme:     mgr.GetScheme(),
-		HTTPClient: http.DefaultClient,
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme:        mgr.GetScheme(),
+		Authenticator: auth.New(http.DefaultClient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Token")
 		os.Exit(1)
