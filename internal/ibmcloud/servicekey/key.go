@@ -5,18 +5,11 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/session"
 )
 
-type ServiceKeys interface {
-	Create(session *session.Session, serviceInstanceGUID string, keyName string, params map[string]interface{}) (guid string, credentials map[string]interface{}, err error)
-}
+type Creator func(session *session.Session, serviceInstanceGUID string, keyName string, params map[string]interface{}) (guid string, credentials map[string]interface{}, err error)
 
-type serviceKeys struct {
-}
+var _ Creator = Create // Create must fit Creator type
 
-func New() ServiceKeys {
-	return &serviceKeys{}
-}
-
-func (s *serviceKeys) Create(session *session.Session, serviceInstanceGUID string, keyName string, params map[string]interface{}) (guid string, credentials map[string]interface{}, err error) {
+func Create(session *session.Session, serviceInstanceGUID string, keyName string, params map[string]interface{}) (guid string, credentials map[string]interface{}, err error) {
 	bxClient, err := mccpv2.New(session)
 	if err != nil {
 		return "", nil, err

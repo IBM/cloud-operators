@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -40,7 +42,6 @@ import (
 	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -130,9 +131,10 @@ func mainSetup(ctx context.Context) error {
 	}
 
 	if err = (&BindingReconciler{
-		Client: k8sManager.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
-		Scheme: k8sManager.GetScheme(),
+		Client:           k8sManager.GetClient(),
+		Log:              ctrl.Log.WithName("controllers").WithName("Binding"),
+		Scheme:           k8sManager.GetScheme(),
+		CreateServiceKey: servicekey.Create,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}

@@ -63,8 +63,9 @@ const (
 // BindingReconciler reconciles a Binding object
 type BindingReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log              logr.Logger
+	Scheme           *runtime.Scheme
+	CreateServiceKey servicekey.Creator
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -432,8 +433,7 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, instance *ibm
 		return "", nil, err
 	}
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
-		serviceKeys := servicekey.New()
-		return serviceKeys.Create(ibmCloudInfo.Session, instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
+		return r.CreateServiceKey(ibmCloudInfo.Session, instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
 	} else { // service type is not CF
 		return r.getResourceServiceCredentials(instance, ibmCloudInfo, parameters)
 	}
