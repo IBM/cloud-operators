@@ -87,10 +87,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.TokenReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme:        mgr.GetScheme(),
-		Authenticator: auth.New(http.DefaultClient),
+		Client:       mgr.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme:       mgr.GetScheme(),
+		Authenticate: auth.New(http.DefaultClient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Token")
 		os.Exit(1)

@@ -33,9 +33,9 @@ import (
 // TokenReconciler reconciles a Token object
 type TokenReconciler struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	Authenticator auth.Authenticator
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Authenticate auth.Authenticator
 }
 
 // Reconcile computes IAM and UAA tokens
@@ -78,7 +78,7 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	region := string(regionb)
 
 	logt.Info("authenticating...")
-	creds, err := r.Authenticator.Authenticate(string(apikeyb), string(regionb))
+	creds, err := r.Authenticate(string(apikeyb), string(regionb))
 	if _, ok := err.(auth.InvalidConfigError); ok {
 		// Invalid region. Do not requeue
 		logt.Error(err, "failed to create auth client", "region", region)

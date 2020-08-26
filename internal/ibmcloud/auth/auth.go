@@ -10,9 +10,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/rest"
 )
 
-type Authenticator interface {
-	Authenticate(apiKey, region string) (Credentials, error)
-}
+type Authenticator func(apiKey, region string) (Credentials, error)
 
 type Credentials struct {
 	IAMAccessToken  string
@@ -30,10 +28,12 @@ type authenticator struct {
 }
 
 func New(client *http.Client) Authenticator {
-	return &authenticator{client: client}
+	return authenticator{
+		client: client,
+	}.Authenticate
 }
 
-func (a *authenticator) Authenticate(apiKey, region string) (Credentials, error) {
+func (a authenticator) Authenticate(apiKey, region string) (Credentials, error) {
 	config := &bluemix.Config{
 		EndpointLocator: endpoints.NewEndpointLocator(region),
 	}

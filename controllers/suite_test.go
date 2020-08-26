@@ -144,15 +144,15 @@ func mainSetup(ctx context.Context) error {
 		return errors.Wrap(err, "Failed to set up service controller")
 	}
 	tokenReconciler := &TokenReconciler{
-		Client:        k8sManager.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme:        k8sManager.GetScheme(),
-		Authenticator: auth.New(http.DefaultClient),
+		Client:       k8sManager.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme:       k8sManager.GetScheme(),
+		Authenticate: auth.New(http.DefaultClient),
 	}
-	setTokenHTTPClient = func(tb testing.TB, c *http.Client) {
-		tokenReconciler.Authenticator = auth.New(c)
+	setTokenHTTPClient = func(tb testing.TB, authenticator auth.Authenticator) {
+		tokenReconciler.Authenticate = authenticator
 		tb.Cleanup(func() {
-			tokenReconciler.Authenticator = auth.New(http.DefaultClient)
+			tokenReconciler.Authenticate = auth.New(http.DefaultClient)
 		})
 	}
 	if err = tokenReconciler.SetupWithManager(k8sManager); err != nil {

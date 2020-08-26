@@ -1,12 +1,10 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
-	"io/ioutil"
-	"net/http"
 	"testing"
 
+	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -15,8 +13,8 @@ import (
 )
 
 var (
-	// setTokenHTTPClient sets the test's token reconciler's HTTP client, then restores it when the test ends
-	setTokenHTTPClient func(testing.TB, *http.Client)
+	// setTokenHTTPClient sets the test's authenticator, then restores it when the test ends
+	setTokenHTTPClient func(testing.TB, auth.Authenticator)
 )
 
 func TestToken(t *testing.T) {
@@ -26,7 +24,11 @@ func TestToken(t *testing.T) {
 		secretAPIKey = "VExS246avaUT6MXZ56SH_I-AeWo_-JmW0u79Jd8LiBH" // nolint:gosec // Fake API key
 	)
 
-	setTokenHTTPClient(t, mockTokenHTTPClient())
+	setTokenHTTPClient(t, func(apiKey, region string) (auth.Credentials, error) {
+		return auth.Credentials{
+			IAMAccessToken: "Bearer dummytoken",
+		}, nil
+	})
 
 	instance := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -59,26 +61,8 @@ func TestToken(t *testing.T) {
 		return ok
 	}, defaultWait, defaultTick)
 
-	assert.Equal(t, " Bearer dummytoken", string(secret.Data["access_token"]))
+	assert.Equal(t, "Bearer dummytoken", string(secret.Data["access_token"]))
 	assert.Contains(t, secret.Data, "refresh_token")
 	assert.Contains(t, secret.Data, "uaa_token")
 	assert.Contains(t, secret.Data, "uaa_refresh_token")
-}
-
-func mockTokenHTTPClient() *http.Client {
-	return &http.Client{
-		Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
-			body := ioutil.NopCloser(bytes.NewReader([]byte(`{"access_token":"Bearer dummytoken"}`)))
-			return &http.Response{
-				StatusCode: 200,
-				Body:       body,
-			}, nil
-		}),
-	}
-}
-
-type roundTripperFunc func(*http.Request) (*http.Response, error)
-
-func (r roundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
-	return r(request)
 }
