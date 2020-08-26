@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
@@ -176,6 +177,8 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		return r.updateStatusError(instance, bindingStatePending, err)
 	}
 
+	logt = logt.WithValues("User", ibmCloudInfo.Context.User)
+
 	// Delete if necessary
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// Instance is not being deleted, add the finalizer if not present
@@ -190,7 +193,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		// The object is being deleted
 		if containsBindingFinalizer(instance) {
 			logt.Info("Resource marked for deletion", "in deletion", instance.Name)
-			err := r.deleteCredentials(instance, ibmCloudInfo)
+			err := r.deleteCredentials(ibmCloudInfo.Session, instance, ibmCloudInfo.ServiceClassType)
 			if err != nil {
 				logt.Info("Error deleting credentials", "in deletion", err.Error())
 				return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
@@ -211,7 +214,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	} else { // The service Instance ID has been set, verify that it is current
 		if instance.Status.InstanceID != serviceInstance.Status.InstanceID {
 			logt.Info("ServiceKey", "Service parent", "has changed")
-			err := r.deleteCredentials(instance, ibmCloudInfo)
+			err := r.deleteCredentials(ibmCloudInfo.Session, instance, ibmCloudInfo.ServiceClassType)
 			if err != nil {
 				logt.Info("Error deleting credentials", "in deletion", err.Error())
 				return r.updateStatusError(instance, bindingStateFailed, err)
@@ -372,17 +375,17 @@ func (r *BindingReconciler) updateStatusError(instance *ibmcloudv1beta1.Binding,
 }
 
 // deleteCredentials also deletes the corresponding secret
-func (r *BindingReconciler) deleteCredentials(instance *ibmcloudv1beta1.Binding, ibmCloudInfo *ibmcloud.Info) error {
-	r.Log.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting", "credentials", instance.ObjectMeta.Name)
+func (r *BindingReconciler) deleteCredentials(session *session.Session, instance *ibmcloudv1beta1.Binding, serviceClassType string) error {
+	r.Log.Info("Deleting", "credentials", instance.ObjectMeta.Name)
 
 	if instance.Spec.Alias == "" { // Delete only if it not alias
-		if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
-			err := r.DeleteServiceKey(ibmCloudInfo.Session, instance.Status.KeyInstanceID)
+		if serviceClassType == "CF" { // service type is CF
+			err := r.DeleteServiceKey(session, instance.Status.KeyInstanceID)
 			if err != nil {
 				return err
 			}
 		} else { // service type is not CF
-			err := r.DeleteResourceServiceKey(ibmCloudInfo.Session, instance.Status.KeyInstanceID)
+			err := r.DeleteResourceServiceKey(session, instance.Status.KeyInstanceID)
 			if err != nil {
 				return err
 			}
@@ -492,7 +495,7 @@ func (r *BindingReconciler) updateStatusOnline(instance *ibmcloudv1beta1.Binding
 	err := r.Status().Update(context.Background(), instance)
 	if err != nil {
 		r.Log.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
-		err = r.deleteCredentials(instance, ibmCloudInfo)
+		err = r.deleteCredentials(ibmCloudInfo.Session, instance, ibmCloudInfo.ServiceClassType)
 		if err != nil {
 			r.Log.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
 		}
