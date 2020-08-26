@@ -33,6 +33,7 @@ import (
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -433,13 +434,11 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, instance *ibm
 		return "", nil, err
 	}
 	if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
-		serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-		key, err := serviceKeys.Create(instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
+		serviceKeys := servicekey.New()
+		keyInstanceID, keyContents, err = serviceKeys.Create(ibmCloudInfo.Session, instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
 		if err != nil {
 			return "", nil, err
 		}
-		keyInstanceID = key.Metadata.GUID
-		keyContents = key.Entity.Credentials
 
 	} else { // service type is not CF
 		resServiceInstanceAPI := ibmCloudInfo.ResourceClient.ResourceServiceInstance()
