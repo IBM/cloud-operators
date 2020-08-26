@@ -23,6 +23,8 @@ import (
 
 	"github.com/ibm/cloud-operators/controllers"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/serviceresourcekey"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -78,6 +80,8 @@ func main() {
 		Scheme:                   mgr.GetScheme(),
 		CreateServiceKey:         servicekey.Create,
 		CreateServiceResourceKey: serviceresourcekey.Create,
+		GetServiceName:           resource.GetServiceName,
+		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Binding")
 		os.Exit(1)

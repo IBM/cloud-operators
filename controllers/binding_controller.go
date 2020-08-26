@@ -24,14 +24,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IBM-Cloud/bluemix-go/api/iam/iamv1"
-	"github.com/IBM-Cloud/bluemix-go/crn"
-	"github.com/IBM-Cloud/bluemix-go/models"
-	"github.com/IBM-Cloud/bluemix-go/utils"
 	"github.com/go-logr/logr"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/serviceresourcekey"
@@ -69,6 +66,8 @@ type BindingReconciler struct {
 	CreateServiceKey         servicekey.Creator
 	CreateServiceResourceKey serviceresourcekey.Creator
 	GetServiceInstanceCRN    resource.ServiceInstanceCRNGetter
+	GetServiceName           resource.ServiceNameGetter
+	GetServiceRoleCRN        iam.ServiceRolesGetter
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -447,51 +446,15 @@ func (r *BindingReconciler) getResourceServiceCredentials(instance *ibmcloudv1be
 	if err != nil {
 		return "", nil, err
 	}
-	resCatalogAPI := ibmCloudInfo.CatalogClient.ResourceCatalog()
-	serviceresp, err := resCatalogAPI.Get(serviceID, true)
+	serviceName, err := r.GetServiceName(ibmCloudInfo.Session, serviceID)
 	if err != nil {
 		return "", nil, err
 	}
 
-	iamClient, err := iamv1.New(ibmCloudInfo.Session)
+	parameters["role_crn"], err = r.GetServiceRoleCRN(ibmCloudInfo.Session, serviceName, instance.Spec.Role)
 	if err != nil {
 		return "", nil, err
 	}
-
-	serviceRolesAPI := iamClient.ServiceRoles()
-	var roles []models.PolicyRole
-
-	if serviceresp.Name == "" {
-		roles, err = serviceRolesAPI.ListSystemDefinedRoles()
-	} else {
-		roles, err = serviceRolesAPI.ListServiceRoles(serviceresp.Name)
-	}
-	if err != nil {
-		return "", nil, err
-	}
-
-	var roleID crn.CRN
-
-	if instance.Spec.Role != "" {
-		roleMatch, err := utils.FindRoleByName(roles, instance.Spec.Role)
-		if err != nil {
-			return "", nil, err
-		}
-		roleID = roleMatch.ID
-	} else {
-		if len(roles) == 0 {
-			return "", nil, fmt.Errorf("The service has no roles defined for its bindings")
-		}
-		managerRole, err := getManagerRole(roles)
-		if err != nil {
-			// No Manager role found
-			roleID = roles[0].ID
-		} else {
-			roleID = managerRole.ID
-		}
-	}
-
-	parameters["role_crn"] = roleID
 
 	return r.CreateServiceResourceKey(ibmCloudInfo.Session, instance.ObjectMeta.Name, instanceCRN, parameters)
 }
@@ -627,15 +590,6 @@ func (r *BindingReconciler) getParams(ctx context.Context, instance *ibmcloudv1b
 		params[p.Name] = val
 	}
 	return params, nil
-}
-
-func getManagerRole(roles []models.PolicyRole) (models.PolicyRole, error) {
-	for _, role := range roles {
-		if role.DisplayName == "Manager" {
-			return role, nil
-		}
-	}
-	return models.PolicyRole{}, fmt.Errorf("No Manager role found")
 }
 
 func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/servicekey"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/serviceresourcekey"
@@ -139,6 +140,8 @@ func mainSetup(ctx context.Context) error {
 		CreateServiceKey:         servicekey.Create,
 		CreateServiceResourceKey: serviceresourcekey.Create,
 		GetServiceInstanceCRN:    resource.GetServiceInstanceCRN,
+		GetServiceName:           resource.GetServiceName,
+		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}
