@@ -280,8 +280,7 @@ if [[ "$VERSION" != latest && "$(compare_semver "$VERSION" 0.2.0)" == -1 ]]; the
             kubectl apply -f "./releases/v${VERSION}"
             ;;
         remove)
-            ./hack/config-operator.sh
-            kubectl delete -f "./releases/v${VERSION}"
+            ./hack/uninstall-operator.sh
             ;;
     esac
     exit 0
