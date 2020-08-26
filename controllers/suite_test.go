@@ -143,6 +143,8 @@ func mainSetup(ctx context.Context) error {
 		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
 		DeleteServiceKey:         servicekey.Delete,
 		DeleteResourceServiceKey: resource.DeleteKey,
+		GetServiceKeyCredentials: servicekey.Get,
+		GetResourceServiceKey:    resource.GetKey,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}

@@ -83,6 +83,8 @@ func main() {
 		GetServiceRoleCRN:        iam.GetServiceRoleCRN,
 		DeleteServiceKey:         servicekey.Delete,
 		DeleteResourceServiceKey: resource.DeleteKey,
+		GetServiceKeyCredentials: servicekey.Get,
+		GetResourceServiceKey:    resource.GetKey,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Binding")
 		os.Exit(1)
