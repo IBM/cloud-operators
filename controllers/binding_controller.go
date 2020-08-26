@@ -68,6 +68,8 @@ type BindingReconciler struct {
 	GetServiceInstanceCRN    resource.ServiceInstanceCRNGetter
 	GetServiceName           resource.ServiceNameGetter
 	GetServiceRoleCRN        iam.ServiceRolesGetter
+	DeleteServiceKey         servicekey.Deleter
+	DeleteServiceResourceKey serviceresourcekey.Deleter
 }
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -376,16 +378,13 @@ func (r *BindingReconciler) deleteCredentials(instance *ibmcloudv1beta1.Binding,
 
 	if instance.Spec.Alias == "" { // Delete only if it not alias
 		if ibmCloudInfo.ServiceClassType == "CF" { // service type is CF
-			serviceKeys := ibmCloudInfo.BXClient.ServiceKeys()
-			err := serviceKeys.Delete(instance.Status.KeyInstanceID)
-			if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
+			err := r.DeleteServiceKey(ibmCloudInfo.Session, instance.Status.KeyInstanceID)
+			if err != nil {
 				return err
 			}
-
 		} else { // service type is not CF
-			resServiceKeyAPI := ibmCloudInfo.ResourceClient.ResourceServiceKey()
-			err := resServiceKeyAPI.DeleteKey(instance.Status.KeyInstanceID)
-			if err != nil && !strings.Contains(err.Error(), "410") && !strings.Contains(err.Error(), "404") { // we do not propagate an error if the service or credential no longer exist
+			err := r.DeleteServiceResourceKey(ibmCloudInfo.Session, instance.Status.KeyInstanceID)
+			if err != nil {
 				return err
 			}
 		}
