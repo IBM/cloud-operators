@@ -40,6 +40,19 @@ error() {
     fi
 }
 
+VALID_ACTIONS="install, remove, store-creds"
+usage() {
+    cat >&2 <<EOT
+Usage: $(basename "$0") [-h] [-v VERSION] [ACTION]
+
+    -h            Shows this help message.
+    -v VERSION    Uses the given semantic version (e.g. 1.2.3) to install or uninstall. Default is latest.
+
+    ACTION        What action to perform. Options: $VALID_ACTIONS. Default is store-creds.
+
+EOT
+}
+
 # json_grep assumes stdin is an indented JSON blob, then looks for a matching JSON key for $1.
 # The value must be a string type.
 #
@@ -130,16 +143,104 @@ compare_semver() {
     echo 0
 }
 
-usage() {
-    cat >&2 <<EOT
-Usage: $(basename "$0") [-h] [-v VERSION] [ACTION]
+# store_creds ensures an API key Secret and operator ConfigMap are set up
+store_creds() {
+    if [[ -z "$IBMCLOUD_API_KEY" ]]; then
+        local key_output=$(ibmcloud iam api-key-create ibmcloud-operator-key -d "Key for IBM Cloud Operator" --output json)
+        IBMCLOUD_API_KEY=$(json_grep apikey <<<"$key_output")
+    fi
+    local target=$(ibmcloud target --output json)
+    local region=$(json_grep_after region name <<<"$target")
+    if [[ -z "$region" ]]; then
+        error 'Region must be set. Run `ibmcloud target -r $region` and try again.'
+        return 2
+    fi
+    local b64_region=$(printf "$region" | base64)
+    local b64_apikey=$(printf "$IBMCLOUD_API_KEY" | base64)
 
-    -h            Shows this help message.
-    -v VERSION    Uses the given semantic version (e.g. 1.2.3) to install or uninstall. Default is latest.
-
-    ACTION        What action to perform. Options: apply, delete. Default is apply.
-
+    kubectl apply -f - <<EOT
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-ibm-cloud-operator
+  labels:
+    seed.ibm.com/ibmcloud-token: "apikey"
+    app.kubernetes.io/name: ibmcloud-operator
+  namespace: default
+type: Opaque
+data:
+  api-key: $b64_apikey
+  region: $b64_region
 EOT
+
+    local org=$(json_grep_after org name <<<"$target")
+    local space=$(json_grep_after space name <<<"$target")
+    local resource_group=$(json_grep_after resource_group name <<<"$target")
+    local resource_group_id=$(json_grep_after resource_group guid <<<"$target")
+    if [[ -z "$resource_group_id" ]]; then
+        error 'Resource group must be set. Run `ibmcloud target -g $resource_group` and try again.'
+        return 2
+    fi
+    local user=$(json_grep_after user display_name <<<"$target")
+
+    kubectl apply -f - <<EOT
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-ibm-cloud-operator
+  namespace: default
+  labels:
+    app.kubernetes.io/name: ibmcloud-operator
+data:
+  org: "${org}"
+  region: "${region}"
+  resourcegroup: "${resource_group}"
+  resourcegroupid: "${resource_group_id}"
+  space: "${space}"
+  user: "${user}"
+EOT
+}
+
+# release_action installs or uninstalls the given version
+# First arg is the action (apply, delete) and second arg is the semantic version
+release_action() {
+    local action=$1
+    local version=$2
+
+    local release=$(curl -H 'Accept: application/vnd.github.v3+json' "https://api.github.com/repos/IBM/cloud-operators/releases/$version")
+    local urls=$(json_grep browser_download_url -1 <<<"$release")
+    local file_urls=()
+    while read -r url; do
+        if ! [[ "$url" =~ package.yaml|clusterserviceversion.yaml ]]; then
+            file_urls+=("$url")
+        fi
+    done <<<"$urls"
+
+    local assets=$(fetch_assets "${file_urls[@]}")
+    set +x
+
+    if [[ "$action" == apply ]]; then
+        # Apply specially prefixed resources first. Typically these are namespaces and services.
+        for f in "$assets"/*; do
+            case "$(basename "$f")" in
+                ~g_* | g_*)
+                    echo "Installing pre-requisite resource: $f"
+                    kubectl apply -f "$f"
+                    rm "$f"  # Do not reprocess
+                    ;;
+                monitoring.*)
+                    if ! kubectl apply -f "$f"; then
+                        # Bypass failures on missing Prometheus Operator CRDs
+                        error Failed to install monitoring, skipping...
+                        error Install the Prometheus Operator and re-run this script to include monitoring.
+                    fi
+                    rm "$f"  # Do not reprocess
+                    ;;
+            esac
+        done
+    fi
+
+    kubectl "$action" -f "$assets"
 }
 
 
@@ -159,14 +260,9 @@ while getopts "hv:" opt; do
 done
 shift $((OPTIND-1))
 
-ACTION=${1:-apply}
-case "$ACTION" in
-    apply | delete | store-creds) ;;
-    *)
-        echo "Invalid action: $ACTION" >&2
-        echo "Valid actions: delete"
-        exit 2
-esac
+ACTION=${1:-store-creds}
+
+## If version is pre-0.2.x, then run the old install scripts directly and exit.
 
 if [[ "$VERSION" != latest && "$(compare_semver "$VERSION" 0.2.0)" == -1 ]]; then
     # This back-compatible installer runs in the style of v0.1.x's installer, but pulls v0.1.x's source code instead of latest.
@@ -180,100 +276,35 @@ if [[ "$VERSION" != latest && "$(compare_semver "$VERSION" 0.2.0)" == -1 ]]; the
         store-creds)
             ./hack/config-operator.sh
             ;;
-        *)
+        install)
             ./hack/config-operator.sh
-            kubectl "$ACTION" -f "./releases/v${VERSION}"
+            kubectl apply -f "./releases/v${VERSION}"
+            ;;
+        remove)
+            ./hack/config-operator.sh
+            kubectl delete -f "./releases/v${VERSION}"
             ;;
     esac
     exit 0
 fi
 
-## Ensure API key Secret and operator ConfigMap are set up
+## Run the selected action
 
-if [[ -z "$IBMCLOUD_API_KEY" ]]; then
-    key_output=$(ibmcloud iam api-key-create ibmcloud-operator-key -d "Key for IBM Cloud Operator" --output json)
-    IBMCLOUD_API_KEY=$(json_grep apikey <<<"$key_output")
-fi
-target=$(ibmcloud target --output json)
-b64_region=$(json_grep_after region name <<<"$target" | base64)
-b64_apikey=$(printf "$IBMCLOUD_API_KEY" | base64)
+case "$ACTION" in
+    store-creds)
+        store_creds
+        ;;
+    install)
+        # Only run for vanilla Kubernetes. OpenShift uses Operator Hub installer.
+        store_creds
+        release_action apply "$VERSION"
+        ;;
+    remove)
+        release_action delete "$VERSION"
+        ;;
+    *)
+        echo "Invalid action: $ACTION" >&2
+        echo "Valid actions: $VALID_ACTIONS"
+        exit 2
+esac
 
-kubectl apply -f - <<EOT
-apiVersion: v1
-kind: Secret
-metadata:
-  name: secret-ibm-cloud-operator
-  labels:
-    seed.ibm.com/ibmcloud-token: "apikey"
-    app.kubernetes.io/name: ibmcloud-operator
-  namespace: default
-type: Opaque
-data:
-  api-key: $b64_apikey
-  region: $b64_region
-EOT
-
-region=$(json_grep_after region name <<<"$target")
-org=$(json_grep_after org name <<<"$target")
-space=$(json_grep_after space name <<<"$target")
-resource_group=$(json_grep_after resource_group name <<<"$target")
-resource_group_id=$(json_grep_after resource_group guid <<<"$target")
-user=$(json_grep_after user display_name <<<"$target")
-
-kubectl apply -f - <<EOT
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: config-ibm-cloud-operator
-  namespace: default
-  labels:
-    app.kubernetes.io/name: ibmcloud-operator
-data:
-  org: "${org}"
-  region: "${region}"
-  resourcegroup: "${resource_group}"
-  resourcegroupid: "${resource_group_id}"
-  space: "${space}"
-  user: "${user}"
-EOT
-
-if [[ "$ACTION" == store-creds ]]; then
-    exit 0
-fi
-
-## Install ibmcloud-operators
-
-release=$(curl -H 'Accept: application/vnd.github.v3+json' "https://api.github.com/repos/IBM/cloud-operators/releases/$VERSION")
-urls=$(json_grep browser_download_url -1 <<<"$release")
-file_urls=()
-while read -r url; do
-    if ! [[ "$url" =~ package.yaml|clusterserviceversion.yaml ]]; then
-        file_urls+=("$url")
-    fi
-done <<<"$urls"
-
-assets=$(fetch_assets "${file_urls[@]}")
-set +x
-
-if [[ "$ACTION" == apply ]]; then
-    # Apply specially prefixed resources first. Typically these are namespaces and services.
-    for f in "$assets"/*; do
-        case "$(basename "$f")" in
-            ~g_* | g_*)
-                echo "Installing pre-requisite resource: $f"
-                kubectl apply -f "$f"
-                rm "$f"  # Do not reprocess
-                ;;
-            monitoring.*)
-                if ! kubectl apply -f "$f"; then
-                    # Bypass failures on missing Prometheus Operator CRDs
-                    error Failed to install monitoring, skipping...
-                    error Install the Prometheus Operator and re-run this script to include monitoring.
-                fi
-                rm "$f"  # Do not reprocess
-                ;;
-        esac
-    done
-fi
-
-kubectl "$ACTION" -f "$assets"
