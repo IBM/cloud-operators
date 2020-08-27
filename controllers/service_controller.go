@@ -23,8 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IBM-Cloud/bluemix-go/bmxerror"
-	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -447,26 +445,8 @@ func (r *ServiceReconciler) deleteService(session *session.Session, logt logr.Lo
 
 	} else { // Resource is not CF
 		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-		err := r.DeleteResourceServiceInstance(session, instance.Status.InstanceID)
+		err := r.DeleteResourceServiceInstance(session, instance.Status.InstanceID, logt)
 		if err != nil {
-			bmxerr := err.(bmxerror.Error)
-			if bmxerr.Code() == "410" { // Not Found
-				r.Log.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
-				return nil // Nothing to do here, service not found
-			}
-			if strings.Contains(err.Error(), "cannot be found") { // Not Found
-				r.Log.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
-				return nil // Nothing to do here, service not found
-			}
-			if strings.Contains(err.Error(), "Request failed with status code: 410") { // Not Found
-				r.Log.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
-				return nil // Nothing to do here, service not found
-			}
-			if strings.Contains(err.Error(), "Instance is pending reclamation") { // Not Found
-				r.Log.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
-				return nil // Nothing to do here, service not found
-			}
-
 			return err
 		}
 	}
@@ -576,16 +556,6 @@ func setStatusFieldsFromSpec(instance *ibmcloudv1beta1.Service, resourceContext 
 	instance.Status.Tags = instance.Spec.Tags
 	instance.Status.Context = resourceContext
 	instance.Spec.Context = resourceContext
-}
-
-// getServiceInstance gets the instance with given ID
-func getServiceInstance(instances []models.ServiceInstance, ID string) (models.ServiceInstance, error) {
-	for _, instance := range instances {
-		if instance.ID == ID {
-			return instance, nil
-		}
-	}
-	return models.ServiceInstance{}, fmt.Errorf("not found")
 }
 
 func tagsOrParamsChanged(instance *ibmcloudv1beta1.Service) bool {

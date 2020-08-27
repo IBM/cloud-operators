@@ -2,8 +2,10 @@ package resource
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
+	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/crn"
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/session"
@@ -101,17 +103,39 @@ func UpdateServiceInstance(session *session.Session, serviceInstanceID, external
 	return serviceInstance.State, err
 }
 
-type ServiceInstanceDeleter func(session *session.Session, instanceID string) error
+type ServiceInstanceDeleter func(session *session.Session, instanceID string, logt logr.Logger) error
 
 var _ ServiceInstanceDeleter = DeleteServiceInstance
 
-func DeleteServiceInstance(session *session.Session, instanceID string) error {
+func DeleteServiceInstance(session *session.Session, instanceID string, logt logr.Logger) error {
 	controllerClient, err := controller.New(session)
 	if err != nil {
 		return err
 	}
 	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
-	return resServiceInstanceAPI.DeleteInstance(instanceID, true)
+	err = resServiceInstanceAPI.DeleteInstance(instanceID, true)
+	bmxerr, ok := err.(bmxerror.Error)
+	if !ok {
+		return err
+	}
+
+	if bmxerr.Code() == "410" { // Not Found
+		logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
+		return nil // Nothing to do here, service not found
+	}
+	if strings.Contains(err.Error(), "cannot be found") { // Not Found
+		logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
+		return nil // Nothing to do here, service not found
+	}
+	if strings.Contains(err.Error(), "Request failed with status code: 410") { // Not Found
+		logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
+		return nil // Nothing to do here, service not found
+	}
+	if strings.Contains(err.Error(), "Instance is pending reclamation") { // Not Found
+		logt.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
+		return nil // Nothing to do here, service not found
+	}
+	return err
 }
 
 type ServiceAliasInstanceGetter func(session *session.Session, instanceID, resourceGroupID, servicePlanID, externalName string, logt logr.Logger) (id, state string, err error)
