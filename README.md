@@ -65,10 +65,12 @@ Next log into the IBM Cloud account that owns the ServiceId and follow the instr
 
 ### Install
 
-To install the latest release of the operator, run the following script:
+To install the latest stable release of the operator, run the below script.
+
+To install the latest release of the operator, remove `-v 0.1.11`. NOTE: `v0.2.x` involved major changes and is undergoing further testing to ensure a smoother transition.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash 
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.1.11 install
 ```
 
 The above script stores an API key in a Kubernetes secret that can be accessed by the operator.
@@ -81,7 +83,7 @@ If you prefer to create the secret and the defaults manually, consult the [IBM C
 To install a specific version of the operator, you can pass a semantic version:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0 install
 ```
 
 ### Uninstall
@@ -89,7 +91,7 @@ curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/confi
 To remove the operator, run the following script:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- delete
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- remove
 ```
 
 <!-- SHOW operator hub -->
@@ -99,7 +101,7 @@ curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/confi
 To configure the latest release for OpenShift before install, run the following script:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- store-creds
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash
 ```
 
 The above script stores an API key in a Kubernetes secret that can be accessed by the operator.

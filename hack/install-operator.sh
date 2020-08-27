@@ -6,4 +6,4 @@ echo 'Please see here for the most up-to-date install script: https://github.com
 echo >&2
 LATEST_V0_1=0.1.11
 echo "Installing v${LATEST_V0_1}..." >&2
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v "$LATEST_V0_1"
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v "$LATEST_V0_1" install
