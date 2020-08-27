@@ -95,9 +95,11 @@ func main() {
 		Log:    ctrl.Log.WithName("controllers").WithName("Service"),
 		Scheme: mgr.GetScheme(),
 
-		GetCFServiceInstance:          cfservice.GetInstance,
-		CreateCFServiceInstance:       cfservice.CreateInstance,
-		CreateResourceServiceInstance: resource.CreateServiceInstance,
+		CreateCFServiceInstance:         cfservice.CreateInstance,
+		CreateResourceServiceInstance:   resource.CreateServiceInstance,
+		GetCFServiceInstance:            cfservice.GetInstance,
+		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
+		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)

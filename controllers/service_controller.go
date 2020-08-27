@@ -60,9 +60,11 @@ type ServiceReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	GetCFServiceInstance          cfservice.InstanceGetter
-	CreateCFServiceInstance       cfservice.InstanceCreator
-	CreateResourceServiceInstance resource.ServiceInstanceCreator
+	CreateCFServiceInstance         cfservice.InstanceCreator
+	CreateResourceServiceInstance   resource.ServiceInstanceCreator
+	GetCFServiceInstance            cfservice.InstanceGetter
+	GetResourceServiceInstanceState resource.ServiceInstanceStatusGetter
+	UpdateResourceServiceInstance   resource.ServiceInstanceUpdater
 }
 
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -327,20 +329,8 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	// ServiceInstance was previously created, verify that it is still there
 	logt.Info("ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
 
-	serviceInstanceQuery := controller.ServiceInstanceQuery{
-		// Warning: Do not add the ServiceID to this query
-		ResourceGroupID: ibmCloudInfo.ResourceGroupID,
-		ServicePlanID:   ibmCloudInfo.ServicePlanID,
-		Name:            externalName,
-	}
-
-	serviceInstances, err := resServiceInstanceAPI.ListInstances(serviceInstanceQuery)
-	if err != nil {
-		return r.updateStatusError(instance, serviceStatePending, err)
-	}
-
-	serviceInstance, err := getServiceInstance(serviceInstances, instance.Status.InstanceID)
-	if err != nil && strings.Contains(err.Error(), "not found") { // Need to recreate it!
+	state, err := r.GetResourceServiceInstanceState(ibmCloudInfo.Session, ibmCloudInfo.ResourceGroupID, ibmCloudInfo.ServicePlanID, externalName, instance.Status.InstanceID)
+	if _, ok := err.(resource.NotFoundError); ok { // Need to recreate it!
 		if !isAlias(instance) {
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
 			instance.Status.InstanceID = "IN PROGRESS"
@@ -357,19 +347,16 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		instance.Status.InstanceID = ""
 		return r.updateStatusError(instance, serviceStatePending, fmt.Errorf("aliased service instance no longer exists"))
 	}
+	if err != nil {
+		return r.updateStatusError(instance, serviceStatePending, err)
+	}
+
 	logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
 	// Update Params and Tags if they have changed
 	if tagsOrParamsChanged(instance) {
 		logt.Info("ServiceInstance ", "updating tags and/or parameters", instance.ObjectMeta.Name)
-		serviceInstanceUpdatePayload := controller.UpdateServiceInstanceRequest{
-			Name:          externalName,
-			ServicePlanID: ibmCloudInfo.ServicePlanID,
-			Parameters:    params,
-			Tags:          tags,
-		}
-
-		serviceInstance, err = resServiceInstanceAPI.UpdateInstance(serviceInstance.ID, serviceInstanceUpdatePayload)
+		state, err = r.UpdateResourceServiceInstance(ibmCloudInfo.Session, instance.Status.InstanceID, externalName, ibmCloudInfo.ServicePlanID, params, tags)
 		if err != nil {
 			logt.Info("Error updating tags and/or parameters", "Error", err.Error())
 			return r.updateStatusError(instance, serviceStateFailed, err)
@@ -377,7 +364,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Verification was successful, service exists, update the status if necessary
-	return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, serviceInstance.State)
+	return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, state)
 }
 
 func specChanged(instance *ibmcloudv1beta1.Service) bool {
