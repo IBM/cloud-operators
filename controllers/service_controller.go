@@ -25,6 +25,7 @@ import (
 
 	"github.com/IBM-Cloud/bluemix-go/bmxerror"
 	"github.com/IBM-Cloud/bluemix-go/models"
+	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -62,6 +63,7 @@ type ServiceReconciler struct {
 
 	CreateCFServiceInstance         cfservice.InstanceCreator
 	CreateResourceServiceInstance   resource.ServiceInstanceCreator
+	DeleteCFServiceInstance         cfservice.InstanceDeleter
 	DeleteResourceServiceInstance   resource.ServiceInstanceDeleter
 	GetCFServiceInstance            cfservice.InstanceGetter
 	GetResourceServiceAliasInstance resource.ServiceAliasInstanceGetter
@@ -153,7 +155,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	} else {
 		// The object is being deleted
 		if containsServiceFinalizer(instance) {
-			err := r.deleteService(ibmCloudInfo, instance)
+			err := r.deleteService(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.ServiceClassType)
 			if err != nil {
 				logt.Info("Error deleting resource", instance.ObjectMeta.Name, err.Error())
 				return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
@@ -216,7 +218,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 					logt.Error(err, "Instance ", instance.ObjectMeta.Name, " with `Alias` plan does not exists")
 					return r.updateStatusError(instance, serviceStateFailed, err)
 				}
-				return r.updateStatus(instance, ibmCloudInfo, instanceID, serviceStateOnline)
+				return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, instanceID, serviceStateOnline, ibmCloudInfo.ServiceClassType)
 			}
 			// Service is not Alias
 			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
@@ -224,7 +226,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, err)
 			}
-			return r.updateStatus(instance, ibmCloudInfo, guid, state)
+			return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, guid, state, ibmCloudInfo.ServiceClassType)
 		}
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
@@ -237,7 +239,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 				if err != nil {
 					return r.updateStatusError(instance, serviceStateFailed, err)
 				}
-				return r.updateStatus(instance, ibmCloudInfo, guid, state)
+				return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, guid, state, ibmCloudInfo.ServiceClassType)
 			}
 			return r.updateStatusError(instance, serviceStateFailed, err)
 		} else if err != nil && isAlias(instance) {
@@ -249,7 +251,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
 		// Verification was successful, service exists, update the status if necessary
-		return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, state)
+		return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, instance.Status.InstanceID, state, ibmCloudInfo.ServiceClassType)
 
 	}
 
@@ -274,7 +276,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, errors.Wrapf(err, "failed to resolve Alias plan instance %s", instance.ObjectMeta.Name))
 			}
-			return r.updateStatus(instance, ibmCloudInfo, id, state)
+			return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, id, state, ibmCloudInfo.ServiceClassType)
 		}
 
 		// Create the instance, service is not alias
@@ -289,7 +291,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		if err != nil {
 			return r.updateStatusError(instance, serviceStateFailed, err)
 		}
-		return r.updateStatus(instance, ibmCloudInfo, id, state)
+		return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, id, state, ibmCloudInfo.ServiceClassType)
 	}
 
 	// ServiceInstance was previously created, verify that it is still there
@@ -308,7 +310,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, err)
 			}
-			return r.updateStatus(instance, ibmCloudInfo, id, state)
+			return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, id, state, ibmCloudInfo.ServiceClassType)
 		}
 		instance.Status.InstanceID = ""
 		return r.updateStatusError(instance, serviceStatePending, fmt.Errorf("aliased service instance no longer exists"))
@@ -330,7 +332,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Verification was successful, service exists, update the status if necessary
-	return r.updateStatus(instance, ibmCloudInfo, instance.Status.InstanceID, state)
+	return r.updateStatus(ibmCloudInfo.Session, logt, instance, ibmCloudInfo.Context, instance.Status.InstanceID, state, ibmCloudInfo.ServiceClassType)
 }
 
 func specChanged(instance *ibmcloudv1beta1.Service) bool {
@@ -404,29 +406,24 @@ func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1beta1.Service,
 	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
-func (r *ServiceReconciler) deleteService(ibmCloudInfo *ibmcloud.Info, instance *ibmcloudv1beta1.Service) error {
+func (r *ServiceReconciler) deleteService(session *session.Session, logt logr.Logger, instance *ibmcloudv1beta1.Service, serviceClassType string) error {
 	if isAlias(instance) {
-		r.Log.Info("Aliased service will not be deleted", "Name", instance.Name)
+		logt.Info("Aliased service will not be deleted", "Name", instance.Name)
 		return nil
 	}
 	if instance.Status.InstanceID == "" {
 		return nil // Nothing to do here, service was not intialized
 	}
-	if ibmCloudInfo.ServiceClassType == "CF" {
-		r.Log.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-		serviceInstanceAPI := ibmCloudInfo.BXClient.ServiceInstances()
-		err := serviceInstanceAPI.Delete(instance.Status.InstanceID, true, true) // async, recursive (i.e. delete credentials)
+	if serviceClassType == "CF" {
+		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+		err := r.DeleteCFServiceInstance(session, instance.Status.InstanceID, logt)
 		if err != nil {
-			if strings.Contains(err.Error(), "Request failed with status code: 410") { // Not Found
-				r.Log.Info("Resource not found, nothing to to", "ServiceInstance", err.Error())
-				return nil // Nothing to do here, service not found
-			}
 			return err
 		}
 
 	} else { // Resource is not CF
-		r.Log.WithValues("User", ibmCloudInfo.Context.User).Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-		err := r.DeleteResourceServiceInstance(ibmCloudInfo.Session, instance.Status.InstanceID)
+		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+		err := r.DeleteResourceServiceInstance(session, instance.Status.InstanceID)
 		if err != nil {
 			bmxerr := err.(bmxerror.Error)
 			if bmxerr.Code() == "410" { // Not Found
@@ -517,7 +514,7 @@ func isAlias(instance *ibmcloudv1beta1.Service) bool {
 	return strings.ToLower(instance.Spec.Plan) == aliasPlan
 }
 
-func (r *ServiceReconciler) updateStatus(instance *ibmcloudv1beta1.Service, ibmCloudInfo *ibmcloud.Info, instanceID string, instanceState string) (ctrl.Result, error) {
+func (r *ServiceReconciler) updateStatus(session *session.Session, logt logr.Logger, instance *ibmcloudv1beta1.Service, resourceContext ibmcloudv1beta1.ResourceContext, instanceID, instanceState, serviceClassType string) (ctrl.Result, error) {
 	r.Log.Info("the instance state", "is:", instanceState)
 	state := getState(instanceState)
 	if instance.Status.State != state || instance.Status.InstanceID != instanceID || tagsOrParamsChanged(instance) {
@@ -525,11 +522,11 @@ func (r *ServiceReconciler) updateStatus(instance *ibmcloudv1beta1.Service, ibmC
 		instance.Status.Message = state
 		instance.Status.InstanceID = instanceID
 		instance.Status.DashboardURL = getDashboardURL(instance.Spec.ServiceClass, instanceID)
-		setStatusFieldsFromSpec(instance, ibmCloudInfo)
+		setStatusFieldsFromSpec(instance, resourceContext)
 		err := r.Status().Update(context.Background(), instance)
 		if err != nil {
 			r.Log.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
-			errD := r.deleteService(ibmCloudInfo, instance)
+			errD := r.deleteService(session, logt, instance, serviceClassType)
 			if errD != nil {
 				r.Log.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, errD.Error())
 			}
@@ -546,18 +543,15 @@ func getState(serviceInstanceState string) string {
 	return serviceInstanceState
 }
 
-func setStatusFieldsFromSpec(instance *ibmcloudv1beta1.Service, ibmCloudInfo *ibmcloud.Info) {
+func setStatusFieldsFromSpec(instance *ibmcloudv1beta1.Service, resourceContext ibmcloudv1beta1.ResourceContext) {
 	instance.Status.Plan = instance.Spec.Plan
 	instance.Status.ExternalName = instance.Spec.ExternalName
 	instance.Status.ServiceClass = instance.Spec.ServiceClass
 	instance.Status.ServiceClassType = instance.Spec.ServiceClassType
 	instance.Status.Parameters = instance.Spec.Parameters
 	instance.Status.Tags = instance.Spec.Tags
-
-	if ibmCloudInfo != nil {
-		instance.Status.Context = ibmCloudInfo.Context
-		instance.Spec.Context = ibmCloudInfo.Context
-	}
+	instance.Status.Context = resourceContext
+	instance.Spec.Context = resourceContext
 }
 
 // getServiceInstance gets the instance with given ID
