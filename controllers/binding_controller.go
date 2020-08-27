@@ -441,9 +441,9 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, session *sess
 	}
 	if serviceClassType == "CF" { // service type is CF
 		return r.CreateCFServiceKey(session, instance.Status.InstanceID, instance.ObjectMeta.Name, parameters)
-	} else { // service type is not CF
-		return r.getResourceServiceCredentials(session, instance, parameters)
 	}
+	// service type is not CF
+	return r.getResourceServiceCredentials(session, instance, parameters)
 }
 
 func (r *BindingReconciler) getResourceServiceCredentials(session *session.Session, instance *ibmcloudv1beta1.Binding, parameters map[string]interface{}) (string, map[string]interface{}, error) {
