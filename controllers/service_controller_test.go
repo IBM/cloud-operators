@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -159,7 +160,12 @@ func getServiceInstanceFromObj(logt logr.Logger, service *ibmcloudv1beta1.Servic
 	if err != nil {
 		return models.ServiceInstance{}, err
 	}
-	return getServiceInstance(instances, service.Status.InstanceID)
+	for _, instance := range instances {
+		if instance.ID == service.Status.InstanceID {
+			return instance, nil
+		}
+	}
+	return models.ServiceInstance{}, fmt.Errorf("not found")
 }
 
 func TestServiceV1Alpha1Compat(t *testing.T) {
