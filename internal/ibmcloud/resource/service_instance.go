@@ -46,7 +46,10 @@ func CreateServiceInstance(session *session.Session, externalName, servicePlanID
 		Parameters:      params,
 		Tags:            tags,
 	})
-	return serviceInstance.ID, serviceInstance.LastOperation.State, err
+	if err != nil {
+		return "", "", err
+	}
+	return serviceInstance.ID, serviceInstance.LastOperation.State, nil
 }
 
 type ServiceInstanceStatusGetter func(session *session.Session, resourceGroupID, servicePlanID, externalName, instanceID string) (state string, err error)
