@@ -97,7 +97,9 @@ func main() {
 
 		CreateCFServiceInstance:         cfservice.CreateInstance,
 		CreateResourceServiceInstance:   resource.CreateServiceInstance,
+		DeleteResourceServiceInstance:   resource.DeleteServiceInstance,
 		GetCFServiceInstance:            cfservice.GetInstance,
+		GetResourceServiceAliasInstance: resource.GetServiceAliasInstance,
 		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
 		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
 	}).SetupWithManager(mgr); err != nil {

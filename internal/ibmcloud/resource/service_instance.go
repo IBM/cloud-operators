@@ -1,15 +1,17 @@
 package resource
 
 import (
+	"fmt"
+
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/crn"
+	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/session"
+	"github.com/go-logr/logr"
 )
 
-type NotFoundError struct{}
-
-func (e NotFoundError) Error() string {
-	return "not found"
+type NotFoundError struct {
+	error
 }
 
 type ServiceInstanceCRNGetter func(session *session.Session, instanceID string) (instanceCRN crn.CRN, serviceID string, err error)
@@ -73,7 +75,7 @@ func GetServiceInstanceState(session *session.Session, resourceGroupID, serviceP
 			return instance.State, nil
 		}
 	}
-	return "", NotFoundError{}
+	return "", NotFoundError{fmt.Errorf("not found")}
 }
 
 type ServiceInstanceUpdater func(session *session.Session, serviceInstanceID, externalName, servicePlanID string, params map[string]interface{}, tags []string) (state string, err error)
@@ -94,4 +96,78 @@ func UpdateServiceInstance(session *session.Session, serviceInstanceID, external
 		Tags:          tags,
 	})
 	return serviceInstance.State, err
+}
+
+type ServiceInstanceDeleter func(session *session.Session, instanceID string) error
+
+var _ ServiceInstanceDeleter = DeleteServiceInstance
+
+func DeleteServiceInstance(session *session.Session, instanceID string) error {
+	controllerClient, err := controller.New(session)
+	if err != nil {
+		return err
+	}
+	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
+	return resServiceInstanceAPI.DeleteInstance(instanceID, true)
+}
+
+type ServiceAliasInstanceGetter func(session *session.Session, instanceID, resourceGroupID, servicePlanID, externalName string, logt logr.Logger) (id, state string, err error)
+
+var _ ServiceAliasInstanceGetter = GetServiceAliasInstance
+
+// GetServiceAliasInstance retrieves a service instance ID and state with optional 'instanceID'. instanceID is only used to resolve name conflicts.
+func GetServiceAliasInstance(session *session.Session, instanceID, resourceGroupID, servicePlanID, externalName string, logt logr.Logger) (id, state string, err error) {
+	controllerClient, err := controller.New(session)
+	if err != nil {
+		return "", "", err
+	}
+
+	resServiceInstanceAPI := controllerClient.ResourceServiceInstance()
+	serviceInstances, err := resServiceInstanceAPI.ListInstances(controller.ServiceInstanceQuery{
+		// Warning: Do not add the ServiceID to this query
+		ResourceGroupID: resourceGroupID,
+		ServicePlanID:   servicePlanID,
+		Name:            externalName,
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	if len(serviceInstances) == 0 {
+		return "", "", NotFoundError{fmt.Errorf("no service instances found for Alias plan")}
+	}
+
+	// if only one instance with that name is found, then instanceID is not required, but if present it should match the ID
+	if len(serviceInstances) == 1 {
+		logt.Info("Found 1 service instance for `Alias` plan:", "InstanceID", serviceInstances[0].ID)
+		if instanceID != "" { // check matches ID
+			if instanceID != serviceInstances[0].ID {
+				return "", "", NotFoundError{fmt.Errorf("instance ID %s does not match instance ID %s found", instanceID, serviceInstances[0].ID)}
+			}
+		}
+		return serviceInstances[0].ID, serviceInstances[0].State, nil
+	}
+
+	// if there is more then 1 service instance with the same name, then the instance ID annotation must be present
+	logt.Info("Multiple service instances for `Alias` plan and instance")
+	if instanceID != "" {
+		var serviceInstance *models.ServiceInstance
+		for _, instance := range serviceInstances {
+			if instance.ID == instanceID {
+				instanceCopy := instance
+				serviceInstance = &instanceCopy
+				break
+			}
+		}
+		if serviceInstance == nil {
+			return "", "", NotFoundError{fmt.Errorf("multiple services instances found, but none matched instance ID %s", instanceID)}
+		}
+
+		if serviceInstance.ServiceID == "" {
+			return "", "", NotFoundError{fmt.Errorf("could not find matching instance with instance ID %s", instanceID)}
+		}
+		logt.Info("Found service instances for `Alias` plan and instance", "InstanceID", instanceID)
+		return serviceInstance.ID, serviceInstance.State, nil
+	}
+	return "", "", fmt.Errorf("multiple instance with same name found, and plan `Alias` requires `ibmcloud.ibm.com/instanceId` annotation")
 }
