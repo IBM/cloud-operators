@@ -21,6 +21,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ibm/cloud-operators/controllers"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
@@ -29,7 +34,6 @@ import (
 
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
-	"github.com/ibm/cloud-operators/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -73,6 +77,15 @@ func main() {
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
 		Scheme: mgr.GetScheme(),
+
+		CreateResourceServiceKey:   resource.CreateKey,
+		CreateCFServiceKey:         cfservice.CreateKey,
+		DeleteResourceServiceKey:   resource.DeleteKey,
+		DeleteCFServiceKey:         cfservice.DeleteKey,
+		GetResourceServiceKey:      resource.GetKey,
+		GetCFServiceKeyCredentials: cfservice.GetKey,
+		GetServiceName:             resource.GetServiceName,
+		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Binding")
 		os.Exit(1)
@@ -81,15 +94,23 @@ func main() {
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Service"),
 		Scheme: mgr.GetScheme(),
+
+		CreateCFServiceInstance:         cfservice.CreateInstance,
+		CreateResourceServiceInstance:   resource.CreateServiceInstance,
+		DeleteResourceServiceInstance:   resource.DeleteServiceInstance,
+		GetCFServiceInstance:            cfservice.GetInstance,
+		GetResourceServiceAliasInstance: resource.GetServiceAliasInstance,
+		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
+		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
 	}
 	if err = (&controllers.TokenReconciler{
-		Client:     mgr.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme:     mgr.GetScheme(),
-		HTTPClient: http.DefaultClient,
+		Client:       mgr.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme:       mgr.GetScheme(),
+		Authenticate: auth.New(http.DefaultClient),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Token")
 		os.Exit(1)

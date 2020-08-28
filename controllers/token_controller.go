@@ -18,15 +18,10 @@ package controllers
 
 import (
 	"context"
-	"net/http"
-	"strings"
 	"time"
 
-	"github.com/IBM-Cloud/bluemix-go"
-	"github.com/IBM-Cloud/bluemix-go/authentication"
-	"github.com/IBM-Cloud/bluemix-go/endpoints"
-	"github.com/IBM-Cloud/bluemix-go/rest"
 	"github.com/go-logr/logr"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,9 +33,9 @@ import (
 // TokenReconciler reconciles a Token object
 type TokenReconciler struct {
 	client.Client
-	Log        logr.Logger
-	Scheme     *runtime.Scheme
-	HTTPClient *http.Client
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Authenticate auth.Authenticator
 }
 
 // Reconcile computes IAM and UAA tokens
@@ -82,23 +77,19 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	}
 	region := string(regionb)
 
-	config := bluemix.Config{
-		EndpointLocator: endpoints.NewEndpointLocator(region),
-	}
-
-	auth, err := authentication.NewIAMAuthRepository(&config, &rest.Client{HTTPClient: r.HTTPClient})
-	if err != nil {
+	logt.Info("authenticating...")
+	creds, err := r.Authenticate(string(apikeyb), string(regionb))
+	if _, ok := err.(auth.InvalidConfigError); ok {
 		// Invalid region. Do not requeue
-		logt.Info("no endpoint found for region", "region", region)
+		logt.Error(err, "failed to create auth client", "region", region)
 		return ctrl.Result{}, nil
 	}
-
-	logt.Info("authenticating...")
-	if err := auth.AuthenticateAPIKey(string(apikeyb)); err != nil {
+	if err != nil {
 		// TODO: check BX Error
-		logt.Info("authentication failed", "error", err)
+		logt.Error(err, "authentication failed")
 		return ctrl.Result{}, err // requeue
 	}
+
 	tokensRef := secret.Name + "-tokens"
 	logt.Info("creating tokens secret", "name", tokensRef)
 
@@ -107,12 +98,7 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 			Name:      tokensRef,
 			Namespace: secret.Namespace,
 		},
-		Data: map[string][]byte{
-			"access_token":      []byte(config.IAMAccessToken),
-			"refresh_token":     []byte(config.IAMRefreshToken),
-			"uaa_token":         []byte(strings.Replace(config.UAAAccessToken, "B", "b", 1)),
-			"uaa_refresh_token": []byte(config.UAARefreshToken),
-		},
+		Data: creds.MarshalSecret(),
 	}
 
 	err = r.Delete(ctx, tokens)

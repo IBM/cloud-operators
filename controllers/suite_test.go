@@ -26,6 +26,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -132,6 +136,16 @@ func mainSetup(ctx context.Context) error {
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
 		Scheme: k8sManager.GetScheme(),
+
+		CreateResourceServiceKey:   resource.CreateKey,
+		CreateCFServiceKey:         cfservice.CreateKey,
+		DeleteResourceServiceKey:   resource.DeleteKey,
+		DeleteCFServiceKey:         cfservice.DeleteKey,
+		GetResourceServiceKey:      resource.GetKey,
+		GetServiceInstanceCRN:      resource.GetServiceInstanceCRN,
+		GetCFServiceKeyCredentials: cfservice.GetKey,
+		GetServiceName:             resource.GetServiceName,
+		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}
@@ -139,21 +153,28 @@ func mainSetup(ctx context.Context) error {
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Service"),
 		Scheme: k8sManager.GetScheme(),
+
+		CreateCFServiceInstance:         cfservice.CreateInstance,
+		CreateResourceServiceInstance:   resource.CreateServiceInstance,
+		DeleteResourceServiceInstance:   resource.DeleteServiceInstance,
+		GetCFServiceInstance:            cfservice.GetInstance,
+		GetResourceServiceAliasInstance: resource.GetServiceAliasInstance,
+		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
+		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up service controller")
 	}
 	tokenReconciler := &TokenReconciler{
-		Client:     k8sManager.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme:     k8sManager.GetScheme(),
-		HTTPClient: http.DefaultClient,
+		Client:       k8sManager.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("Token"),
+		Scheme:       k8sManager.GetScheme(),
+		Authenticate: auth.New(http.DefaultClient),
 	}
-	setTokenHTTPClient = func(tb testing.TB, c *http.Client) {
-		oldClient := tokenReconciler.HTTPClient
+	setTokenHTTPClient = func(tb testing.TB, authenticator auth.Authenticator) {
+		tokenReconciler.Authenticate = authenticator
 		tb.Cleanup(func() {
-			tokenReconciler.HTTPClient = oldClient
+			tokenReconciler.Authenticate = auth.New(http.DefaultClient)
 		})
-		tokenReconciler.HTTPClient = c
 	}
 	if err = tokenReconciler.SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up token controller")
