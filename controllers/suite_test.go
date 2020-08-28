@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -66,6 +67,11 @@ func TestMain(m *testing.M) {
 }
 
 func run(m *testing.M) int {
+	flag.Parse() // required to check for '-short' flag setting
+	if testing.Short() {
+		return m.Run()
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()

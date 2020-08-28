@@ -20,6 +20,10 @@ import (
 )
 
 func TestService(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	ready := t.Run("should be ready", func(t *testing.T) {
 		for _, specfile := range []string{
 			"translator.yaml",
@@ -169,6 +173,10 @@ func getServiceInstanceFromObj(logt logr.Logger, service *ibmcloudv1beta1.Servic
 }
 
 func TestServiceV1Alpha1Compat(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	service := new(ibmcloudv1beta1.Service)
 	mustLoadObject(t, filepath.Join("testdata", "translator-v1alpha1.yaml"), service, &service.ObjectMeta)
 	ctx := context.TODO()

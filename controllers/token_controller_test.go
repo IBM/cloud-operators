@@ -25,6 +25,10 @@ var (
 )
 
 func TestToken(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	// Create the secret object and expect the Reconcile
 	const (
 		secretName   = "dummyapikey"

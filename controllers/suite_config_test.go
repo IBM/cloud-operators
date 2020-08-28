@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"testing"
 	"time"
 
 	"github.com/IBM-Cloud/bluemix-go"
@@ -11,14 +12,22 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/rest"
 	"github.com/IBM-Cloud/bluemix-go/session"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
+	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
-	testCfg = config.GetIBMCloud()
+	testCfg config.IBMCloud
 )
 
 const (
@@ -27,6 +36,7 @@ const (
 )
 
 func setup() error {
+	testCfg = config.MustGetIBMCloud()
 	if err := setupAuth(); err != nil {
 		return err
 	}
@@ -145,4 +155,19 @@ func getAuthTokens(sess *session.Session) (uaaAccessToken, uaaRefreshToken strin
 		return "", "", errors.New("Fetching UAA tokens failed")
 	}
 	return config.UAAAccessToken, config.UAARefreshToken, nil
+}
+
+func schemas(t *testing.T) *runtime.Scheme {
+	scheme, err := ibmcloudv1beta1.SchemeBuilder.Build()
+	require.NoError(t, err)
+	require.NoError(t, corev1.SchemeBuilder.AddToScheme(scheme))
+	return scheme
+}
+
+func testLogger(t *testing.T) logr.Logger {
+	opts := []zap.Option{
+		zap.AddCaller(),
+		zap.AddCallerSkip(1),
+	}
+	return zapr.NewLogger(zaptest.NewLogger(t, zaptest.WrapOptions(opts...)))
 }

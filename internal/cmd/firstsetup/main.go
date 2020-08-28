@@ -34,7 +34,7 @@ func run() error {
 		return nil
 	}
 
-	config := config.GetIBMCloud()
+	config := config.MustGetIBMCloud()
 
 	_, err = k8sClient.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
