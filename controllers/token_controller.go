@@ -101,6 +101,7 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		Data: creds.MarshalSecret(),
 	}
 
+	// TODO(johnstarich) switch to CreateOrUpdate for atomic replace behavior
 	err = r.Delete(ctx, tokens)
 	if err != nil && !errors.IsNotFound(err) {
 		return ctrl.Result{}, err

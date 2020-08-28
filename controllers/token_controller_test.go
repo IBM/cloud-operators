@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
-	"github.com/go-logr/zapr"
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -79,33 +79,237 @@ func TestToken(t *testing.T) {
 }
 
 func TestTokenFailedAuth(t *testing.T) {
-	scheme, err := ibmcloudv1beta1.SchemeBuilder.Build()
-	require.NoError(t, err)
-	require.NoError(t, corev1.SchemeBuilder.AddToScheme(scheme))
-	client := fake.NewFakeClientWithScheme(scheme,
+	scheme := schemas(t)
+	objects := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "secret",
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: "secret"},
 			Data: map[string][]byte{
 				"api-key": []byte(`bogus key`),
 			},
 		},
-	)
-	tokenReconciler := &TokenReconciler{
-		Client: client,
-		Log:    zapr.NewLogger(zaptest.NewLogger(t)),
+	}
+	r := &TokenReconciler{
+		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Log:    testLogger(t),
 		Scheme: scheme,
 		Authenticate: func(apiKey, region string) (auth.Credentials, error) {
 			return auth.Credentials{}, fmt.Errorf("failure")
 		},
 	}
 
-	result, err := tokenReconciler.Reconcile(ctrl.Request{
-		NamespacedName: types.NamespacedName{
-			Name: "secret",
-		},
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: "secret"},
 	})
 	assert.EqualError(t, err, "failure")
+	assert.Equal(t, ctrl.Result{}, result)
+}
+
+func TestTokenFailedSecretLookup(t *testing.T) {
+	scheme := schemas(t)
+	r := &TokenReconciler{
+		Client:       fake.NewFakeClientWithScheme(scheme),
+		Log:          testLogger(t),
+		Scheme:       scheme,
+		Authenticate: nil, // should not be called
+	}
+
+	t.Run("not found", func(t *testing.T) {
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: "secret"},
+		})
+		assert.NoError(t, err, "Don't retry (return err) if secret no longer exists")
+		assert.Equal(t, ctrl.Result{}, result)
+	})
+
+	r.Client = fake.NewFakeClientWithScheme(runtime.NewScheme()) // fail to read the type Secret
+	t.Run("failed to read secret", func(t *testing.T) {
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: "secret"},
+		})
+		assert.Error(t, err)
+		assert.False(t, k8sErrors.IsNotFound(err))
+		assert.Equal(t, ctrl.Result{}, result)
+	})
+}
+
+func TestTokenSecretIsDeleting(t *testing.T) {
+	scheme := schemas(t)
+	now := metav1.Now()
+	objects := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "secret",
+				DeletionTimestamp: &now,
+			},
+		},
+	}
+	r := &TokenReconciler{
+		Client:       fake.NewFakeClientWithScheme(scheme, objects...),
+		Log:          testLogger(t),
+		Scheme:       scheme,
+		Authenticate: nil, // should not be called
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: "secret"},
+	})
+	assert.NoError(t, err, "Don't retry (return err) if secret is deleting")
+	assert.Equal(t, ctrl.Result{}, result)
+}
+
+func TestTokenAPIKeyIsMissing(t *testing.T) {
+	scheme := schemas(t)
+	objects := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "secret"},
+			Data:       nil, // no API key
+		},
+	}
+	r := &TokenReconciler{
+		Client:       fake.NewFakeClientWithScheme(scheme, objects...),
+		Log:          testLogger(t),
+		Scheme:       scheme,
+		Authenticate: nil, // should not be called
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: "secret"},
+	})
+	assert.NoError(t, err, "Don't retry (return err) if secret does not contain an api-key entry")
+	assert.Equal(t, ctrl.Result{}, result)
+}
+
+func TestTokenAuthInvalidConfig(t *testing.T) {
+	scheme := schemas(t)
+	const (
+		apiKey = "some API key"
+		region = "some invalid region"
+	)
+	objects := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "secret"},
+			Data: map[string][]byte{
+				"api-key": []byte(apiKey),
+				"region":  []byte(region),
+			},
+		},
+	}
+	r := &TokenReconciler{
+		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Log:    testLogger(t),
+		Scheme: scheme,
+		Authenticate: func(actualAPIKey, actualRegion string) (auth.Credentials, error) {
+			assert.Equal(t, apiKey, actualAPIKey)
+			assert.Equal(t, region, actualRegion)
+			return auth.Credentials{}, auth.InvalidConfigError{Err: fmt.Errorf("Invalid region")}
+		},
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: "secret"},
+	})
+	assert.NoError(t, err, "Don't retry (return err) if secret region is invalid")
+	assert.Equal(t, ctrl.Result{}, result)
+}
+
+func TestTokenDeleteFailed(t *testing.T) {
+	scheme := schemas(t)
+	const (
+		apiKey      = "some API key"
+		region      = "some invalid region"
+		accessToken = "some access token"
+	)
+	objects := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "secret"},
+			Data: map[string][]byte{
+				"api-key": []byte(apiKey),
+				"region":  []byte(region),
+			},
+		},
+	}
+	var r *TokenReconciler
+	r = &TokenReconciler{
+		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Log:    testLogger(t),
+		Scheme: scheme,
+		Authenticate: func(actualAPIKey, actualRegion string) (auth.Credentials, error) {
+			assert.Equal(t, apiKey, actualAPIKey)
+			assert.Equal(t, region, actualRegion)
+			r.Client = fake.NewFakeClientWithScheme(runtime.NewScheme()) // trigger later failure of r.Client.Delete
+			return auth.Credentials{
+				IAMAccessToken: accessToken,
+			}, nil
+		},
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: "secret"},
+	})
+	assert.Error(t, err)
+	assert.False(t, k8sErrors.IsNotFound(err))
+	assert.Equal(t, ctrl.Result{}, result)
+}
+
+func TestTokenRaceCreateFailed(t *testing.T) {
+	scheme := schemas(t)
+	const (
+		apiKey      = "some API key"
+		region      = "some invalid region"
+		accessToken = "some access token"
+	)
+	tokensSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "secret-tokens"},
+		Data: map[string][]byte{
+			"access_token": []byte("old " + accessToken),
+		},
+	}
+	objects := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "secret"},
+			Data: map[string][]byte{
+				"api-key": []byte(apiKey),
+				"region":  []byte(region),
+			},
+		},
+		tokensSecret,
+	}
+	r := &TokenReconciler{
+		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Log:    testLogger(t),
+		Scheme: scheme,
+		Authenticate: func(actualAPIKey, actualRegion string) (auth.Credentials, error) {
+			assert.Equal(t, apiKey, actualAPIKey)
+			assert.Equal(t, region, actualRegion)
+			return auth.Credentials{
+				IAMAccessToken: accessToken,
+			}, nil
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// re-create the secret constantly during the test to trigger race condition
+				_ = r.Client.Create(context.Background(), tokensSecret)
+			}
+		}
+	}()
+	defer cancel()
+
+	var result ctrl.Result
+	var err error
+	require.Eventually(t, func() bool {
+		result, err = r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: "secret"},
+		})
+		return err != nil
+	}, 5*time.Second, 10*time.Millisecond)
+	assert.Error(t, err)
+	assert.True(t, k8sErrors.IsAlreadyExists(err))
 	assert.Equal(t, ctrl.Result{}, result)
 }
