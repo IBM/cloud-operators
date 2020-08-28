@@ -2,14 +2,21 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/go-logr/zapr"
+	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 var (
@@ -65,4 +72,36 @@ func TestToken(t *testing.T) {
 	assert.Contains(t, secret.Data, "refresh_token")
 	assert.Contains(t, secret.Data, "uaa_token")
 	assert.Contains(t, secret.Data, "uaa_refresh_token")
+}
+
+func TestTokenFailedAuth(t *testing.T) {
+	scheme, err := ibmcloudv1beta1.SchemeBuilder.Build()
+	require.NoError(t, err)
+	require.NoError(t, corev1.SchemeBuilder.AddToScheme(scheme))
+	client := fake.NewFakeClientWithScheme(scheme,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "secret",
+			},
+			Data: map[string][]byte{
+				"api-key": []byte(`bogus key`),
+			},
+		},
+	)
+	tokenReconciler := &TokenReconciler{
+		Client: client,
+		Log:    zapr.NewLogger(zaptest.NewLogger(t)),
+		Scheme: scheme,
+		Authenticate: func(apiKey, region string) (auth.Credentials, error) {
+			return auth.Credentials{}, fmt.Errorf("failure")
+		},
+	}
+
+	result, err := tokenReconciler.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "secret",
+		},
+	})
+	assert.EqualError(t, err, "failure")
+	assert.Equal(t, ctrl.Result{}, result)
 }
