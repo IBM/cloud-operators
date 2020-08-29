@@ -29,6 +29,10 @@ func mustLoadObject(t *testing.T, file string, obj runtime.Object, meta *metav1.
 }
 
 func TestBinding(t *testing.T) {
+	if testing.Short() {
+		t.SkipNow()
+	}
+
 	const (
 		servicefile = "testdata/translator-2.yaml"
 		bindingfile = "testdata/translator-binding.yaml"

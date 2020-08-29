@@ -20,7 +20,11 @@ type Credentials struct {
 }
 
 type InvalidConfigError struct {
-	error
+	Err error
+}
+
+func (i InvalidConfigError) Error() string {
+	return i.Err.Error()
 }
 
 type authenticator struct {

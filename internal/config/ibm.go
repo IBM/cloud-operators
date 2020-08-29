@@ -3,11 +3,12 @@ package config
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type IBMCloud struct {
@@ -24,7 +25,7 @@ func setIfEmpty(dest *string, src string) {
 	}
 }
 
-func GetIBMCloud() IBMCloud {
+func MustGetIBMCloud() IBMCloud {
 	var config IBMCloud
 	config.Config = Get()
 
@@ -57,7 +58,7 @@ func GetIBMCloud() IBMCloud {
 		"Space":   config.Space,
 	} {
 		if s == "" {
-			panic(fmt.Sprintf("IBM Cloud config missing value for %q.\n\nTry setting the ibmcloud CLI target or using the environment variable.", name))
+			panic(errors.Errorf("IBM Cloud config missing value for %q.\n\nTry setting the ibmcloud CLI target or using the environment variable.", name))
 		}
 	}
 	return config
