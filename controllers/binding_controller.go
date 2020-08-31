@@ -47,6 +47,7 @@ const (
 	inProgress       = "IN PROGRESS"
 	notFound         = "Not Found"
 	idkey            = "ibmcloud.ibm.com/keyId"
+	requeueFast      = 10 * time.Second
 )
 
 const (
@@ -113,8 +114,9 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	if reflect.DeepEqual(instance.Status, ibmcloudv1beta1.BindingStatus{}) {
 		instance.Status.State = bindingStatePending
 		instance.Status.Message = "Processing Resource"
-		if err := r.Status().Update(context.Background(), instance); err != nil {
+		if err := r.Status().Update(ctx, instance); err != nil {
 			logt.Info("Binding could not update Status", instance.Name, err.Error())
+			// TODO(johnstarich): Shouldn't this be a failure so it can be requeued?
 			return ctrl.Result{}, nil
 		}
 	}
@@ -130,7 +132,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			// the credentials do not exist on the cloud, since the service cannot be found.
 			// Also by removing the Binding instance, any correponding secret will also be deleted by Kubernetes.
 			instance.ObjectMeta.Finalizers = deleteBindingFinalizer(instance)
-			if err := r.Update(context.Background(), instance); err != nil {
+			if err := r.Update(ctx, instance); err != nil {
 				logt.Info("Error removing finalizers", "in deletion", err.Error())
 				// No further action required, object was modified, another reconcile will finish the job.
 			}
@@ -142,7 +144,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			return r.resetResource(instance)
 		}
 
-		return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
+		return ctrl.Result{Requeue: true, RequeueAfter: requeueFast}, nil
 	}
 
 	// Set an owner reference if service and binding are in the same namespace
@@ -152,7 +154,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			return ctrl.Result{}, err
 		}
 
-		if err := r.Update(context.Background(), instance); err != nil {
+		if err := r.Update(ctx, instance); err != nil {
 			logt.Info("Error setting controller reference", instance.Name, err.Error())
 			return ctrl.Result{}, nil
 		}
@@ -162,7 +164,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == inProgress {
 		// The parent service has not been initialized fully yet
 		logt.Info("Parent service", "not yet initialized", instance.Name)
-		return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil //Requeue fast
+		return ctrl.Result{Requeue: true, RequeueAfter: requeueFast}, nil
 	}
 
 	var serviceClassType string
@@ -175,7 +177,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 				!instance.ObjectMeta.DeletionTimestamp.IsZero() {
 				logt.Info("Cannot get IBMCloud related secrets and configmaps, just remove finalizers", "in deletion", err.Error())
 				instance.ObjectMeta.Finalizers = deleteBindingFinalizer(instance)
-				if err := r.Update(context.Background(), instance); err != nil {
+				if err := r.Update(ctx, instance); err != nil {
 					logt.Info("Error removing finalizers", "in deletion", err.Error())
 				}
 				return ctrl.Result{}, nil
@@ -192,7 +194,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		// Instance is not being deleted, add the finalizer if not present
 		if !containsBindingFinalizer(instance) {
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, bindingFinalizer)
-			if err := r.Update(context.Background(), instance); err != nil {
+			if err := r.Update(ctx, instance); err != nil {
 				logt.Info("Error adding finalizer", instance.Name, err.Error())
 				return ctrl.Result{}, nil
 			}
@@ -204,12 +206,12 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			err := r.deleteCredentials(session, instance, serviceClassType)
 			if err != nil {
 				logt.Info("Error deleting credentials", "in deletion", err.Error())
-				return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
+				return ctrl.Result{Requeue: true, RequeueAfter: requeueFast}, nil
 			}
 
 			// remove our finalizer from the list and update it.
 			instance.ObjectMeta.Finalizers = deleteBindingFinalizer(instance)
-			if err := r.Update(context.Background(), instance); err != nil {
+			if err := r.Update(ctx, instance); err != nil {
 				logt.Info("Error removing finalizers", "in deletion", err.Error())
 			}
 			return ctrl.Result{}, nil
@@ -234,7 +236,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	// Now instance.Status.IntanceID has been set properly
 	if instance.Status.KeyInstanceID == "" { // The KeyInstanceID has not been set, need to create the key
 		instance.Status.KeyInstanceID = inProgress
-		if err := r.Status().Update(context.Background(), instance); err != nil {
+		if err := r.Status().Update(ctx, instance); err != nil {
 			logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
 			return ctrl.Result{}, nil
 		}
