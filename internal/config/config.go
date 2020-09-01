@@ -13,13 +13,14 @@ var (
 )
 
 type Config struct {
-	APIKey            string        `envconfig:"bluemix_api_key"`
-	AccountID         string        `envconfig:"bluemix_account_id"`
-	Org               string        `envconfig:"bluemix_org"`
-	Region            string        `envconfig:"bluemix_region"`
-	ResourceGroupName string        `envconfig:"bluemix_resource_group"`
-	Space             string        `envconfig:"bluemix_space"`
-	SyncPeriod        time.Duration `envconfig:"sync_period"`
+	APIKey              string        `envconfig:"bluemix_api_key"`
+	AccountID           string        `envconfig:"bluemix_account_id"`
+	ControllerNamespace string        `envconfig:"controller_namespace"`
+	Org                 string        `envconfig:"bluemix_org"`
+	Region              string        `envconfig:"bluemix_region"`
+	ResourceGroupName   string        `envconfig:"bluemix_resource_group"`
+	Space               string        `envconfig:"bluemix_space"`
+	SyncPeriod          time.Duration `envconfig:"sync_period"`
 }
 
 func Get() Config {

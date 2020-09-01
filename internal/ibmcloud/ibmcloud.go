@@ -3,7 +3,6 @@ package ibmcloud
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	"github.com/ibm/cloud-operators/internal/config"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,8 +31,6 @@ const (
 	seedDefaults = "config-ibm-cloud-operator"
 	seedTokens   = "secret-ibm-cloud-operator-tokens"
 )
-
-var controllerNamespace string
 
 // Info kept all the needed client API resource and instance Info
 type Info struct {
@@ -350,11 +348,8 @@ func getIBMCloudContext(instance *ibmcloudv1beta1.Service, cm *v1.ConfigMap) ibm
 }
 
 func getDefaultNamespace(r client.Client) (string, bool) {
-	if controllerNamespace == "" {
-		controllerNamespace = os.Getenv("CONTROLLER_NAMESPACE")
-	}
 	cm := &v1.ConfigMap{}
-	err := r.Get(context.Background(), types.NamespacedName{Namespace: controllerNamespace, Name: seedInstall}, cm)
+	err := r.Get(context.Background(), types.NamespacedName{Namespace: config.Get().ControllerNamespace, Name: seedInstall}, cm)
 	if err != nil {
 		return "default", false
 	}
