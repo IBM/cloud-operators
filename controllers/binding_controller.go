@@ -39,7 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -69,12 +68,18 @@ type BindingReconciler struct {
 	CreateCFServiceKey         cfservice.KeyCreator
 	DeleteResourceServiceKey   resource.KeyDeleter
 	DeleteCFServiceKey         cfservice.KeyDeleter
+	GetIBMCloudInfo            IBMCloudInfoGetter
 	GetResourceServiceKey      resource.KeyGetter
 	GetServiceInstanceCRN      resource.ServiceInstanceCRNGetter
 	GetCFServiceKeyCredentials cfservice.KeyGetter
 	GetServiceName             resource.ServiceNameGetter
 	GetServiceRoleCRN          iam.ServiceRolesGetter
+	SetControllerReference     ControllerReferenceSetter
 }
+
+type ControllerReferenceSetter func(owner, controlled metav1.Object, scheme *runtime.Scheme) error
+
+type IBMCloudInfoGetter func(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error)
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -149,8 +154,8 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 
 	// Set an owner reference if service and binding are in the same namespace
 	if serviceInstance.Namespace == instance.Namespace {
-		if err := controllerutil.SetControllerReference(serviceInstance, instance, r.Scheme); err != nil {
-			logt.Info("Binding could not update constroller reference", instance.Name, err.Error())
+		if err := r.SetControllerReference(serviceInstance, instance, r.Scheme); err != nil {
+			logt.Info("Binding could not update controller reference", instance.Name, err.Error())
 			return ctrl.Result{}, err
 		}
 
@@ -170,9 +175,9 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	var serviceClassType string
 	var session *session.Session
 	{
-		ibmCloudInfo, err := ibmcloud.GetInfo(logt, r.Client, serviceInstance)
+		ibmCloudInfo, err := r.GetIBMCloudInfo(logt, r.Client, serviceInstance)
 		if err != nil {
-			logt.Info("Unable to get", "ibmcloudInfo", instance.Name)
+			logt.Info("Unable to get IBM Cloud info", "ibmcloudInfo", instance.Name)
 			if errors.IsNotFound(err) && containsBindingFinalizer(instance) &&
 				!instance.ObjectMeta.DeletionTimestamp.IsZero() {
 				logt.Info("Cannot get IBMCloud related secrets and configmaps, just remove finalizers", "in deletion", err.Error())
@@ -485,7 +490,7 @@ func (r *BindingReconciler) createSecret(instance *ibmcloudv1beta1.Binding, keyC
 		},
 		Data: datamap,
 	}
-	if err := controllerutil.SetControllerReference(instance, secret, r.Scheme); err != nil {
+	if err := r.SetControllerReference(instance, secret, r.Scheme); err != nil {
 		return err
 	}
 	if err := r.Create(context.Background(), secret); err != nil {

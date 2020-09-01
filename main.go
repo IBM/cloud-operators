@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/ibm/cloud-operators/controllers"
+	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
@@ -30,6 +31,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
@@ -78,14 +80,16 @@ func main() {
 		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
 		Scheme: mgr.GetScheme(),
 
-		CreateResourceServiceKey:   resource.CreateKey,
 		CreateCFServiceKey:         cfservice.CreateKey,
-		DeleteResourceServiceKey:   resource.DeleteKey,
+		CreateResourceServiceKey:   resource.CreateKey,
 		DeleteCFServiceKey:         cfservice.DeleteKey,
-		GetResourceServiceKey:      resource.GetKey,
+		DeleteResourceServiceKey:   resource.DeleteKey,
 		GetCFServiceKeyCredentials: cfservice.GetKey,
+		GetIBMCloudInfo:            ibmcloud.GetInfo,
+		GetResourceServiceKey:      resource.GetKey,
 		GetServiceName:             resource.GetServiceName,
 		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
+		SetControllerReference:     controllerutil.SetControllerReference,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Binding")
 		os.Exit(1)

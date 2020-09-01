@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
@@ -41,6 +42,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -143,15 +145,17 @@ func mainSetup(ctx context.Context) error {
 		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
 		Scheme: k8sManager.GetScheme(),
 
-		CreateResourceServiceKey:   resource.CreateKey,
 		CreateCFServiceKey:         cfservice.CreateKey,
-		DeleteResourceServiceKey:   resource.DeleteKey,
+		CreateResourceServiceKey:   resource.CreateKey,
 		DeleteCFServiceKey:         cfservice.DeleteKey,
+		DeleteResourceServiceKey:   resource.DeleteKey,
+		GetCFServiceKeyCredentials: cfservice.GetKey,
+		GetIBMCloudInfo:            ibmcloud.GetInfo,
 		GetResourceServiceKey:      resource.GetKey,
 		GetServiceInstanceCRN:      resource.GetServiceInstanceCRN,
-		GetCFServiceKeyCredentials: cfservice.GetKey,
 		GetServiceName:             resource.GetServiceName,
 		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
+		SetControllerReference:     controllerutil.SetControllerReference,
 	}).SetupWithManager(k8sManager); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}
