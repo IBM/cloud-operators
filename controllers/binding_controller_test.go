@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -1892,6 +1893,359 @@ func TestBindingUpdateStatusError(t *testing.T) {
 				}
 			}
 			assert.Equal(t, expectBinding, client.LastStatusUpdate())
+		})
+	}
+}
+
+func TestBindingParamToJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		description string
+		param       ibmcloudv1beta1.Param
+		expectJSON  map[string]interface{}
+		expectErr   string
+	}{
+		{
+			description: "error: value and valueFrom both set",
+			param: ibmcloudv1beta1.Param{
+				Name:      "myvalue",
+				Value:     &ibmcloudv1beta1.ParamValue{},
+				ValueFrom: &ibmcloudv1beta1.ParamSource{},
+			},
+			expectErr: "Value and ValueFrom properties are mutually exclusive (for myvalue variable)",
+		},
+		{
+			description: "empty valueFrom error",
+			param: ibmcloudv1beta1.Param{
+				Name:      "myvalue",
+				ValueFrom: &ibmcloudv1beta1.ParamSource{},
+			},
+			expectErr: "Missing secretKeyRef or configMapKeyRef",
+		},
+		{
+			description: "empty value error",
+			param: ibmcloudv1beta1.Param{
+				Name:  "myvalue",
+				Value: &ibmcloudv1beta1.ParamValue{},
+			},
+			expectErr: "unexpected end of JSON input",
+		},
+		{
+			description: "value happy path",
+			param: ibmcloudv1beta1.Param{
+				Name: "myvalue",
+				Value: &ibmcloudv1beta1.ParamValue{
+					RawMessage: json.RawMessage(`{"hello": true, "world": {"!": 1}}`),
+				},
+			},
+			expectJSON: map[string]interface{}{
+				"hello": true,
+				"world": map[string]interface{}{
+					"!": 1.0,
+				},
+			},
+		},
+		{
+			description: "neither value nor valueFrom set",
+			param:       ibmcloudv1beta1.Param{Name: "myvalue"},
+			expectJSON:  nil,
+			expectErr:   "",
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			r := &BindingReconciler{}
+			j, err := r.paramToJSON(context.TODO(), tc.param, "someNamespace")
+			if tc.expectErr != "" {
+				assert.EqualError(t, err, tc.expectErr)
+				return
+			}
+			require.NoError(t, err)
+			if tc.expectJSON == nil {
+				assert.Nil(t, j)
+			} else {
+				assert.Equal(t, tc.expectJSON, j)
+			}
+		})
+	}
+}
+
+func TestBindingParamValueToJSON(t *testing.T) {
+	t.Parallel()
+	const (
+		secretName     = "secretName"
+		secretKey      = "mykey"
+		secretValue    = "myvalue"
+		configMapName  = "configMapName"
+		configMapKey   = "mykey"
+		configMapValue = "myvalue"
+		namespace      = "mynamespace"
+	)
+
+	objects := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+			Data: map[string][]byte{
+				secretKey: []byte(secretValue),
+			},
+		},
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: configMapName, Namespace: namespace},
+			Data: map[string]string{
+				configMapKey: configMapValue,
+			},
+		},
+	}
+
+	for _, tc := range []struct {
+		description string
+		valueFrom   ibmcloudv1beta1.ParamSource
+		expectJSON  interface{}
+		expectErr   string
+	}{
+		{
+			description: "no value error",
+			expectErr:   "Missing secretKeyRef or configMapKeyRef",
+		},
+		{
+			description: "secret ref success",
+			valueFrom: ibmcloudv1beta1.ParamSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					Key: secretKey,
+				},
+			},
+			expectJSON: secretValue,
+		},
+		{
+			description: "secret ref name failure",
+			valueFrom: ibmcloudv1beta1.ParamSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "wrong-secret-name",
+					},
+					Key: secretKey,
+				},
+			},
+			expectErr: "Missing secret wrong-secret-name",
+		},
+		{
+			description: "secret ref key failure",
+			valueFrom: ibmcloudv1beta1.ParamSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					Key: "wrong-key-name",
+				},
+			},
+			expectJSON: "",
+		},
+		{
+			description: "configmap ref success",
+			valueFrom: ibmcloudv1beta1.ParamSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configMapName,
+					},
+					Key: configMapKey,
+				},
+			},
+			expectJSON: configMapValue,
+		},
+		{
+			description: "configmap ref name failure",
+			valueFrom: ibmcloudv1beta1.ParamSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "wrong-configmap-name",
+					},
+					Key: configMapKey,
+				},
+			},
+			expectErr: "Missing configmap wrong-configmap-name",
+		},
+		{
+			description: "configmap ref key failure",
+			valueFrom: ibmcloudv1beta1.ParamSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configMapName,
+					},
+					Key: "wrong-key-name",
+				},
+			},
+			expectJSON: "",
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			scheme := schemas(t)
+			r := &BindingReconciler{
+				Client: fake.NewFakeClientWithScheme(scheme, objects...),
+				Log:    testLogger(t),
+				Scheme: scheme,
+			}
+
+			j, err := r.paramValueToJSON(context.TODO(), tc.valueFrom, namespace)
+			if tc.expectErr != "" {
+				assert.EqualError(t, err, tc.expectErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectJSON, j)
+		})
+	}
+}
+
+func TestParamToJSONFromString(t *testing.T) {
+	t.Parallel()
+	t.Run("unmarshal happy path", func(t *testing.T) {
+		j, err := paramToJSONFromString(`{
+			"hello": 1,
+			"world": 1.234567890987654321e1000,
+			"!": false
+		}`)
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]interface{}{
+			"hello": json.Number("1"),
+			"world": json.Number("1.234567890987654321e1000"), // large precision is kept identically as a Number type
+			"!":     false,
+		}, j)
+	})
+
+	t.Run("too many JSON items", func(t *testing.T) {
+		const contents = `
+{ "hello": "abc" }
+{ "world": "123" }
+`
+		j, err := paramToJSONFromString(contents)
+		assert.NoError(t, err)
+		assert.Equal(t, contents, j)
+	})
+
+	t.Run("invalid JSON is not parsed", func(t *testing.T) {
+		const contents = `this is not JSON`
+		j, err := paramToJSONFromString(contents)
+		assert.NoError(t, err)
+		assert.Equal(t, contents, j)
+	})
+}
+
+func TestDeleteBindingFinalizer(t *testing.T) {
+	t.Parallel()
+	t.Run("no finalizer found", func(t *testing.T) {
+		finalizers := []string(nil)
+		assert.Equal(t, finalizers, deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
+		}))
+	})
+
+	t.Run("one other finalizer found", func(t *testing.T) {
+		finalizers := []string{"not-binding-finalizer"}
+		assert.Equal(t, finalizers, deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
+		}))
+	})
+
+	t.Run("one finalizer found", func(t *testing.T) {
+		finalizers := []string{bindingFinalizer}
+		assert.Equal(t, []string(nil), deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
+		}))
+	})
+
+	t.Run("multiple finalizers found", func(t *testing.T) {
+		finalizers := []string{bindingFinalizer, bindingFinalizer}
+		assert.Equal(t, []string(nil), deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
+		}))
+	})
+}
+
+func TestBindingDeleteCredentials(t *testing.T) {
+	scheme := schemas(t)
+	binding := &ibmcloudv1beta1.Binding{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Spec: ibmcloudv1beta1.BindingSpec{
+			Alias: "", // not an alias, so should delete IBM Cloud resources
+		},
+	}
+	secret := &corev1.Secret{
+		TypeMeta:   metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+	}
+	objects := []runtime.Object{
+		binding,
+		&ibmcloudv1beta1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+			Spec:       ibmcloudv1beta1.ServiceSpec{},
+		},
+		secret,
+	}
+
+	for _, tc := range []struct {
+		description      string
+		serviceClassType string
+		cfErr            error
+		resourceErr      error
+		expectDelete     runtime.Object
+		deleteErr        error
+		expectErr        string
+	}{
+		{
+			description:  "delete resource service",
+			resourceErr:  nil,
+			expectDelete: secret,
+		},
+		{
+			description:      "delete CF service",
+			serviceClassType: "CF",
+			cfErr:            nil,
+			expectDelete:     secret,
+		},
+		{
+			description: "fail delete resource service",
+			resourceErr: fmt.Errorf("failed"),
+			expectErr:   "failed",
+		},
+		{
+			description:      "fail delete CF service",
+			serviceClassType: "CF",
+			cfErr:            fmt.Errorf("failed"),
+			expectErr:        "failed",
+		},
+		{
+			description:  "fail delete secret",
+			deleteErr:    fmt.Errorf("failed"),
+			expectErr:    "failed",
+			expectDelete: secret,
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			client := newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{DeleteErr: tc.deleteErr},
+			)
+			r := &BindingReconciler{
+				Client: client,
+				Log:    testLogger(t),
+				Scheme: scheme,
+
+				DeleteCFServiceKey: func(session *session.Session, serviceKeyGUID string) error {
+					return tc.cfErr
+				},
+				DeleteResourceServiceKey: func(session *session.Session, serviceKeyGUID string) error {
+					return tc.resourceErr
+				},
+			}
+			err := r.deleteCredentials(nil, binding, tc.serviceClassType)
+			assert.Equal(t, tc.expectDelete, client.LastDelete())
+			if tc.expectErr != "" {
+				assert.EqualError(t, err, tc.expectErr)
+				return
+			}
+			assert.NoError(t, err)
 		})
 	}
 }
