@@ -158,7 +158,7 @@ func TestBindingFailInitialStatus(t *testing.T) {
 
 func TestBindingFailGetServiceInstance(t *testing.T) {
 	t.Parallel()
-	now := metav1.NewTime(time.Now().UTC()).Rfc3339Copy() // low-resolution time
+	now := metav1Now(t)
 	for _, tc := range []struct {
 		description        string
 		binding            *ibmcloudv1beta1.Binding
@@ -187,7 +187,7 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
-					DeletionTimestamp: &now,
+					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
 				Spec: ibmcloudv1beta1.BindingSpec{
@@ -200,7 +200,7 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
-					DeletionTimestamp: &now,
+					DeletionTimestamp: now,
 				},
 				Spec: ibmcloudv1beta1.BindingSpec{
 					ServiceName: "myservice",
@@ -215,7 +215,7 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
-					DeletionTimestamp: &now,
+					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
 				Spec: ibmcloudv1beta1.BindingSpec{
@@ -228,7 +228,7 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
-					DeletionTimestamp: &now,
+					DeletionTimestamp: now,
 				},
 				Spec: ibmcloudv1beta1.BindingSpec{
 					ServiceName: "myservice",
@@ -470,7 +470,7 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 
 func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 	t.Parallel()
-	now := metav1.NewTime(time.Now().UTC()).Rfc3339Copy() // low-resolution time
+	now := metav1Now(t)
 	scheme := schemas(t)
 	const (
 		namespace      = "mynamespace"
@@ -484,7 +484,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
-				DeletionTimestamp: &now,
+				DeletionTimestamp: now,
 				Finalizers:        []string{bindingFinalizer},
 			},
 			Spec:   ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
@@ -528,7 +528,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
-				DeletionTimestamp: &now,
+				DeletionTimestamp: now,
 				Finalizers:        nil, // attempt to remove finalizers
 			},
 			Spec:   ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
@@ -564,7 +564,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
-				DeletionTimestamp: &now,
+				DeletionTimestamp: now,
 				Finalizers:        []string{bindingFinalizer},
 			},
 			Spec: ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
@@ -578,7 +578,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 
 func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 	t.Parallel()
-	now := metav1.NewTime(time.Now().UTC()).Rfc3339Copy() // low-resolution time
+	now := metav1Now(t)
 
 	t.Run("deleting credentials failed", func(t *testing.T) {
 		scheme := schemas(t)
@@ -595,7 +595,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              bindingName,
 					Namespace:         namespace,
-					DeletionTimestamp: &now,
+					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
 				Spec: ibmcloudv1beta1.BindingSpec{
@@ -661,7 +661,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              bindingName,
 					Namespace:         namespace,
-					DeletionTimestamp: &now,
+					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
 				Spec: ibmcloudv1beta1.BindingSpec{
@@ -710,7 +710,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
-				DeletionTimestamp: &now,
+				DeletionTimestamp: now,
 				Finalizers:        nil, // attempt to remove finalizers
 				ResourceVersion:   "1",
 			},
