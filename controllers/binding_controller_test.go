@@ -99,6 +99,7 @@ func TestBinding(t *testing.T) {
 }
 
 func TestBindingFailedLookup(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	r := &BindingReconciler{
 		Client: fake.NewFakeClientWithScheme(scheme),
@@ -126,6 +127,7 @@ func TestBindingFailedLookup(t *testing.T) {
 }
 
 func TestBindingFailInitialStatus(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	objects := []runtime.Object{
 		&ibmcloudv1beta1.Binding{
@@ -151,6 +153,7 @@ func TestBindingFailInitialStatus(t *testing.T) {
 }
 
 func TestBindingFailGetServiceInstance(t *testing.T) {
+	t.Parallel()
 	now := metav1.Now().Rfc3339Copy() // low-resolution time
 	for _, tc := range []struct {
 		description        string
@@ -294,6 +297,7 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 }
 
 func TestBindingSetOwnerReferenceFailed(t *testing.T) {
+	t.Parallel()
 	t.Run("setting owner reference failed", func(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
@@ -380,6 +384,7 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 }
 
 func TestBindingServiceIsNotReady(t *testing.T) {
+	t.Parallel()
 	t.Run("empty instance ID", func(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
@@ -460,6 +465,7 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 }
 
 func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
+	t.Parallel()
 	now := metav1.Now().Rfc3339Copy() // low-resolution time
 	scheme := schemas(t)
 	const (
@@ -567,6 +573,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 }
 
 func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
+	t.Parallel()
 	now := metav1.Now().Rfc3339Copy() // low-resolution time
 
 	t.Run("deleting credentials failed", func(t *testing.T) {
@@ -714,6 +721,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 }
 
 func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	const (
 		namespace      = "mynamespace"
@@ -779,6 +787,7 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 }
 
 func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	const (
 		namespace      = "mynamespace"
