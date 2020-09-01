@@ -12,7 +12,7 @@ require (
 	github.com/johnstarich/go/regext v0.0.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pkg/errors v0.8.1
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	go.uber.org/zap v1.10.0
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.17.2
