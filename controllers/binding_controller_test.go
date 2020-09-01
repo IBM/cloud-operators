@@ -158,7 +158,7 @@ func TestBindingFailInitialStatus(t *testing.T) {
 
 func TestBindingFailGetServiceInstance(t *testing.T) {
 	t.Parallel()
-	now := metav1.Now().Rfc3339Copy() // low-resolution time
+	now := metav1.NewTime(time.Now().UTC()).Rfc3339Copy() // low-resolution time
 	for _, tc := range []struct {
 		description        string
 		binding            *ibmcloudv1beta1.Binding
@@ -470,7 +470,7 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 
 func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 	t.Parallel()
-	now := metav1.Now().Rfc3339Copy() // low-resolution time
+	now := metav1.NewTime(time.Now().UTC()).Rfc3339Copy() // low-resolution time
 	scheme := schemas(t)
 	const (
 		namespace      = "mynamespace"
@@ -578,7 +578,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 
 func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 	t.Parallel()
-	now := metav1.Now().Rfc3339Copy() // low-resolution time
+	now := metav1.NewTime(time.Now().UTC()).Rfc3339Copy() // low-resolution time
 
 	t.Run("deleting credentials failed", func(t *testing.T) {
 		scheme := schemas(t)
