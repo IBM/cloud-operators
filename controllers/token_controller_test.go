@@ -134,12 +134,12 @@ func TestTokenFailedSecretLookup(t *testing.T) {
 
 func TestTokenSecretIsDeleting(t *testing.T) {
 	scheme := schemas(t)
-	now := metav1.NewTime(time.Now().UTC()).Rfc3339Copy() // low-resolution time
+	now := metav1Now(t)
 	objects := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "secret",
-				DeletionTimestamp: &now,
+				DeletionTimestamp: now,
 			},
 		},
 	}
