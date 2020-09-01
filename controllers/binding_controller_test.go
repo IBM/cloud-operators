@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/IBM-Cloud/bluemix-go/crn"
 	"github.com/IBM-Cloud/bluemix-go/session"
@@ -1725,4 +1726,172 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		assert.Equal(t, bindingStateFailed, status.State)
 		assert.Equal(t, "failed", status.Message)
 	})
+}
+
+func TestBindingResetResource(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	const (
+		secretName = "mysecret"
+		namespace  = "mynamespace"
+	)
+	binding := &ibmcloudv1beta1.Binding{
+		ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
+		Spec: ibmcloudv1beta1.BindingSpec{
+			SecretName: secretName,
+		},
+	}
+	secret := &corev1.Secret{
+		TypeMeta:   metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+	}
+
+	t.Run("happy path", func(t *testing.T) {
+		client := newMockClient(
+			fake.NewFakeClientWithScheme(scheme, binding, secret),
+			MockConfig{},
+		)
+		r := &BindingReconciler{
+			Client: client,
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		result, err := r.resetResource(binding)
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, secret, client.LastDelete())
+		assert.Equal(t, binding, client.LastStatusUpdate())
+	})
+
+	t.Run("fail delete secret", func(t *testing.T) {
+		client := newMockClient(
+			fake.NewFakeClientWithScheme(scheme, binding, secret),
+			MockConfig{DeleteErr: fmt.Errorf("failed")},
+		)
+		r := &BindingReconciler{
+			Client: client,
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		result, err := r.resetResource(binding)
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, secret, client.LastDelete())
+	})
+
+	t.Run("fail update status", func(t *testing.T) {
+		client := newMockClient(
+			fake.NewFakeClientWithScheme(scheme, binding, secret),
+			MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
+		)
+		r := &BindingReconciler{
+			Client: client,
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		result, err := r.resetResource(binding)
+		assert.Equal(t, ctrl.Result{}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, binding, client.LastStatusUpdate())
+	})
+}
+
+func TestBindingUpdateStatusError(t *testing.T) {
+	for _, tc := range []struct {
+		description       string
+		initialState      string
+		initialMessage    string
+		state             string
+		err               error
+		updateStatusError error
+		expectState       string
+		expectMessage     string
+		expectResult      ctrl.Result
+	}{
+		{
+			description:   "happy path",
+			initialState:  bindingStatePending,
+			state:         bindingStateFailed,
+			err:           fmt.Errorf("failed"),
+			expectState:   bindingStateFailed,
+			expectMessage: "failed",
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+		},
+		{
+			description:  "no such host error",
+			initialState: bindingStatePending,
+			state:        bindingStateFailed,
+			err:          fmt.Errorf("no such host"),
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: 5 * time.Minute,
+			},
+		},
+		{
+			description:    "happy path - same state",
+			initialState:   bindingStatePending,
+			initialMessage: "old message",
+			state:          bindingStatePending,
+			err:            fmt.Errorf("failed"),
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+		},
+		{
+			description:       "status updated failed",
+			initialState:      bindingStatePending,
+			state:             bindingStateFailed,
+			err:               fmt.Errorf("failed"),
+			updateStatusError: fmt.Errorf("failed status"),
+			expectState:       bindingStateFailed,
+			expectMessage:     "failed",
+			expectResult:      ctrl.Result{},
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			scheme := schemas(t)
+			binding := &ibmcloudv1beta1.Binding{
+				Status: ibmcloudv1beta1.BindingStatus{
+					State:   tc.initialState,
+					Message: tc.initialMessage,
+				},
+			}
+			client := newMockClient(
+				fake.NewFakeClientWithScheme(scheme),
+				MockConfig{StatusUpdateErr: tc.updateStatusError},
+			)
+			r := &BindingReconciler{
+				Client: client,
+				Log:    testLogger(t),
+				Scheme: scheme,
+			}
+
+			result, err := r.updateStatusError(binding, tc.state, tc.err)
+			assert.Equal(t, tc.expectResult, result)
+			assert.NoError(t, err)
+			var expectBinding runtime.Object
+			if tc.expectState != "" {
+				expectBinding = &ibmcloudv1beta1.Binding{
+					Status: ibmcloudv1beta1.BindingStatus{
+						State:   tc.expectState,
+						Message: tc.expectMessage,
+					},
+				}
+			}
+			assert.Equal(t, expectBinding, client.LastStatusUpdate())
+		})
+	}
 }

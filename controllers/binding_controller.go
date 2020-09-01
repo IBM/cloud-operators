@@ -367,6 +367,7 @@ func (r *BindingReconciler) resetResource(instance *ibmcloudv1beta1.Binding) (ct
 	instance.Status.SecretName = ""
 	if err := r.Status().Update(context.Background(), instance); err != nil {
 		r.Log.Info("Binding could not reset Status", instance.Name, err.Error())
+		// TODO(johnstarich): Shouldn't this be a failure so it can be requeued?
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
