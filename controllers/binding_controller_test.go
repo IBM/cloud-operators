@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/IBM-Cloud/bluemix-go/crn"
+	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
@@ -876,4 +878,205 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 		TypeMeta:   metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
 	}, r.Client.(MockClient).LastDelete())
+}
+
+func TestBindingSetKeyInstanceFailed(t *testing.T) {
+	t.Parallel()
+
+	scheme := schemas(t)
+	const (
+		namespace       = "mynamespace"
+		aliasTargetName = "myBindingToAlias"
+		secretName      = "mysecret"
+		bindingName     = "mybinding"
+		serviceName     = "myservice"
+		someInstanceID  = "some-instance-id"
+	)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       bindingName,
+				Namespace:  namespace,
+				Finalizers: []string{bindingFinalizer},
+			},
+			Spec: ibmcloudv1beta1.BindingSpec{
+				ServiceName: serviceName,
+				SecretName:  secretName,
+			},
+			Status: ibmcloudv1beta1.BindingStatus{
+				State:      bindingStatePending,
+				InstanceID: someInstanceID,
+				SecretName: secretName,
+			},
+		},
+		&ibmcloudv1beta1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       aliasTargetName,
+				Namespace:  namespace,
+				Finalizers: []string{bindingFinalizer},
+			},
+			Spec: ibmcloudv1beta1.BindingSpec{
+				ServiceName: serviceName,
+				SecretName:  secretName,
+			},
+			Status: ibmcloudv1beta1.BindingStatus{
+				State:      bindingStatePending,
+				InstanceID: someInstanceID,
+				SecretName: secretName,
+			},
+		},
+		&ibmcloudv1beta1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				InstanceID: someInstanceID,
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+		},
+	}
+
+	for _, tc := range []struct {
+		description         string
+		fakeClient          MockConfig
+		isAlias             bool
+		instanceIDKey       bool
+		createServiceKeyErr error
+		expectResult        ctrl.Result
+		expectState         string
+		expectMessage       string
+	}{
+		{
+			description: "update status online",
+			fakeClient:  MockConfig{},
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+			expectState:   bindingStateOnline,
+			expectMessage: bindingStateOnline,
+		},
+		{
+			description:  "fail to update key instance ID to inProgress",
+			fakeClient:   MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
+			expectResult: ctrl.Result{},
+			expectState:  bindingStatePending,
+		},
+		{
+			description: "missing alias instanceID annotation",
+			isAlias:     true,
+			fakeClient:  MockConfig{},
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+			expectState: bindingStatePending,
+		},
+		{
+			description:   "update alias online",
+			isAlias:       true,
+			instanceIDKey: true,
+			fakeClient:    MockConfig{},
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+			expectState:   bindingStateOnline,
+			expectMessage: bindingStateOnline,
+		},
+		{
+			description:         "fail to create credentials",
+			fakeClient:          MockConfig{},
+			createServiceKeyErr: fmt.Errorf("failed"),
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+			expectState:   bindingStateFailed,
+			expectMessage: "failed",
+		},
+		{
+			description:         "fail to create credentials - still in progress",
+			fakeClient:          MockConfig{},
+			createServiceKeyErr: fmt.Errorf("still in progress"),
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+			expectState: bindingStatePending,
+		},
+		{
+			description: "fail to create secret",
+			fakeClient:  MockConfig{CreateErr: fmt.Errorf("failed")},
+			expectResult: ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			},
+			expectState:   bindingStateFailed,
+			expectMessage: "failed",
+		},
+	} {
+		t.Run(tc.description, func(t *testing.T) {
+			var testObjects []runtime.Object
+			for _, obj := range objects {
+				if binding, ok := obj.(*ibmcloudv1beta1.Binding); ok && binding.Name != aliasTargetName {
+					binding = binding.DeepCopy()
+					if tc.instanceIDKey {
+						binding.Annotations = map[string]string{idkey: someInstanceID}
+					}
+					if tc.isAlias {
+						binding.Spec.Alias = aliasTargetName
+					}
+					obj = binding
+				}
+				testObjects = append(testObjects, obj)
+			}
+
+			r := &BindingReconciler{
+				Client: newMockClient(
+					fake.NewFakeClientWithScheme(scheme, testObjects...),
+					tc.fakeClient,
+				),
+				Log:    testLogger(t),
+				Scheme: scheme,
+
+				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+					return &ibmcloud.Info{}, nil
+				},
+				SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+					return nil
+				},
+				GetServiceInstanceCRN: func(session *session.Session, instanceID string) (crn.CRN, string, error) {
+					return crn.CRN{}, "", nil
+				},
+				GetServiceName: func(session *session.Session, serviceID string) (string, error) {
+					return "", nil
+				},
+				GetServiceRoleCRN: func(session *session.Session, serviceName, roleName string) (crn.CRN, error) {
+					return crn.CRN{}, nil
+				},
+				CreateResourceServiceKey: func(session *session.Session, name string, crn crn.CRN, parameters map[string]interface{}) (string, map[string]interface{}, error) {
+					return "", nil, tc.createServiceKeyErr
+				},
+				GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+					return "", aliasTargetName, nil, nil
+				},
+			}
+
+			result, err := r.Reconcile(ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+			})
+			assert.Equal(t, tc.expectResult, result)
+			assert.NoError(t, err)
+
+			update := r.Client.(MockClient).LastStatusUpdate()
+			require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+			status := update.(*ibmcloudv1beta1.Binding).Status
+			assert.Equal(t, tc.expectState, status.State)
+			assert.Equal(t, tc.expectMessage, status.Message)
+		})
+	}
 }

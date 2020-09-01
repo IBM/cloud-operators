@@ -243,6 +243,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		instance.Status.KeyInstanceID = inProgress
 		if err := r.Status().Update(ctx, instance); err != nil {
 			logt.Info("Error updating KeyInstanceID to be in progress", "Error", err.Error())
+			// TODO(johnstarich): Shouldn't this be a failure so it can be requeued?
 			return ctrl.Result{}, nil
 		}
 
@@ -428,7 +429,7 @@ func (r *BindingReconciler) getAliasCredentials(logt logr.Logger, session *sessi
 	}
 
 	if keyName != name { // alias name and keyid annotations are inconsistent
-		return "", nil, fmt.Errorf("Alias credential name and keyid do not match")
+		return "", nil, fmt.Errorf("alias credential name and keyid do not match. Key name: %q, Alias name: %q", keyName, name)
 	}
 
 	_, contentsContainRedacted := credentials["REDACTED"]
