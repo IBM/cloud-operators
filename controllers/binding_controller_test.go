@@ -1080,3 +1080,649 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 		})
 	}
 }
+
+func TestBindingEnsureCredentialsFailed(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	const (
+		namespace         = "mynamespace"
+		secretName        = "mysecret"
+		bindingName       = "mybinding"
+		serviceName       = "myservice"
+		someInstanceID    = "some-instance-id"
+		someKeyInstanceID = "some-key-instance-id"
+	)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       bindingName,
+				Namespace:  namespace,
+				Finalizers: []string{bindingFinalizer},
+			},
+			Spec: ibmcloudv1beta1.BindingSpec{
+				ServiceName: serviceName,
+				SecretName:  secretName,
+			},
+			Status: ibmcloudv1beta1.BindingStatus{
+				State:         bindingStatePending,
+				InstanceID:    someInstanceID,
+				SecretName:    secretName,
+				KeyInstanceID: someKeyInstanceID,
+			},
+		},
+		&ibmcloudv1beta1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				InstanceID: someInstanceID,
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+		},
+	}
+
+	r := &BindingReconciler{
+		Client: newMockClient(
+			fake.NewFakeClientWithScheme(scheme, objects...),
+			MockConfig{},
+		),
+		Log:    testLogger(t),
+		Scheme: scheme,
+
+		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			return &ibmcloud.Info{}, nil
+		},
+		SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			return nil
+		},
+		GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+			return "", "", nil, fmt.Errorf(notFound)
+		},
+		GetServiceInstanceCRN: func(session *session.Session, instanceID string) (instanceCRN crn.CRN, serviceID string, err error) {
+			return crn.CRN{}, "", nil
+		},
+		GetServiceName: func(session *session.Session, serviceID string) (string, error) {
+			return "", nil
+		},
+		GetServiceRoleCRN: func(session *session.Session, serviceName, roleName string) (crn.CRN, error) {
+			return crn.CRN{}, nil
+		},
+		CreateResourceServiceKey: func(session *session.Session, name string, crn crn.CRN, parameters map[string]interface{}) (string, map[string]interface{}, error) {
+			return "", nil, fmt.Errorf("failed")
+		},
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+	})
+	assert.Equal(t, ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: config.Get().SyncPeriod,
+	}, result)
+	assert.NoError(t, err)
+	update := r.Client.(MockClient).LastStatusUpdate()
+	require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+	status := update.(*ibmcloudv1beta1.Binding).Status
+	assert.Equal(t, bindingStateFailed, status.State)
+	assert.Equal(t, "failed", status.Message)
+}
+
+func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		namespace         = "mynamespace"
+		aliasTargetName   = "myBindingToAlias"
+		secretName        = "mysecret"
+		bindingName       = "mybinding"
+		serviceName       = "myservice"
+		someInstanceID    = "some-instance-id"
+		someKeyInstanceID = "some-key-instance-id"
+	)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        bindingName,
+				Namespace:   namespace,
+				Finalizers:  []string{bindingFinalizer},
+				Annotations: map[string]string{idkey: someInstanceID},
+			},
+			Spec: ibmcloudv1beta1.BindingSpec{
+				ServiceName: serviceName,
+				SecretName:  secretName,
+				Alias:       aliasTargetName,
+			},
+			Status: ibmcloudv1beta1.BindingStatus{
+				State:         bindingStatePending,
+				InstanceID:    someInstanceID,
+				SecretName:    secretName,
+				KeyInstanceID: someKeyInstanceID,
+			},
+		},
+		&ibmcloudv1beta1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       aliasTargetName,
+				Namespace:  namespace,
+				Finalizers: []string{bindingFinalizer},
+			},
+			Spec: ibmcloudv1beta1.BindingSpec{
+				ServiceName: serviceName,
+				SecretName:  secretName,
+			},
+			Status: ibmcloudv1beta1.BindingStatus{
+				State:         bindingStatePending,
+				InstanceID:    someInstanceID,
+				SecretName:    secretName,
+				KeyInstanceID: someKeyInstanceID,
+			},
+		},
+		&ibmcloudv1beta1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				InstanceID: someInstanceID,
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+		},
+	}
+
+	t.Run("reset if aliased creds don't exist", func(t *testing.T) {
+		scheme := schemas(t)
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", nil, fmt.Errorf(notFound)
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStatePending, status.State)
+		assert.Equal(t, "Processing Resource", status.Message)
+	})
+
+	t.Run("other error", func(t *testing.T) {
+		scheme := schemas(t)
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", nil, fmt.Errorf("failed")
+			},
+			GetServiceInstanceCRN: func(session *session.Session, instanceID string) (instanceCRN crn.CRN, serviceID string, err error) {
+				return crn.CRN{}, "", nil
+			},
+			GetServiceName: func(session *session.Session, serviceID string) (string, error) {
+				return "", nil
+			},
+			GetServiceRoleCRN: func(session *session.Session, serviceName, roleName string) (crn.CRN, error) {
+				return crn.CRN{}, nil
+			},
+			CreateResourceServiceKey: func(session *session.Session, name string, crn crn.CRN, parameters map[string]interface{}) (string, map[string]interface{}, error) {
+				return "", nil, fmt.Errorf("failed")
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStateFailed, status.State)
+		assert.Equal(t, "failed", status.Message)
+	})
+}
+
+func TestBindingEnsureSecretFailed(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	const (
+		namespace         = "mynamespace"
+		secretName        = "mysecret"
+		bindingName       = "mybinding"
+		serviceName       = "myservice"
+		someInstanceID    = "some-instance-id"
+		someKeyInstanceID = "some-key-instance-id"
+	)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       bindingName,
+				Namespace:  namespace,
+				Finalizers: []string{bindingFinalizer},
+			},
+			Spec: ibmcloudv1beta1.BindingSpec{
+				ServiceName: serviceName,
+				SecretName:  secretName,
+			},
+			Status: ibmcloudv1beta1.BindingStatus{
+				State:         bindingStatePending,
+				InstanceID:    someInstanceID,
+				SecretName:    secretName,
+				KeyInstanceID: someKeyInstanceID,
+			},
+		},
+		&ibmcloudv1beta1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				InstanceID: someInstanceID,
+			},
+		},
+	}
+
+	t.Run("recreate secret success", func(t *testing.T) {
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", nil, nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"service-instance-id": someInstanceID,
+					"service-key-id":      someKeyInstanceID,
+					"bindingFromName":     serviceName,
+				},
+			},
+			Data: map[string][]byte{}, // TODO(johnstarich): validate key contents
+		}, r.Client.(MockClient).LastCreate())
+
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStateOnline, status.State)
+		assert.Equal(t, bindingStateOnline, status.Message)
+	})
+
+	t.Run("recreate secret failure", func(t *testing.T) {
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{CreateErr: fmt.Errorf("failed")},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", nil, nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"service-instance-id": someInstanceID,
+					"service-key-id":      someKeyInstanceID,
+					"bindingFromName":     serviceName,
+				},
+			},
+			Data: map[string][]byte{}, // TODO(johnstarich): validate key contents
+		}, r.Client.(MockClient).LastCreate())
+
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStateFailed, status.State)
+		assert.Equal(t, "failed", status.Message)
+	})
+}
+
+func TestBindingEnsureKeyContentsFailed(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	const (
+		namespace         = "mynamespace"
+		secretName        = "mysecret"
+		bindingName       = "mybinding"
+		serviceName       = "myservice"
+		someInstanceID    = "some-instance-id"
+		someKeyInstanceID = "some-key-instance-id"
+	)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       bindingName,
+				Namespace:  namespace,
+				Finalizers: []string{bindingFinalizer},
+			},
+			Spec: ibmcloudv1beta1.BindingSpec{
+				ServiceName: serviceName,
+				SecretName:  secretName,
+			},
+			Status: ibmcloudv1beta1.BindingStatus{
+				State:         bindingStatePending,
+				InstanceID:    someInstanceID,
+				SecretName:    secretName,
+				KeyInstanceID: someKeyInstanceID,
+			},
+		},
+		&ibmcloudv1beta1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				InstanceID: someInstanceID,
+			},
+		},
+	}
+
+	t.Run("update key contents success", func(t *testing.T) {
+		keyContents := map[string]interface{}{
+			"hello": "world",
+		}
+		testObjects := append(
+			objects,
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: namespace,
+					Annotations: map[string]string{
+						"service-key-id": "some-old-service-key-id",
+					},
+				},
+				Data: map[string][]byte{
+					"hello": []byte("world"),
+				},
+			},
+		)
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", keyContents, nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+
+		assert.Equal(t, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"service-instance-id": someInstanceID,
+					"service-key-id":      someKeyInstanceID,
+					"bindingFromName":     serviceName,
+				},
+			},
+			Data: map[string][]byte{
+				"hello": []byte("world"),
+			},
+		}, r.Client.(MockClient).LastCreate())
+
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStateOnline, status.State)
+		assert.Equal(t, bindingStateOnline, status.Message)
+	})
+
+	t.Run("key is up to date", func(t *testing.T) {
+		keyContents := map[string]interface{}{
+			"hello": "world",
+		}
+		testObjects := append(
+			objects,
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: namespace,
+					Annotations: map[string]string{
+						"service-key-id": someKeyInstanceID,
+					},
+				},
+				Data: map[string][]byte{
+					"hello": []byte("world"),
+				},
+			},
+		)
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", keyContents, nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+
+		assert.Nil(t, r.Client.(MockClient).LastCreate())
+
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStateOnline, status.State)
+		assert.Equal(t, bindingStateOnline, status.Message)
+	})
+
+	t.Run("update key contents delete failed", func(t *testing.T) {
+		keyContents := map[string]interface{}{
+			"hello": "world",
+		}
+		testObjects := append(
+			objects,
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+			},
+		)
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				MockConfig{DeleteErr: fmt.Errorf("failed")},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", keyContents, nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+
+		assert.Equal(t, &corev1.Secret{
+			TypeMeta:   metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+		}, r.Client.(MockClient).LastDelete())
+
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStateFailed, status.State)
+		assert.Equal(t, "failed", status.Message)
+	})
+
+	t.Run("update key contents create failed", func(t *testing.T) {
+		keyContents := map[string]interface{}{
+			"hello": "world",
+		}
+		testObjects := append(
+			objects,
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+			},
+		)
+		r := &BindingReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				MockConfig{CreateErr: fmt.Errorf("failed")},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
+				return "", "", keyContents, nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+
+		assert.Equal(t, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"service-instance-id": someInstanceID,
+					"service-key-id":      someKeyInstanceID,
+					"bindingFromName":     serviceName,
+				},
+			},
+			Data: map[string][]byte{
+				"hello": []byte("world"),
+			},
+		}, r.Client.(MockClient).LastCreate())
+
+		update := r.Client.(MockClient).LastStatusUpdate()
+		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
+		status := update.(*ibmcloudv1beta1.Binding).Status
+		assert.Equal(t, bindingStateFailed, status.State)
+		assert.Equal(t, "failed", status.Message)
+	})
+}

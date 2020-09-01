@@ -299,6 +299,8 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 				return r.updateStatusError(instance, bindingStateFailed, err)
 			}
 			instance.Status.KeyInstanceID = keyInstanceID
+		} else if err != nil {
+			logt.Error(err, "Failed to fetch credentials") // TODO(johnstarich): should this fail and requeue?
 		}
 	}
 	secret, err := getSecret(r, instance)
@@ -318,7 +320,9 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		logt.Info("Error checking if key contents have changed", instance.Name, err.Error())
 		return r.updateStatusError(instance, bindingStateFailed, err)
 	}
-	if instance.Status.KeyInstanceID != secret.Annotations["service-key-id"] || changed { // Warning: the deep comparison may not be needed, the key is probably enough
+	instanceIDMismatch := instance.Status.KeyInstanceID != secret.Annotations["service-key-id"]
+	if instanceIDMismatch || changed { // Warning: the deep comparison may not be needed, the key is probably enough
+		logt.Info("Updating secret", "key contents changed", changed, "status key ID and annotation mismatch", instanceIDMismatch)
 		err := r.deleteSecret(instance)
 		if err != nil {
 			logt.Info("Error deleting secret before recreating", instance.Name, err.Error())
