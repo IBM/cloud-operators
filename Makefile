@@ -67,7 +67,7 @@ cache/bin/kustomize: cache/bin
 
 .PHONY: test
 test: generate manifests kubebuilder
-	go test -coverprofile cover.out ./...
+	go test -short -race -coverprofile cover.out ./...
 
 .PHONY: test-e2e
 test-e2e:
