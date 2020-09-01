@@ -2164,6 +2164,7 @@ func TestDeleteBindingFinalizer(t *testing.T) {
 }
 
 func TestBindingDeleteCredentials(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	binding := &ibmcloudv1beta1.Binding{
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},

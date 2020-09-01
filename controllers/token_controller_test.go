@@ -79,6 +79,7 @@ func TestToken(t *testing.T) {
 }
 
 func TestTokenFailedAuth(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	objects := []runtime.Object{
 		&corev1.Secret{
@@ -105,6 +106,7 @@ func TestTokenFailedAuth(t *testing.T) {
 }
 
 func TestTokenFailedSecretLookup(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	r := &TokenReconciler{
 		Client:       fake.NewFakeClientWithScheme(scheme),
@@ -133,6 +135,7 @@ func TestTokenFailedSecretLookup(t *testing.T) {
 }
 
 func TestTokenSecretIsDeleting(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	now := metav1Now(t)
 	objects := []runtime.Object{
@@ -158,6 +161,7 @@ func TestTokenSecretIsDeleting(t *testing.T) {
 }
 
 func TestTokenAPIKeyIsMissing(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	objects := []runtime.Object{
 		&corev1.Secret{
@@ -180,6 +184,7 @@ func TestTokenAPIKeyIsMissing(t *testing.T) {
 }
 
 func TestTokenAuthInvalidConfig(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	const (
 		apiKey = "some API key"
@@ -213,6 +218,7 @@ func TestTokenAuthInvalidConfig(t *testing.T) {
 }
 
 func TestTokenDeleteFailed(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	const (
 		apiKey      = "some API key"
@@ -252,6 +258,7 @@ func TestTokenDeleteFailed(t *testing.T) {
 }
 
 func TestTokenRaceCreateFailed(t *testing.T) {
+	t.Parallel()
 	scheme := schemas(t)
 	const (
 		apiKey      = "some API key"
