@@ -28,6 +28,8 @@
 set -e
 # Fail a pipe if any of the commands fail
 set -o pipefail
+# Enable advanced pattern matching. Used in trim()
+shopt -s extglob
 
 TMPDIR=$(mktemp -d)
 trap "set -x; rm -rf '$TMPDIR'" EXIT
@@ -52,6 +54,17 @@ Usage: $(basename "$0") [-h] [-v VERSION] [ACTION]
     ACTION        What action to perform. Options: $VALID_ACTIONS. Default is store-creds.
 
 EOT
+}
+
+# trim trims whitespace characters from both ends of the passed args. If no args, uses stdin.
+trim() {
+    local s="$*"
+    if [[ -z "$s" ]]; then
+        s=$(cat -)  # if no args, read from stdin
+    fi
+    s="${s##*( )}"
+    s="${s%%*( )}"
+    printf '%s' "$s"
 }
 
 # json_grep assumes stdin is an indented JSON blob, then looks for a matching JSON key for $1.
@@ -150,6 +163,7 @@ store_creds() {
         local key_output=$(ibmcloud iam api-key-create ibmcloud-operator-key -d "Key for IBM Cloud Operator" --output json)
         IBMCLOUD_API_KEY=$(json_grep apikey <<<"$key_output")
     fi
+    IBMCLOUD_API_KEY=$(trim "$IBMCLOUD_API_KEY")
     local target=$(ibmcloud target --output json)
     local region=$(json_grep_after region name <<<"$target")
     if [[ -z "$region" ]]; then
