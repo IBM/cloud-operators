@@ -16,12 +16,13 @@
 #
 
 #
-# install-operator.sh [ACTION]
+# configure-operator.sh
 #
-# This script installs the IBM Cloud Operator from the latest release.
+# By default, this script installs the IBM Cloud Operator from the latest release.
 # It attempts to pick up as much as it can from the 'ibmcloud' CLI target context when configuring the operator.
 # If an API key is not provided, one is generated.
 #
+# For full usage information, run with the -h flag provided.
 
 # Exit if any statement has a non-zero exit code
 set -e
