@@ -12,6 +12,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/rest"
 	"github.com/IBM-Cloud/bluemix-go/session"
+	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
@@ -170,4 +171,14 @@ func testLogger(t *testing.T) logr.Logger {
 		zap.AddCallerSkip(1),
 	}
 	return zapr.NewLogger(zaptest.NewLogger(t, zaptest.WrapOptions(opts...)))
+}
+
+// metav1Now returns time.Now() in a serializer-friendly format.
+// Serializing and deserializing this value are guaranteed to be deeply equal for tests.
+func metav1Now(t *testing.T) *metav1.Time {
+	var now metav1.Time
+	buf, err := yaml.Marshal(metav1.Now())
+	require.NoError(t, err)
+	require.NoError(t, yaml.Unmarshal(buf, &now))
+	return &now
 }
