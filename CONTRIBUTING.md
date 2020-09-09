@@ -126,9 +126,9 @@ For documentation pages, this project uses Markdown (`.md` files), and generally
 *   Sentence case (as opposed to Title Case).
 
 Example docs that you can contribute to:
-*   [`/docs` directory](https://github.com/IBM/cloud-operators/tree/master/docs): You can update an existing file, or add your own. Example files include installation and user guides.
-*   [`README.md`](https://github.com/IBM/cloud-operators/blob/master/README.md): Try to keep the `README.md` file about top-level information that is general to most implementations, or that guides users to other content for more detailed information. Keep in mind that this file is reused in other components, such as the OperatorHub.
-*   [CONTRIBUTING.md](https://github.com/IBM/cloud-operators/blob/master/CONTRIBUTING.md): Yes, you can even suggest a change to how you want to contribute.
+*   [`/docs` directory](./docs/): You can update an existing file, or add your own. Example files include installation and user guides.
+*   [`README.md`](./README.md): Try to keep the `README.md` file about top-level information that is general to most implementations, or that guides users to other content for more detailed information. Keep in mind that this file is reused in other components, such as the OperatorHub.
+*   [CONTRIBUTING.md](./CONTRIBUTING.md): Yes, you can even suggest a change to how you want to contribute.
 
 [Back to table of contents](#table-of-contents)
 
