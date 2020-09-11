@@ -8,7 +8,7 @@
 
 With the IBM Cloud Operator, you can provision and bind [IBM public cloud services](https://cloud.ibm.com/catalog#services) to your Kubernetes cluster in a Kubernetes-native way. The IBM Cloud Operator is based on the [Kubernetes custom resource definition (CRD) API](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) so that your applications can create, update, and delete IBM Cloud services from within the cluster by calling Kubnernetes APIs, instead of needing to use several IBM Cloud APIs in addition to configuring your app for Kubernetes.
 
-For more informatino, see the [IBM Cloud Operator user guide](docs/user-guide.md).
+For more information, see the [IBM Cloud Operator user guide](docs/user-guide.md).
 
 <!-- END SHOW operator hub -->
 
@@ -27,6 +27,7 @@ For more informatino, see the [IBM Cloud Operator user guide](docs/user-guide.md
     * [Service properties](#service-properties)
     * [Binding properties](#binding-properties)
     * [Account context in operator secret and configmap](#account-context-in-operator-secret-and-configmap)
+    * [Versions](#versions)
 *   [Contributing](#contributing)
 *   [Troubleshooting](#troubleshooting)
 
@@ -34,9 +35,9 @@ For more informatino, see the [IBM Cloud Operator user guide](docs/user-guide.md
 
 ## Features
 
-* **Service Provisioning**: Create any service with any plan that is available in the [IBM Cloud catalog](https://cloud.ibm.com/catalog#services).
+* **Service provisioning**: Create any service with any plan that is available in the [IBM Cloud catalog](https://cloud.ibm.com/catalog#services).
 
-* **Bindings Management**: Automatically creates Kubernetes secrets in your Kubernetes cluster with the credentials to bind to any provisioned service to the cluster.
+* **Bindings management**: Automatically create Kubernetes secrets in your Kubernetes cluster with the credentials to bind to any provisioned service to the cluster.
 
 [Back to top](#ibm-cloud-operator)
 
@@ -125,12 +126,12 @@ To install the latest release for OpenShift before install, run the following sc
 
 Before you begin, complete the [prerequisite steps](#prerequisites) to log in to IBM Cloud and your cluster, and optionally set up a [service ID API key](#using-a-service-id).
 
-*   **Stable release**: To install the latest stable release of the operator, run the following script.
+*   **Stable release**: To install the latest stable release of the operator, run the following script. The stable release supports the `v1alpha1` Kubernetes API version.
     ```bash
     curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.1.11 install
     ```
 
-*   **Latest release**: The latest `v0.2.x` version involves major changes and is undergoing further testing to ensure a smoother transition.
+*   **Latest release**: The latest `v0.2.x` version involves major changes and is undergoing further testing to ensure a smoother transition. The latest release supports the `v1alpha1` or `v1beta1` Kubernetes API versions.
     ```bash
     curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh |bash -s -- install
     ```
@@ -236,6 +237,8 @@ You can provision IBM Cloud services in separate IBM Cloud accounts from the sam
 3.  Edit or replace the `config-ibm-cloud-operator` configmap in the Kubernetes namespace that you want to use to create services in the account.
 4.  Optional: [Set up a management namespace](#setting-up-a-management-namespace) so that cluster users with access across namespaces cannot see the API keys for the different IBM Cloud accounts. 
 
+[Back to top](#ibm-cloud-operator)
+
 ## Setting up a management namespace
 
 By default, the API key credentials and other IBM Cloud account information are stored in a secret and a configmap within each namespace where you create IBM Cloud Operator service and binding custom resources. However, you might want to hide access to this information from cluster users in the namespace. For example, you might have multiple IBM Cloud accounts that you do not want cluster users in different namespaces to know about.
@@ -328,6 +331,17 @@ You can override the account context in the `Service` configuration file with th
 | resourceGroup    | No       | `string` | The IBM Cloud resource group name. You must also include the `resourceGroupID`. To list resource groups, run `ibmcloud resource groups`. |
 | resourceGroupID  | No       | `string` | The IBM Cloud resource group ID. You must also include the `resourceGroup`. To list resource groups, run `ibmcloud resource groups`. |
 | resourceLocation | No       | `string` | The location of the resource.<!--what is this?--> |
+
+[Back to top](#ibm-cloud-operator)
+
+### Versions
+
+Review the supported Kubernetes API versions for the following IBM Cloud Operator versions.
+
+| Operator version | Kubernetes API version |
+| --- | --- |
+| `v0.2.x` | `v1beta1` or `v1alpha1` |
+| `v0.1.x` | `v1alpha` |
 
 [Back to top](#ibm-cloud-operator)
 
