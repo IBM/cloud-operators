@@ -166,6 +166,7 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
 1.  To create an instance of an IBM public cloud service, first create a `Service` custom resource file. For more options, see the [Service properties](#service-properties) reference doc.
     *   `<SERVICE_CLASS>` is the IBM Cloud service that you want to create. To list IBM Cloud services, run `ibmcloud catalog service-marketplace` and use the **Name** value from the output.
     *   `<PLAN>` is the plan for the IBM Cloud service that you want to create, such as `free` or `standard`. To list available plans, run `ibmcloud catalog service <SERVICE_CLASS> | grep plan`.
+    *   **Note**: Using operator `v0.1.x`? Change the `apiVersion` to `v1alpha1` when you create the YAML files.
 
     ```yaml
     apiVersion: ibmcloud.ibm.com/v1beta1
@@ -194,7 +195,7 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
 
 **Step 2: Binding the service instance**
 
-1.  To bind your service to the cluster so that your apps can use the service, create a `Binding` custom resource, where the `serviceName` field is the name of the `Service` custom resource that you previously created. For more options, see [Binding properties](#binding-properties).
+1.  To bind your service to the cluster so that your apps can use the service, create a `Binding` custom resource, where the `serviceName` field is the name of the `Service` custom resource that you previously created. For more options, see [Binding properties](#binding-properties). **Note**: Using operator `v0.1.x`? Change the `apiVersion` to `v1alpha1` when you create the YAML files.
 
     ```yaml
     apiVersion: ibmcloud.ibm.com/v1beta1
