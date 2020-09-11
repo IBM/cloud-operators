@@ -33,7 +33,6 @@ import (
 
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/internal/config"
-	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 )
@@ -64,6 +63,7 @@ type ServiceReconciler struct {
 	DeleteCFServiceInstance         cfservice.InstanceDeleter
 	DeleteResourceServiceInstance   resource.ServiceInstanceDeleter
 	GetCFServiceInstance            cfservice.InstanceGetter
+	GetIBMCloudInfo                 IBMCloudInfoGetter
 	GetResourceServiceAliasInstance resource.ServiceAliasInstanceGetter
 	GetResourceServiceInstanceState resource.ServiceInstanceStatusGetter
 	UpdateResourceServiceInstance   resource.ServiceInstanceUpdater
@@ -121,7 +121,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		targetCRN string
 	)
 	{
-		ibmCloudInfo, err := ibmcloud.GetInfo(logt, r.Client, instance)
+		ibmCloudInfo, err := r.GetIBMCloudInfo(logt, r.Client, instance)
 		if err != nil {
 			// If secrets have already been deleted and we are in a deletion flow, just delete the finalizers
 			// to not prevent object from finalizing. This would cause orphaned service in IBM Cloud.
@@ -130,11 +130,13 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 				logt.Info("Cannot get IBMCloud related secrets and configmaps, just remove finalizers", "in deletion", err.Error())
 				instance.ObjectMeta.Finalizers = deleteServiceFinalizer(instance)
 				if err := r.Update(ctx, instance); err != nil {
-					logt.Info("Error removing finalizers", "in deletion", err.Error())
+					logt.Error(err, "Error removing finalizers in deletion")
+					// TODO(johnstarich): Shouldn't this be a failure so it can be requeued?
+					// Also, should the status be updated to include this failure message?
 				}
 				return ctrl.Result{}, nil
 			}
-			logt.Info(err.Error())
+			logt.Error(err, "Failed to get IBM Cloud info for service")
 			return r.updateStatusError(instance, serviceStateFailed, err)
 		}
 		resourceContext = ibmCloudInfo.Context
@@ -170,7 +172,8 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		if !containsServiceFinalizer(instance) {
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, serviceFinalizer)
 			if err := r.Update(ctx, instance); err != nil {
-				logt.Info("Error adding finalizer", instance.ObjectMeta.Name, err.Error())
+				logt.Error(err, "Error adding finalizer", "service", instance.ObjectMeta.Name)
+				// TODO(johnstarich): Shouldn't this update the status with the failure message?
 				return ctrl.Result{}, err
 			}
 		}
@@ -179,14 +182,16 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		if containsServiceFinalizer(instance) {
 			err := r.deleteService(session, logt, instance, serviceClassType)
 			if err != nil {
-				logt.Info("Error deleting resource", instance.ObjectMeta.Name, err.Error())
+				logt.Error(err, "Error deleting resource", "service", instance.ObjectMeta.Name)
+				// TODO(johnstarich): Shouldn't this return the error so it will be logged?
 				return ctrl.Result{Requeue: true, RequeueAfter: time.Second * 10}, nil
 			}
 
 			// remove our finalizer from the list and update it.
 			instance.ObjectMeta.Finalizers = deleteServiceFinalizer(instance)
-			if err := r.Update(ctx, instance); err != nil {
-				logt.Info("Error removing finalizers", "in deletion", err.Error())
+			err = r.Update(ctx, instance)
+			if err != nil {
+				logt.Error(err, "Error removing finalizers")
 			}
 			return ctrl.Result{}, err
 		}
@@ -222,14 +227,14 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	externalName := getExternalName(instance)
 	params, err := r.getParams(ctx, instance)
 	if err != nil {
-		logt.Error(err, "Instance ", instance.ObjectMeta.Name, " has problems with its parameters")
+		logt.Error(err, "Instance has problems with its parameters", "service", instance.ObjectMeta.Name)
 		return r.updateStatusError(instance, serviceStateFailed, err)
 	}
 	tags := getTags(instance)
 	logt.Info("ServiceInstance ", "name", externalName, "tags", tags)
 
 	if serviceClassType == "CF" {
-		logt.Info("ServiceInstance ", "is CF", instance.ObjectMeta.Name)
+		logt.Info("ServiceInstance is CF", "instance", instance.ObjectMeta.Name)
 		if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
 			// check if using the alias plan, in that case we need to use the existing instance
 			if isAlias(instance) {
@@ -243,7 +248,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 				return r.updateStatus(session, logt, instance, resourceContext, instanceID, serviceStateOnline, serviceClassType)
 			}
 			// Service is not Alias
-			logt.Info("Creating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+			logt.Info("Creating", "instance", instance.ObjectMeta.Name, "service class", instance.Spec.ServiceClass)
 			guid, state, err := r.CreateCFServiceInstance(session, externalName, servicePlanID, spaceID, params, tags)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, err)

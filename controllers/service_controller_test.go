@@ -2,21 +2,32 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/IBM-Cloud/bluemix-go/api/mccp/mccpv2"
 	bxcontroller "github.com/IBM-Cloud/bluemix-go/api/resource/resourcev1/controller"
 	"github.com/IBM-Cloud/bluemix-go/models"
+	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestService(t *testing.T) {
@@ -200,4 +211,678 @@ func TestServiceV1Alpha1Compat(t *testing.T) {
 
 	_, err = getServiceInstanceFromObj(logger, serviceCopy)
 	assert.True(t, ibmcloud.IsNotFound(err), "Expect service to be deleted")
+}
+
+func TestServiceLoadServiceFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	t.Run("not found error", func(t *testing.T) {
+		scheme := schemas(t)
+		objects := []runtime.Object{}
+		r := &ServiceReconciler{
+			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{}, result)
+		assert.NoError(t, err)
+	})
+
+	t.Run("other error", func(t *testing.T) {
+		scheme := runtime.NewScheme()
+		objects := []runtime.Object{}
+		r := &ServiceReconciler{
+			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{}, result)
+		assert.Error(t, err)
+		assert.False(t, k8sErrors.IsNotFound(err))
+	})
+}
+
+func TestServiceSpecChangedAndUpdateFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	scheme := schemas(t)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				Plan: "Lite",
+			},
+		},
+	}
+	r := &ServiceReconciler{
+		Client: newMockClient(
+			fake.NewFakeClientWithScheme(scheme, objects...),
+			MockConfig{UpdateErr: fmt.Errorf("failed")},
+		),
+		Log:    testLogger(t),
+		Scheme: scheme,
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+	})
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.EqualError(t, err, "failed")
+}
+
+func TestServiceGetIBMCloudInfoFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	now := metav1Now(t)
+	scheme := schemas(t)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              serviceName,
+				Namespace:         namespace,
+				DeletionTimestamp: now,
+				Finalizers:        []string{serviceFinalizer},
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{Plan: "Lite"},
+			Spec:   ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+		},
+	}
+
+	t.Run("not found error", func(t *testing.T) {
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{UpdateErr: fmt.Errorf("failed")},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return nil, errors.NewNotFound(ctrl.GroupResource{Group: "ibmcloud.ibm.com", Resource: "secret"}, "secret-ibm-cloud-operator")
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, &ibmcloudv1beta1.Service{
+			TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              serviceName,
+				Namespace:         namespace,
+				DeletionTimestamp: now,
+				Finalizers:        nil, // attempt to remove finalizers
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				//State: serviceStateFailed, // TODO this state should be set!
+				Plan: "Lite",
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+		}, r.Client.(MockClient).LastUpdate())
+		assert.Equal(t, nil, r.Client.(MockClient).LastStatusUpdate())
+	})
+
+	t.Run("other error", func(t *testing.T) {
+		fakeClient := newMockClient(
+			fake.NewFakeClientWithScheme(scheme, objects...),
+			MockConfig{},
+		)
+		r := &ServiceReconciler{
+			Client: fakeClient,
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return nil, fmt.Errorf("failed")
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, &ibmcloudv1beta1.Service{
+			TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              serviceName,
+				Namespace:         namespace,
+				DeletionTimestamp: now,
+				Finalizers:        []string{serviceFinalizer},
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				State:   serviceStateFailed,
+				Message: "failed",
+				Plan:    "Lite",
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+		}, fakeClient.LastStatusUpdate())
+	})
+}
+
+func TestServiceFirstStatusFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	scheme := schemas(t)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status:     ibmcloudv1beta1.ServiceStatus{},
+		},
+	}
+	r := &ServiceReconciler{
+		Client: newMockClient(
+			fake.NewFakeClientWithScheme(scheme, objects...),
+			MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
+		),
+		Log:    testLogger(t),
+		Scheme: scheme,
+
+		GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			return &ibmcloud.Info{}, nil
+		},
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+	})
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.EqualError(t, err, "failed")
+}
+
+func TestServiceEnsureFinalizerFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	scheme := schemas(t)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              serviceName,
+				Namespace:         namespace,
+				DeletionTimestamp: nil, // not deleting
+				Finalizers:        nil, // AND missing finalizer
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{Plan: "Lite"},
+			Spec:   ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+		},
+	}
+	var r *ServiceReconciler
+	r = &ServiceReconciler{
+		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Log:    testLogger(t),
+		Scheme: scheme,
+
+		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			r.Client = newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{UpdateErr: fmt.Errorf("failed")},
+			)
+			return &ibmcloud.Info{}, nil
+		},
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+	})
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.EqualError(t, err, "failed")
+	assert.Equal(t, &ibmcloudv1beta1.Service{
+		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       serviceName,
+			Namespace:  namespace,
+			Finalizers: []string{serviceFinalizer},
+		},
+		Status: ibmcloudv1beta1.ServiceStatus{
+			Plan: "Lite",
+		},
+		Spec: ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+	}, r.Client.(MockClient).LastUpdate())
+}
+
+func TestServiceDeletingFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	t.Run("service delete failed", func(t *testing.T) {
+		scheme := schemas(t)
+		now := metav1Now(t)
+		objects := []runtime.Object{
+			&ibmcloudv1beta1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              serviceName,
+					Namespace:         namespace,
+					DeletionTimestamp: now,
+					Finalizers:        []string{serviceFinalizer},
+				},
+				Status: ibmcloudv1beta1.ServiceStatus{Plan: "Lite", InstanceID: "myinstanceid"},
+				Spec:   ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+			},
+		}
+
+		var r *ServiceReconciler
+		r = &ServiceReconciler{
+			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				r.Client = newMockClient(
+					fake.NewFakeClientWithScheme(scheme, objects...),
+					MockConfig{},
+				)
+				return &ibmcloud.Info{}, nil
+			},
+			DeleteResourceServiceInstance: func(session *session.Session, instanceID string, logt logr.Logger) error {
+				return fmt.Errorf("failed")
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: 10 * time.Second,
+		}, result)
+		assert.NoError(t, err)
+	})
+
+	t.Run("update failed", func(t *testing.T) {
+		scheme := schemas(t)
+		now := metav1Now(t)
+		objects := []runtime.Object{
+			&ibmcloudv1beta1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              serviceName,
+					Namespace:         namespace,
+					DeletionTimestamp: now,
+					Finalizers:        []string{serviceFinalizer},
+				},
+				Status: ibmcloudv1beta1.ServiceStatus{Plan: "Lite"},
+				Spec:   ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+			},
+		}
+
+		var r *ServiceReconciler
+		r = &ServiceReconciler{
+			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				r.Client = newMockClient(
+					fake.NewFakeClientWithScheme(scheme, objects...),
+					MockConfig{UpdateErr: fmt.Errorf("failed")},
+				)
+				return &ibmcloud.Info{}, nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{}, result)
+		assert.EqualError(t, err, "failed")
+		assert.Equal(t, &ibmcloudv1beta1.Service{
+			TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              serviceName,
+				Namespace:         namespace,
+				DeletionTimestamp: now,
+				Finalizers:        nil, // attempt to remove finalizers
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				Plan: "Lite",
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+		}, r.Client.(MockClient).LastUpdate())
+	})
+}
+
+func TestServiceGetParamsFailed(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	scheme := schemas(t)
+	objects := []runtime.Object{
+		&ibmcloudv1beta1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				Plan: "Lite",
+				Parameters: []ibmcloudv1beta1.Param{
+					{
+						Name:      "hello",
+						Value:     &ibmcloudv1beta1.ParamValue{RawMessage: json.RawMessage(`"world"`)},
+						ValueFrom: &ibmcloudv1beta1.ParamSource{},
+					},
+				},
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{
+				Plan: "Lite",
+				Parameters: []ibmcloudv1beta1.Param{
+					{
+						Name:      "hello",
+						Value:     &ibmcloudv1beta1.ParamValue{RawMessage: json.RawMessage(`"world"`)},
+						ValueFrom: &ibmcloudv1beta1.ParamSource{},
+					},
+				},
+			},
+		},
+	}
+	r := &ServiceReconciler{
+		Client: newMockClient(
+			fake.NewFakeClientWithScheme(scheme, objects...),
+			MockConfig{},
+		),
+		Log:    testLogger(t),
+		Scheme: scheme,
+
+		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			return &ibmcloud.Info{}, nil
+		},
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+	})
+	assert.Equal(t, ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: config.Get().SyncPeriod,
+	}, result)
+	assert.NoError(t, err)
+	assert.Equal(t, &ibmcloudv1beta1.Service{
+		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       serviceName,
+			Namespace:  namespace,
+			Finalizers: []string{serviceFinalizer},
+		},
+		Status: ibmcloudv1beta1.ServiceStatus{
+			State:   serviceStateFailed,
+			Message: "value and ValueFrom properties are mutually exclusive (for hello variable)",
+			Plan:    "Lite",
+			Parameters: []ibmcloudv1beta1.Param{
+				{
+					Name:      "hello",
+					Value:     &ibmcloudv1beta1.ParamValue{RawMessage: json.RawMessage(`"world"`)},
+					ValueFrom: &ibmcloudv1beta1.ParamSource{},
+				},
+			},
+		},
+		Spec: ibmcloudv1beta1.ServiceSpec{
+			Plan: "Lite",
+			Parameters: []ibmcloudv1beta1.Param{
+				{
+					Name:      "hello",
+					Value:     &ibmcloudv1beta1.ParamValue{RawMessage: json.RawMessage(`"world"`)},
+					ValueFrom: &ibmcloudv1beta1.ParamSource{},
+				},
+			},
+		},
+	}, r.Client.(MockClient).LastStatusUpdate())
+}
+
+func TestServiceEnsureCFServiceExists(t *testing.T) {
+	t.Parallel()
+	const (
+		serviceName = "myservice"
+		namespace   = "mynamespace"
+	)
+
+	t.Run("create failed", func(t *testing.T) {
+		scheme := schemas(t)
+		objects := []runtime.Object{
+			&ibmcloudv1beta1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+				Status:     ibmcloudv1beta1.ServiceStatus{Plan: "Lite"},
+				Spec:       ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+			},
+		}
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{
+					ServiceClassType: "CF",
+				}, nil
+			},
+			CreateCFServiceInstance: func(session *session.Session, externalName, planID, spaceID string, params map[string]interface{}, tags []string) (guid string, state string, err error) {
+				return "", "", fmt.Errorf("failed")
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, &ibmcloudv1beta1.Service{
+			TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       serviceName,
+				Namespace:  namespace,
+				Finalizers: []string{serviceFinalizer},
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				State:   serviceStateFailed,
+				Message: "failed",
+				Plan:    "Lite",
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{Plan: "Lite"},
+		}, r.Client.(MockClient).LastStatusUpdate())
+	})
+
+	t.Run("create alias success", func(t *testing.T) {
+		scheme := schemas(t)
+		objects := []runtime.Object{
+			&ibmcloudv1beta1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+				Status: ibmcloudv1beta1.ServiceStatus{
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+					InstanceID:   "guid",
+				},
+				Spec: ibmcloudv1beta1.ServiceSpec{
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+				},
+			},
+		}
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{
+					ServiceClassType: "CF",
+				}, nil
+			},
+			CreateCFServiceInstance: func(session *session.Session, externalName, planID, spaceID string, params map[string]interface{}, tags []string) (guid string, state string, err error) {
+				return "", "", fmt.Errorf("failed")
+			},
+			GetCFServiceInstance: func(session *session.Session, name string) (guid string, state string, err error) {
+				return "guid", "state", nil
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, &ibmcloudv1beta1.Service{
+			TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       serviceName,
+				Namespace:  namespace,
+				Finalizers: []string{serviceFinalizer},
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				State:        "state", // TODO(johnstarich) This isn't a known state, right? We should have predictable states here.
+				Message:      "state",
+				DashboardURL: "https://cloud.ibm.com/services/service-name/guid",
+				Plan:         aliasPlan,
+				ServiceClass: "service-name",
+				InstanceID:   "guid",
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{
+				Plan:         aliasPlan,
+				ServiceClass: "service-name",
+			},
+		}, r.Client.(MockClient).LastStatusUpdate())
+	})
+
+	t.Run("ensure alias - empty instance ID", func(t *testing.T) {
+		scheme := schemas(t)
+		objects := []runtime.Object{
+			&ibmcloudv1beta1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+				Status: ibmcloudv1beta1.ServiceStatus{
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+					InstanceID:   "", // no instance ID set
+				},
+				Spec: ibmcloudv1beta1.ServiceSpec{
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+				},
+			},
+		}
+		var getInstanceErr error
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{
+					ServiceClassType: "CF",
+				}, nil
+			},
+			GetCFServiceInstance: func(session *session.Session, name string) (guid string, state string, err error) {
+				return "guid", "state", getInstanceErr
+			},
+		}
+
+		t.Run("success", func(t *testing.T) {
+			getInstanceErr = nil
+			result, err := r.Reconcile(ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+			})
+			assert.Equal(t, ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			}, result)
+			assert.NoError(t, err)
+			assert.Equal(t, &ibmcloudv1beta1.Service{
+				TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       serviceName,
+					Namespace:  namespace,
+					Finalizers: []string{serviceFinalizer},
+				},
+				Status: ibmcloudv1beta1.ServiceStatus{
+					State:        serviceStateOnline,
+					Message:      serviceStateOnline,
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+					InstanceID:   "guid",
+					DashboardURL: "https://cloud.ibm.com/services/service-name/guid",
+				},
+				Spec: ibmcloudv1beta1.ServiceSpec{
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+				},
+			}, r.Client.(MockClient).LastStatusUpdate())
+		})
+
+		t.Run("failed", func(t *testing.T) {
+			getInstanceErr = fmt.Errorf("failed")
+			result, err := r.Reconcile(ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+			})
+			assert.Equal(t, ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: config.Get().SyncPeriod,
+			}, result)
+			assert.NoError(t, err)
+			assert.Equal(t, &ibmcloudv1beta1.Service{
+				TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       serviceName,
+					Namespace:  namespace,
+					Finalizers: []string{serviceFinalizer},
+				},
+				Status: ibmcloudv1beta1.ServiceStatus{
+					State:        serviceStateFailed,
+					Message:      "failed",
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+					InstanceID:   "",
+				},
+				Spec: ibmcloudv1beta1.ServiceSpec{
+					Plan:         aliasPlan,
+					ServiceClass: "service-name",
+				},
+			}, r.Client.(MockClient).LastStatusUpdate())
+		})
+	})
 }
