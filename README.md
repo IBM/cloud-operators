@@ -296,7 +296,7 @@ A `Service` custom resource includes the properties in the following table. Each
 | tags             | No       | `[]string` | The IBM Cloud [tag](https://cloud.ibm.com/docs/account?topic=account-tag) to assign the service instance, to help organize your cloud resources such as in the IBM Cloud console. |
 | context          | No       | `Context`  | The IBM Cloud account context to use instead of the [default account context](#account-context-in-operator-secret-and-configmap).|
 
-**Note**: The `serviceClass`, `plan`, `serviceClassType`, and `externalName` parameters are immutable. After you set these parameters, you cannot later edit their values. If you do edit the values, the changes are overwritten back to the original values.
+`*` **Note**: The `serviceClass`, `plan`, `serviceClassType`, and `externalName` parameters are immutable. After you set these parameters, you cannot later edit their values. If you do edit the values, the changes are overwritten back to the original values.
 
 [Back to top](#ibm-cloud-operator)
 
