@@ -290,13 +290,13 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	if instance.Status.InstanceID == "" { // ServiceInstance has not been created on Bluemix
 		// check if using the alias plan, in that case we need to use the existing instance
 		if isAlias(instance) {
+			logt := logt.WithValues("Name", instance.ObjectMeta.Name)
 			logt.Info("Using `Alias` plan, checking if instance exists")
 
 			// check if there is an annotation for service ID
 			instanceID := instance.ObjectMeta.GetAnnotations()[instanceIDKey]
 
-			logger := logt.WithValues("Name", instance.ObjectMeta.Name)
-			id, state, err := r.GetResourceServiceAliasInstance(session, instanceID, resourceGroupID, servicePlanID, externalName, logger)
+			id, state, err := r.GetResourceServiceAliasInstance(session, instanceID, resourceGroupID, servicePlanID, externalName, logt)
 			if _, notFound := err.(resource.NotFoundError); notFound {
 				return r.updateStatusError(instance, serviceStateFailed, errors.Wrapf(err, "no service instances with name %s found for alias plan", instance.ObjectMeta.Name))
 			}
@@ -328,7 +328,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	if _, ok := err.(resource.NotFoundError); ok { // Need to recreate it!
 		if !isAlias(instance) {
 			logt.Info("Recreating ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-			instance.Status.InstanceID = "IN PROGRESS"
+			instance.Status.InstanceID = inProgress
 			if err := r.Status().Update(ctx, instance); err != nil {
 				logt.Info("Error updating instanceID to be in progress", "Error", err.Error())
 				return ctrl.Result{}, err
@@ -481,7 +481,7 @@ func (r *ServiceReconciler) getParams(ctx context.Context, instance *ibmcloudv1b
 // paramToJSON converts variable value to JSON value
 func (r *ServiceReconciler) paramToJSON(ctx context.Context, p ibmcloudv1beta1.Param, namespace string) (interface{}, error) {
 	if p.Value != nil && p.ValueFrom != nil {
-		return nil, fmt.Errorf("value and ValueFrom properties are mutually exclusive (for %s variable)", p.Name)
+		return nil, fmt.Errorf("Value and ValueFrom properties are mutually exclusive (for %s variable)", p.Name)
 	}
 
 	valueFrom := p.ValueFrom
@@ -501,18 +501,18 @@ func (r *ServiceReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmc
 		data, err := getKubeSecretValue(ctx, r, r.Log, valueFrom.SecretKeyRef.Name, valueFrom.SecretKeyRef.Key, true, namespace)
 		if err != nil {
 			// Recoverable
-			return nil, fmt.Errorf("missing secret %s", valueFrom.SecretKeyRef.Name)
+			return nil, fmt.Errorf("Missing secret %s", valueFrom.SecretKeyRef.Name)
 		}
 		return paramToJSONFromString(string(data))
 	} else if valueFrom.ConfigMapKeyRef != nil {
 		data, err := getConfigMapValue(ctx, r, r.Log, valueFrom.ConfigMapKeyRef.Name, valueFrom.ConfigMapKeyRef.Key, true, namespace)
 		if err != nil {
 			// Recoverable
-			return nil, fmt.Errorf("missing configmap %s", valueFrom.ConfigMapKeyRef.Name)
+			return nil, fmt.Errorf("Missing configmap %s", valueFrom.ConfigMapKeyRef.Name)
 		}
 		return paramToJSONFromString(data)
 	}
-	return nil, fmt.Errorf("missing secretKeyRef or configMapKeyRef")
+	return nil, fmt.Errorf("Missing secretKeyRef or configMapKeyRef")
 }
 
 func getTags(instance *ibmcloudv1beta1.Service) []string {
