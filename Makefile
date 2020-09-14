@@ -65,6 +65,10 @@ cache/bin/kustomize: cache/bin
 		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
 	[[ "$$(which kustomize)" =~ cache/bin/kustomize ]]
 
+.PHONY: test-fast
+test-fast: generate manifests kubebuilder
+	go test -short -coverprofile cover.out ./...
+
 .PHONY: test
 test: generate manifests kubebuilder
 	go test -race -coverprofile cover.out ./...

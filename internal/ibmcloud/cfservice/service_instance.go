@@ -9,7 +9,11 @@ import (
 )
 
 type NotFoundError struct {
-	error
+	Err error
+}
+
+func (e NotFoundError) Error() string {
+	return e.Err.Error()
 }
 
 type InstanceGetter func(session *session.Session, name string) (guid, state string, err error)
@@ -24,7 +28,7 @@ func GetInstance(session *session.Session, name string) (guid, state string, err
 	serviceInstance, err := bxClient.ServiceInstances().FindByName(name)
 	if err != nil {
 		if strings.Contains(err.Error(), "doesn't exist") {
-			err = NotFoundError{err}
+			err = NotFoundError{Err: err}
 		}
 		return "", "", err
 	}

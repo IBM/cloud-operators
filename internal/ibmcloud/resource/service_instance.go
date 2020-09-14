@@ -13,7 +13,11 @@ import (
 )
 
 type NotFoundError struct {
-	error
+	Err error
+}
+
+func (n NotFoundError) Error() string {
+	return n.Err.Error()
 }
 
 type ServiceInstanceCRNGetter func(session *session.Session, instanceID string) (instanceCRN crn.CRN, serviceID string, err error)

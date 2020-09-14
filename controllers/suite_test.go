@@ -168,6 +168,7 @@ func mainSetup(ctx context.Context) error {
 		CreateResourceServiceInstance:   resource.CreateServiceInstance,
 		DeleteResourceServiceInstance:   resource.DeleteServiceInstance,
 		GetCFServiceInstance:            cfservice.GetInstance,
+		GetIBMCloudInfo:                 ibmcloud.GetInfo,
 		GetResourceServiceAliasInstance: resource.GetServiceAliasInstance,
 		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
 		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
