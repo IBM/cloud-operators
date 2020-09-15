@@ -232,7 +232,11 @@ release_action() {
     local action=$1
     local version=$2
 
-    local release=$(curl -H 'Accept: application/vnd.github.v3+json' "https://api.github.com/repos/IBM/cloud-operators/releases/$version")
+    local download_version=$version
+    if [[ "$version" != latest ]]; then
+        download_version="tags/v${version}"
+    fi
+    local release=$(curl -H 'Accept: application/vnd.github.v3+json' "https://api.github.com/repos/IBM/cloud-operators/releases/$download_version")
     local urls=$(json_grep browser_download_url -1 <<<"$release")
     local file_urls=()
     while read -r url; do
