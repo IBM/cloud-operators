@@ -118,6 +118,16 @@ fetch_assets() {
     printf "$TMPDIR"
 }
 
+# valid_semver returns 0 if $1 is a valid semver number. Only allows MAJOR.MINOR.PATCH format.
+valid_semver() {
+    local version=$1
+    local semver_pattern='^([0-9]+)\.([0-9]+)\.([0-9]+)$'
+    if [[ "$version" =~ $semver_pattern ]]; then
+        return 0
+    fi
+    return 1
+}
+
 # compare_semver prints 0 if the semver $1 is equal to $2, -1 for $1 < $2, and 1 for $1 > $2
 compare_semver() {
     local semver_pattern='([0-9]+)\.([0-9]+)\.([0-9]+)'
@@ -268,6 +278,11 @@ while getopts "hv:" opt; do
             exit 0
             ;;
         v)
+            if ! valid_semver "$OPTARG"; then
+                error "Invalid semver: $OPTARG"
+                usage
+                exit 2
+            fi
             VERSION=$OPTARG
             ;;
     esac
