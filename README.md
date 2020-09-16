@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.com/IBM/cloud-operators.svg?branch=master)](https://travis-ci.com/IBM/cloud-operators)
 [![Go Report Card](https://goreportcard.com/badge/github.com/IBM/cloud-operators)](https://goreportcard.com/report/github.com/IBM/cloud-operators)
+[![codecov.io](https://codecov.io/github/IBM/cloud-operators/coverage.svg?branch=master)](https://codecov.io/github/IBM/cloud-operators?branch=master)
 [![GoDoc](https://godoc.org/github.com/IBM/cloud-operators?status.svg)](https://godoc.org/github.com/IBM/cloud-operators)
 
 # IBM Cloud Operator
