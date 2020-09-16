@@ -169,7 +169,7 @@ out:
 
 # Prepares Kubernetes yaml files for release. Useful for testing against your own cluster.
 .PHONY: release-prep
-release-prep: kustomize out 
+release-prep: kustomize manifests out 
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default --output out/
 	go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
