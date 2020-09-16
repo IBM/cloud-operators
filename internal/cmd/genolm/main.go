@@ -17,7 +17,6 @@ import (
 	"github.com/blang/semver/v4"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -36,7 +35,7 @@ func main() {
 
 type Data struct {
 	CRDs           []CRD
-	DeploymentSpec appsv1.DeploymentSpec
+	Deployments    []Deployment
 	Examples       []runtime.RawExtension
 	Image          string
 	Maintainers    []Maintainer
@@ -96,17 +95,10 @@ func run(output, repoRoot, versionStr string) error {
 		return err
 	}
 
-	// DeploymentSpec
-	var deployment appsv1.Deployment
-	deploymentBytes, err := ioutil.ReadFile(filepath.Join(output, "apps_v1_deployment_ibmcloud-operators-controller-manager.yaml"))
-	if err != nil {
-		return errors.Wrap(err, "Error reading generated deployment file. Did kustomize run yet?")
-	}
-	err = yaml.Unmarshal(deploymentBytes, &deployment)
+	deployments, err := getDeployments(output)
 	if err != nil {
 		return err
 	}
-	deploymentSpec := deployment.Spec
 
 	rbac, err := getRBAC(output)
 	if err != nil {
@@ -125,7 +117,7 @@ func run(output, repoRoot, versionStr string) error {
 
 	data := Data{
 		CRDs:           crds,
-		DeploymentSpec: deploymentSpec,
+		Deployments:    deployments,
 		Examples:       samples,
 		Image:          "cloudoperators/ibmcloud-operator",
 		Maintainers:    maintainers,
