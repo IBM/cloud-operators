@@ -1654,6 +1654,49 @@ func TestServiceVerifyExists(t *testing.T) {
 		})
 	})
 
+	t.Run("not found non-alias - status update failed", func(t *testing.T) {
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, objects...),
+				MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			GetResourceServiceInstanceState: func(session *session.Session, resourceGroupID, servicePlanID, externalName, instanceID string) (state string, err error) {
+				return "", resource.NotFoundError{Err: fmt.Errorf("some other error")}
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{}, result)
+		assert.EqualError(t, err, "failed")
+		assert.Equal(t, &ibmcloudv1beta1.Service{
+			TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       serviceName,
+				Namespace:  namespace,
+				Finalizers: []string{serviceFinalizer},
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				State:        "",
+				Message:      "",
+				Plan:         "Lite",
+				ServiceClass: "service-name",
+				InstanceID:   inProgress,
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{
+				Plan:         "Lite",
+				ServiceClass: "service-name",
+			},
+		}, r.Client.(MockClient).LastStatusUpdate())
+	})
+
 	t.Run("not found alias", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
@@ -2218,4 +2261,75 @@ func TestServiceUpdateStatusFailed(t *testing.T) {
 			ServiceClass: "service-name",
 		},
 	}, r.Client.(MockClient).LastStatusUpdate())
+}
+
+func TestServiceUpdateStatusError(t *testing.T) {
+	t.Parallel()
+	const (
+		namespace   = "mynamespace"
+		serviceName = "myservice"
+	)
+	scheme := schemas(t)
+	instance := &ibmcloudv1beta1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+		Status: ibmcloudv1beta1.ServiceStatus{
+			Plan:         "Lite",
+			ServiceClass: "service-name",
+			InstanceID:   "myinstanceid",
+		},
+		Spec: ibmcloudv1beta1.ServiceSpec{
+			Plan:         "Lite",
+			ServiceClass: "service-name",
+		},
+	}
+
+	t.Run("no such host", func(t *testing.T) {
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, instance),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		result, err := r.updateStatusError(instance, "state", fmt.Errorf("no such host"))
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: 5 * time.Minute,
+		}, result)
+		assert.NoError(t, err)
+	})
+
+	t.Run("status update failed", func(t *testing.T) {
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, instance),
+				MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		result, err := r.updateStatusError(instance, "state", fmt.Errorf("some error"))
+		assert.Equal(t, ctrl.Result{}, result)
+		assert.EqualError(t, err, "failed")
+		assert.Equal(t, &ibmcloudv1beta1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      serviceName,
+				Namespace: namespace,
+			},
+			Status: ibmcloudv1beta1.ServiceStatus{
+				State:        "state",
+				Message:      "some error",
+				Plan:         "Lite",
+				ServiceClass: "service-name",
+				InstanceID:   "myinstanceid",
+			},
+			Spec: ibmcloudv1beta1.ServiceSpec{
+				Plan:         "Lite",
+				ServiceClass: "service-name",
+			},
+		}, r.Client.(MockClient).LastStatusUpdate())
+	})
 }

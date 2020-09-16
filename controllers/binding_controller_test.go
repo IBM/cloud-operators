@@ -2250,3 +2250,46 @@ func TestBindingDeleteCredentials(t *testing.T) {
 		})
 	}
 }
+
+func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	binding := &ibmcloudv1beta1.Binding{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Spec:       ibmcloudv1beta1.BindingSpec{},
+	}
+	service := &ibmcloudv1beta1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Spec:       ibmcloudv1beta1.ServiceSpec{},
+	}
+
+	client := newMockClient(
+		fake.NewFakeClientWithScheme(scheme, binding, service),
+		MockConfig{StatusUpdateErr: fmt.Errorf("status failed")},
+	)
+	r := &BindingReconciler{
+		Client: client,
+		Log:    testLogger(t),
+		Scheme: scheme,
+
+		DeleteResourceServiceKey: func(session *session.Session, keyID string) error {
+			return fmt.Errorf("failed")
+		},
+	}
+
+	result, err := r.updateStatusOnline(nil, binding, service, "")
+	assert.Equal(t, ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: config.Get().SyncPeriod,
+	}, result)
+	assert.NoError(t, err)
+	assert.Equal(t, &ibmcloudv1beta1.Binding{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Status: ibmcloudv1beta1.BindingStatus{
+			State:      bindingStateOnline,
+			Message:    bindingStateOnline,
+			SecretName: "myservice",
+		},
+		Spec: ibmcloudv1beta1.BindingSpec{},
+	}, client.LastStatusUpdate())
+}
