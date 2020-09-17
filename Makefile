@@ -186,3 +186,19 @@ operator-courier:
 .PHONY: verify-operator-meta
 verify-operator-meta: release-prep operator-courier
 	operator-courier verify --ui_validate_io out/
+
+.PHONY: operator-push-test
+operator-push-test: verify-operator-meta
+	# Example values:
+	#
+	# QUAY_NAMESPACE=myuser
+	# QUAY_APP=ibmcloud-operator  NOTE: Must be an application, not a repository.
+	# QUAY_USER=myuser+mybot      NOTE: Bot users are best, so you can manage permissions better.
+	# QUAY_TOKEN=abcdef1234567
+	@for v in "${QUAY_NAMESPACE}" "${QUAY_APP}" "${RELEASE_VERSION}" "${QUAY_USER}" "${QUAY_TOKEN}"; do \
+		if [[ -z "$$v" ]]; then \
+			echo 'Not all Quay variables set. See the make target for details.'; \
+			exit 1; \
+		fi; \
+	done
+	operator-courier push ./out "${QUAY_NAMESPACE}" "${QUAY_APP}" "${RELEASE_VERSION}" "Basic $$(printf "${QUAY_USER}:${QUAY_TOKEN}" | base64)"
