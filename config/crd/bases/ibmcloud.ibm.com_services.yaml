@@ -24,232 +24,6 @@ spec:
     status: {}
   version: v1beta1
   versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: Service is the Schema for the services API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: ServiceSpec defines the desired state of Service
-            properties:
-              context:
-                description: ResourceContext defines the CloudFoundry context and
-                  resource group
-                properties:
-                  org:
-                    type: string
-                  region:
-                    type: string
-                  resourcegroup:
-                    type: string
-                  resourcegroupid:
-                    type: string
-                  resourcelocation:
-                    type: string
-                  space:
-                    type: string
-                  user:
-                    type: string
-                type: object
-              externalName:
-                type: string
-              parameters:
-                items:
-                  description: Param represents a key-value pair
-                  properties:
-                    attributes:
-                      additionalProperties:
-                        type: object
-                      description: A parameter may have attributes (e.g. message hub
-                        topic might have partitions)
-                      type: object
-                    name:
-                      description: Name representing the key.
-                      type: string
-                    value:
-                      description: Defaults to null.
-                    valueFrom:
-                      description: Source for the value. Cannot be used if value is
-                        not empty.
-                      properties:
-                        configMapKeyRef:
-                          description: Selects a key of a ConfigMap.
-                          properties:
-                            key:
-                              description: The key to select.
-                              type: string
-                            name:
-                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                TODO: Add other useful fields. apiVersion, kind, uid?'
-                              type: string
-                            optional:
-                              description: Specify whether the ConfigMap or its key
-                                must be defined
-                              type: boolean
-                          required:
-                          - key
-                          type: object
-                        secretKeyRef:
-                          description: Selects a key of a secret in the resource namespace
-                          properties:
-                            key:
-                              description: The key of the secret to select from.  Must
-                                be a valid secret key.
-                              type: string
-                            name:
-                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                TODO: Add other useful fields. apiVersion, kind, uid?'
-                              type: string
-                            optional:
-                              description: Specify whether the Secret or its key must
-                                be defined
-                              type: boolean
-                          required:
-                          - key
-                          type: object
-                      type: object
-                  required:
-                  - name
-                  type: object
-                type: array
-              plan:
-                type: string
-              serviceClass:
-                type: string
-              serviceClassType:
-                type: string
-              tags:
-                items:
-                  type: string
-                type: array
-            required:
-            - plan
-            - serviceClass
-            type: object
-          status:
-            description: ServiceStatus defines the observed state of Service
-            properties:
-              context:
-                description: ResourceContext defines the CloudFoundry context and
-                  resource group
-                properties:
-                  org:
-                    type: string
-                  region:
-                    type: string
-                  resourcegroup:
-                    type: string
-                  resourcegroupid:
-                    type: string
-                  resourcelocation:
-                    type: string
-                  space:
-                    type: string
-                  user:
-                    type: string
-                type: object
-              dashboardURL:
-                type: string
-              externalName:
-                type: string
-              generation:
-                format: int64
-                type: integer
-              instanceId:
-                type: string
-              message:
-                type: string
-              parameters:
-                items:
-                  description: Param represents a key-value pair
-                  properties:
-                    attributes:
-                      additionalProperties:
-                        type: object
-                      description: A parameter may have attributes (e.g. message hub
-                        topic might have partitions)
-                      type: object
-                    name:
-                      description: Name representing the key.
-                      type: string
-                    value:
-                      description: Defaults to null.
-                    valueFrom:
-                      description: Source for the value. Cannot be used if value is
-                        not empty.
-                      properties:
-                        configMapKeyRef:
-                          description: Selects a key of a ConfigMap.
-                          properties:
-                            key:
-                              description: The key to select.
-                              type: string
-                            name:
-                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                TODO: Add other useful fields. apiVersion, kind, uid?'
-                              type: string
-                            optional:
-                              description: Specify whether the ConfigMap or its key
-                                must be defined
-                              type: boolean
-                          required:
-                          - key
-                          type: object
-                        secretKeyRef:
-                          description: Selects a key of a secret in the resource namespace
-                          properties:
-                            key:
-                              description: The key of the secret to select from.  Must
-                                be a valid secret key.
-                              type: string
-                            name:
-                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                TODO: Add other useful fields. apiVersion, kind, uid?'
-                              type: string
-                            optional:
-                              description: Specify whether the Secret or its key must
-                                be defined
-                              type: boolean
-                          required:
-                          - key
-                          type: object
-                      type: object
-                  required:
-                  - name
-                  type: object
-                type: array
-              plan:
-                type: string
-              serviceClass:
-                type: string
-              serviceClassType:
-                type: string
-              state:
-                type: string
-              tags:
-                items:
-                  type: string
-                type: array
-            required:
-            - plan
-            - serviceClass
-            - serviceClassType
-            type: object
-        type: object
-    served: true
-    storage: false
   - name: v1beta1
     schema:
       openAPIV3Schema:
@@ -490,6 +264,232 @@ spec:
         type: object
     served: true
     storage: true
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Service is the Schema for the services API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ServiceSpec defines the desired state of Service
+            properties:
+              context:
+                description: ResourceContext defines the CloudFoundry context and
+                  resource group
+                properties:
+                  org:
+                    type: string
+                  region:
+                    type: string
+                  resourcegroup:
+                    type: string
+                  resourcegroupid:
+                    type: string
+                  resourcelocation:
+                    type: string
+                  space:
+                    type: string
+                  user:
+                    type: string
+                type: object
+              externalName:
+                type: string
+              parameters:
+                items:
+                  description: Param represents a key-value pair
+                  properties:
+                    attributes:
+                      additionalProperties:
+                        type: object
+                      description: A parameter may have attributes (e.g. message hub
+                        topic might have partitions)
+                      type: object
+                    name:
+                      description: Name representing the key.
+                      type: string
+                    value:
+                      description: Defaults to null.
+                    valueFrom:
+                      description: Source for the value. Cannot be used if value is
+                        not empty.
+                      properties:
+                        configMapKeyRef:
+                          description: Selects a key of a ConfigMap.
+                          properties:
+                            key:
+                              description: The key to select.
+                              type: string
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the ConfigMap or its key
+                                must be defined
+                              type: boolean
+                          required:
+                          - key
+                          type: object
+                        secretKeyRef:
+                          description: Selects a key of a secret in the resource namespace
+                          properties:
+                            key:
+                              description: The key of the secret to select from.  Must
+                                be a valid secret key.
+                              type: string
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the Secret or its key must
+                                be defined
+                              type: boolean
+                          required:
+                          - key
+                          type: object
+                      type: object
+                  required:
+                  - name
+                  type: object
+                type: array
+              plan:
+                type: string
+              serviceClass:
+                type: string
+              serviceClassType:
+                type: string
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - plan
+            - serviceClass
+            type: object
+          status:
+            description: ServiceStatus defines the observed state of Service
+            properties:
+              context:
+                description: ResourceContext defines the CloudFoundry context and
+                  resource group
+                properties:
+                  org:
+                    type: string
+                  region:
+                    type: string
+                  resourcegroup:
+                    type: string
+                  resourcegroupid:
+                    type: string
+                  resourcelocation:
+                    type: string
+                  space:
+                    type: string
+                  user:
+                    type: string
+                type: object
+              dashboardURL:
+                type: string
+              externalName:
+                type: string
+              generation:
+                format: int64
+                type: integer
+              instanceId:
+                type: string
+              message:
+                type: string
+              parameters:
+                items:
+                  description: Param represents a key-value pair
+                  properties:
+                    attributes:
+                      additionalProperties:
+                        type: object
+                      description: A parameter may have attributes (e.g. message hub
+                        topic might have partitions)
+                      type: object
+                    name:
+                      description: Name representing the key.
+                      type: string
+                    value:
+                      description: Defaults to null.
+                    valueFrom:
+                      description: Source for the value. Cannot be used if value is
+                        not empty.
+                      properties:
+                        configMapKeyRef:
+                          description: Selects a key of a ConfigMap.
+                          properties:
+                            key:
+                              description: The key to select.
+                              type: string
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the ConfigMap or its key
+                                must be defined
+                              type: boolean
+                          required:
+                          - key
+                          type: object
+                        secretKeyRef:
+                          description: Selects a key of a secret in the resource namespace
+                          properties:
+                            key:
+                              description: The key of the secret to select from.  Must
+                                be a valid secret key.
+                              type: string
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                            optional:
+                              description: Specify whether the Secret or its key must
+                                be defined
+                              type: boolean
+                          required:
+                          - key
+                          type: object
+                      type: object
+                  required:
+                  - name
+                  type: object
+                type: array
+              plan:
+                type: string
+              serviceClass:
+                type: string
+              serviceClassType:
+                type: string
+              state:
+                type: string
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - plan
+            - serviceClass
+            - serviceClassType
+            type: object
+        type: object
+    served: true
+    storage: false
 status:
   acceptedNames:
     kind: ""

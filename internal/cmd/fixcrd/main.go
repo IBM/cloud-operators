@@ -55,8 +55,8 @@ func mutateYaml(r io.Reader, w io.Writer) error {
 
 	removeValueType(&yamlData, false)
 	versions := getVersions(yamlData)
-	version := latestVersion(versions)
-	setVersion(&yamlData, version, 0)
+	setVersion(&yamlData, versions[len(versions)-1], 0)
+	reorderVersions(&yamlData, versions, false)
 	return yaml.NewEncoder(w).Encode(yamlData)
 }
 
@@ -138,8 +138,22 @@ func setVersion(v interface{}, version string, depth int) {
 	}
 }
 
-func getVersions(v interface{}) (versions []string) {
-	return recursiveGetVersions(v, false)
+func getVersions(v interface{}) []string {
+	versions := recursiveGetVersions(v, false)
+	// sort versions lowest to highest. i.e. v1alpha1, v1beta1, v1beta2, v1
+	sort.Slice(versions, func(a, b int) bool {
+		strA := versions[a]
+		strB := versions[b]
+		// artificially sort 'v1' as greater than 'v1alpha1'. this works because '~' > 'a-zA-Z'
+		if isDigits(strings.TrimPrefix(strA, "v")) {
+			strA += "~"
+		}
+		if isDigits(strings.TrimPrefix(strB, "v")) {
+			strA += "~"
+		}
+		return strA < strB
+	})
+	return versions
 }
 
 func recursiveGetVersions(v interface{}, foundVersions bool) (versions []string) {
@@ -169,23 +183,6 @@ func recursiveGetVersions(v interface{}, foundVersions bool) (versions []string)
 	return
 }
 
-func latestVersion(versions []string) string {
-	// sort versions lowest to highest. i.e. v1alpha1, v1beta1, v1beta2, v1
-	sort.Slice(versions, func(a, b int) bool {
-		strA := versions[a]
-		strB := versions[b]
-		// artificially sort 'v1' as greater than 'v1alpha1'. this works because '~' > 'a-zA-Z'
-		if isDigits(strings.TrimPrefix(strA, "v")) {
-			strA += "~"
-		}
-		if isDigits(strings.TrimPrefix(strB, "v")) {
-			strA += "~"
-		}
-		return strA < strB
-	})
-	return versions[len(versions)-1]
-}
-
 func isDigits(s string) bool {
 	for _, r := range s {
 		if !unicode.IsDigit(r) {
@@ -193,4 +190,53 @@ func isDigits(s string) bool {
 		}
 	}
 	return true
+}
+
+// reorderVersions sorts the CRD versions from newest to oldest ('versions' is sorted oldest to newest so range over it backwards)
+func reorderVersions(v interface{}, versions []string, foundVersions bool) {
+	d, set := ptrSetter(v)
+	switch d := d.(type) {
+	case []interface{}:
+		if foundVersions {
+			versionMap := make(map[string]interface{})
+			for ix := range d {
+				item := d[ix]
+				for _, kv := range item.(yaml.MapSlice) {
+					if kv.Key == "name" {
+						versionMap[kv.Value.(string)] = &item
+						break
+					}
+				}
+			}
+			newSlice := make([]interface{}, 0, len(d))
+			for ix := range versions {
+				fromEnd := versions[len(versions)-1-ix]
+				newSlice = append(newSlice, versionMap[fromEnd])
+			}
+			set(newSlice)
+			return
+		}
+
+		newSlice := make([]interface{}, 0, len(d))
+		for ix := range d {
+			item := d[ix]
+			reorderVersions(&item, versions, foundVersions)
+			newSlice = append(newSlice, item)
+		}
+		set(newSlice)
+	case yaml.MapSlice:
+		newSlice := make(yaml.MapSlice, 0, len(d))
+		for ix := range d {
+			item := d[ix]
+			reorderVersions(&item, versions, foundVersions)
+			newSlice = append(newSlice, item)
+		}
+		set(newSlice)
+	case yaml.MapItem:
+		if d.Key == "versions" {
+			foundVersions = true
+		}
+		reorderVersions(&d.Value, versions, foundVersions)
+		set(d)
+	}
 }
