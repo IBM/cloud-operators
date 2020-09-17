@@ -210,6 +210,9 @@ func getRBAC(output string) (clusterRoles, roles roleRules, err error) {
 			clusterRoles.Rules = append(clusterRoles.Rules, role.Rules...)
 		case "Role":
 			roles.Rules = append(roles.Rules, role.Rules...)
+		case "ClusterRoleBinding", "RoleBinding": // role bindings don't translate into the RBAC sections
+		default:
+			panic("Unrecognized role type: " + kind)
 		}
 	}
 	return clusterRoles, roles, nil
