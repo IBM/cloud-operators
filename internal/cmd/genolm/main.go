@@ -41,7 +41,8 @@ type Data struct {
 	Maintainers    []Maintainer
 	Name           string
 	Now            string
-	RBAC           []roleRules
+	ClusterRoles   []roleRules
+	Roles          []roleRules
 	README         string
 	ReplaceVersion string
 	Version        string
@@ -100,7 +101,7 @@ func run(output, repoRoot, versionStr string) error {
 		return err
 	}
 
-	rbac, err := getRBAC(output)
+	clusterRoles, roles, err := getRBAC(output)
 	if err != nil {
 		return err
 	}
@@ -123,7 +124,8 @@ func run(output, repoRoot, versionStr string) error {
 		Maintainers:    maintainers,
 		Name:           "ibmcloud-operator",
 		Now:            time.Now().UTC().Format(time.RFC3339),
-		RBAC:           []roleRules{rbac},
+		ClusterRoles:   []roleRules{clusterRoles},
+		Roles:          []roleRules{roles},
 		README:         readme,
 		ReplaceVersion: replaceVersion,
 		Version:        version.String(),
@@ -187,28 +189,30 @@ func templateYAMLMarshal(v interface{}) (string, error) {
 	return string(buf), err
 }
 
-func getRBAC(output string) (roleRules, error) {
-	var rbac roleRules
+func getRBAC(output string) (clusterRoles, roles roleRules, err error) {
 	rbacFiles, err := filepath.Glob(filepath.Join(output, "rbac.*.yaml"))
 	if err != nil {
-		return roleRules{}, err
+		return roleRules{}, roleRules{}, err
 	}
 	for _, path := range rbacFiles {
 		buf, err := ioutil.ReadFile(path)
 		if err != nil {
-			return roleRules{}, err
+			return roleRules{}, roleRules{}, err
 		}
 		var role rbacv1.Role
 		err = yaml.Unmarshal(buf, &role)
 		if err != nil {
-			return roleRules{}, err
+			return roleRules{}, roleRules{}, err
 		}
 		kind := role.GetObjectKind().GroupVersionKind().Kind
-		if kind == "ClusterRole" || kind == "Role" {
-			rbac.Rules = append(rbac.Rules, role.Rules...)
+		switch kind {
+		case "ClusterRole":
+			clusterRoles.Rules = append(clusterRoles.Rules, role.Rules...)
+		case "Role":
+			roles.Rules = append(roles.Rules, role.Rules...)
 		}
 	}
-	return rbac, nil
+	return clusterRoles, roles, nil
 }
 
 func getSamples(repoRoot string) ([]runtime.RawExtension, error) {
