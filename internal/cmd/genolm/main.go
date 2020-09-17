@@ -49,7 +49,8 @@ type Data struct {
 }
 
 type roleRules struct {
-	Rules []rbacv1.PolicyRule `json:"rules"`
+	Rules              []rbacv1.PolicyRule `json:"rules"`
+	ServiceAccountName string              `json:"serviceAccountName"`
 }
 
 func run(output, repoRoot, versionStr string) error {
@@ -199,18 +200,51 @@ func getRBAC(output string) (clusterRoles, roles roleRules, err error) {
 		if err != nil {
 			return roleRules{}, roleRules{}, err
 		}
-		var role rbacv1.Role
-		err = yaml.Unmarshal(buf, &role)
+		var meta runtime.TypeMeta
+		err = yaml.Unmarshal(buf, &meta)
 		if err != nil {
 			return roleRules{}, roleRules{}, err
 		}
-		kind := role.GetObjectKind().GroupVersionKind().Kind
+		kind := meta.Kind
 		switch kind {
 		case "ClusterRole":
+			var role rbacv1.ClusterRole
+			err := yaml.Unmarshal(buf, &role)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
 			clusterRoles.Rules = append(clusterRoles.Rules, role.Rules...)
 		case "Role":
+			var role rbacv1.Role
+			err := yaml.Unmarshal(buf, &role)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
 			roles.Rules = append(roles.Rules, role.Rules...)
-		case "ClusterRoleBinding", "RoleBinding": // role bindings don't translate into the RBAC sections
+		case "ClusterRoleBinding":
+			var binding rbacv1.RoleBinding
+			err := yaml.Unmarshal(buf, &binding)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
+			for _, sub := range binding.Subjects {
+				if sub.Kind == "ServiceAccount" {
+					clusterRoles.ServiceAccountName = sub.Name
+					break
+				}
+			}
+		case "RoleBinding":
+			var binding rbacv1.ClusterRoleBinding
+			err := yaml.Unmarshal(buf, &binding)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
+			for _, sub := range binding.Subjects {
+				if sub.Kind == "ServiceAccount" {
+					roles.ServiceAccountName = sub.Name
+					break
+				}
+			}
 		default:
 			panic("Unrecognized role type: " + kind)
 		}
