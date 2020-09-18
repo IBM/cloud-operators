@@ -4,3 +4,4 @@ channels:
     currentCSV: ibmcloud-operator.v0.1.11
   - name: stable
     currentCSV: {{.Name}}.v{{.Version}}
+defaultChannel: stable
