@@ -321,7 +321,7 @@ func TestServiceGetIBMCloudInfoFailed(t *testing.T) {
 			Scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
-				return nil, errors.NewNotFound(ctrl.GroupResource{Group: "ibmcloud.ibm.com", Resource: "secret"}, "secret-ibm-cloud-operator")
+				return nil, errors.NewNotFound(ctrl.GroupResource{Group: "ibmcloud.ibm.com", Resource: "secret"}, "ibmcloud-operator-secret")
 			},
 		}
 
