@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	icoSecretName = "secret-ibm-cloud-operator"
-	icoTokensName = "secret-ibm-cloud-operator-tokens"
+	icoSecretName = "ibmcloud-operator-secret"
+	icoTokensName = "ibmcloud-operator-tokens"
 )
 
 // TokenReconciler reconciles a Token object

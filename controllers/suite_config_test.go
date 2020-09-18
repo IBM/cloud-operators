@@ -49,7 +49,7 @@ func setupConfigs() error {
 
 	err := k8sClient.Create(ctx, &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "config-ibm-cloud-operator",
+			Name:      "ibmcloud-operator-defaults",
 			Namespace: testNamespace,
 		},
 		Data: map[string]string{
@@ -66,7 +66,7 @@ func setupConfigs() error {
 
 	err = k8sClient.Create(ctx, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "secret-ibm-cloud-operator",
+			Name:      "ibmcloud-operator-secret",
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
@@ -79,7 +79,7 @@ func setupConfigs() error {
 
 	return k8sClient.Create(ctx, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "secret-ibm-cloud-operator-tokens",
+			Name:      "ibmcloud-operator-tokens",
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{

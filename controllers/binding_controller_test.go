@@ -514,7 +514,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 					fake.NewFakeClientWithScheme(scheme, objects...),
 					MockConfig{UpdateErr: fmt.Errorf("failed")},
 				)
-				return nil, errors.NewNotFound(ctrl.GroupResource{Group: "ibmcloud.ibm.com", Resource: "secret"}, "secret-ibm-cloud-operator")
+				return nil, errors.NewNotFound(ctrl.GroupResource{Group: "ibmcloud.ibm.com", Resource: "secret"}, "ibmcloud-operator-secret")
 			},
 		}
 

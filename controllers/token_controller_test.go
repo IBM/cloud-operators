@@ -31,7 +31,7 @@ func TestToken(t *testing.T) {
 
 	// Create the secret object and expect the Reconcile
 	const (
-		secretName   = "secret-ibm-cloud-operator"
+		secretName   = "ibmcloud-operator-secret"
 		secretAPIKey = "VExS246avaUT6MXZ56SH_I-AeWo_-JmW0u79Jd8LiBH" // nolint:gosec // Fake API key
 	)
 
@@ -62,7 +62,7 @@ func TestToken(t *testing.T) {
 
 	var secret corev1.Secret
 	assert.Eventually(t, func() bool {
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "secret-ibm-cloud-operator-tokens"}, &secret)
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "ibmcloud-operator-tokens"}, &secret)
 		if err != nil {
 			t.Log("Failed to get secret:", err)
 			return false
@@ -83,7 +83,7 @@ func TestTokenFailedAuth(t *testing.T) {
 	scheme := schemas(t)
 	objects := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "secret-ibm-cloud-operator"},
+			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
 				"api-key": []byte(`bogus key`),
 			},
@@ -99,7 +99,7 @@ func TestTokenFailedAuth(t *testing.T) {
 	}
 
 	result, err := r.Reconcile(ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.EqualError(t, err, "failure")
 	assert.Equal(t, ctrl.Result{}, result)
@@ -117,7 +117,7 @@ func TestTokenFailedSecretLookup(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		result, err := r.Reconcile(ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+			NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 		})
 		assert.NoError(t, err, "Don't retry (return err) if secret no longer exists")
 		assert.Equal(t, ctrl.Result{}, result)
@@ -126,7 +126,7 @@ func TestTokenFailedSecretLookup(t *testing.T) {
 	r.Client = fake.NewFakeClientWithScheme(runtime.NewScheme()) // fail to read the type Secret
 	t.Run("failed to read secret", func(t *testing.T) {
 		result, err := r.Reconcile(ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+			NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 		})
 		assert.Error(t, err)
 		assert.False(t, k8sErrors.IsNotFound(err))
@@ -141,7 +141,7 @@ func TestTokenSecretIsDeleting(t *testing.T) {
 	objects := []runtime.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:              "secret-ibm-cloud-operator",
+				Name:              "ibmcloud-operator-secret",
 				DeletionTimestamp: now,
 			},
 		},
@@ -154,7 +154,7 @@ func TestTokenSecretIsDeleting(t *testing.T) {
 	}
 
 	result, err := r.Reconcile(ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.NoError(t, err, "Don't retry (return err) if secret is deleting")
 	assert.Equal(t, ctrl.Result{}, result)
@@ -165,7 +165,7 @@ func TestTokenAPIKeyIsMissing(t *testing.T) {
 	scheme := schemas(t)
 	objects := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "secret-ibm-cloud-operator"},
+			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data:       nil, // no API key
 		},
 	}
@@ -177,7 +177,7 @@ func TestTokenAPIKeyIsMissing(t *testing.T) {
 	}
 
 	result, err := r.Reconcile(ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.NoError(t, err, "Don't retry (return err) if secret does not contain an api-key entry")
 	assert.Equal(t, ctrl.Result{}, result)
@@ -192,7 +192,7 @@ func TestTokenAuthInvalidConfig(t *testing.T) {
 	)
 	objects := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "secret-ibm-cloud-operator"},
+			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
 				"api-key": []byte(apiKey),
 				"region":  []byte(region),
@@ -211,7 +211,7 @@ func TestTokenAuthInvalidConfig(t *testing.T) {
 	}
 
 	result, err := r.Reconcile(ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.NoError(t, err, "Don't retry (return err) if secret region is invalid")
 	assert.Equal(t, ctrl.Result{}, result)
@@ -227,7 +227,7 @@ func TestTokenDeleteFailed(t *testing.T) {
 	)
 	objects := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "secret-ibm-cloud-operator"},
+			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
 				"api-key": []byte(apiKey),
 				"region":  []byte(region),
@@ -250,7 +250,7 @@ func TestTokenDeleteFailed(t *testing.T) {
 	}
 
 	result, err := r.Reconcile(ctrl.Request{
-		NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.Error(t, err)
 	assert.False(t, k8sErrors.IsNotFound(err))
@@ -266,14 +266,14 @@ func TestTokenRaceCreateFailed(t *testing.T) {
 		accessToken = "some access token"
 	)
 	tokensSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "secret-ibm-cloud-operator-tokens"},
+		ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-tokens"},
 		Data: map[string][]byte{
 			"access_token": []byte("old " + accessToken),
 		},
 	}
 	objects := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "secret-ibm-cloud-operator"},
+			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
 				"api-key": []byte(apiKey),
 				"region":  []byte(region),
@@ -312,7 +312,7 @@ func TestTokenRaceCreateFailed(t *testing.T) {
 	var err error
 	require.Eventually(t, func() bool {
 		result, err = r.Reconcile(ctrl.Request{
-			NamespacedName: types.NamespacedName{Name: "secret-ibm-cloud-operator"},
+			NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 		})
 		return err != nil
 	}, 5*time.Second, 10*time.Millisecond)
@@ -325,10 +325,10 @@ func TestShouldProcessSecret(t *testing.T) {
 	t.Parallel()
 
 	t.Run("normal secret", func(t *testing.T) {
-		assert.True(t, shouldProcessSecret(&metav1.ObjectMeta{Name: "secret-ibm-cloud-operator"}))
+		assert.True(t, shouldProcessSecret(&metav1.ObjectMeta{Name: "ibmcloud-operator-secret"}))
 	})
 
 	t.Run("management namespace secret", func(t *testing.T) {
-		assert.True(t, shouldProcessSecret(&metav1.ObjectMeta{Name: "mynamespace-secret-ibm-cloud-operator"}))
+		assert.True(t, shouldProcessSecret(&metav1.ObjectMeta{Name: "mynamespace-ibmcloud-operator-secret"}))
 	})
 }

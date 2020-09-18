@@ -101,7 +101,7 @@ install: manifests kustomize
 .PHONY: uninstall
 uninstall: manifests kustomize
 	kustomize build config/crd | kubectl delete -f -
-	kubectl delete secret/secret-ibm-cloud-operator configmap/config-ibm-cloud-operator
+	kubectl delete secret/ibmcloud-operator-secret configmap/ibmcloud-operator-defaults
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 .PHONY: deploy
