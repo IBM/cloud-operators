@@ -20,7 +20,7 @@ spec:
   # image should be 175x175
   - base64data: {{include "ibmcloud.png" . | base64}}
     mediatype: image/png
-  description: >
+  description: |-
     {{.README | indent 4 | trimSpace}}
   version: {{.Version}}
   replaces: {{.Name}}.v{{.ReplaceVersion}}
