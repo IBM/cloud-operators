@@ -31,7 +31,7 @@ func TestToken(t *testing.T) {
 
 	// Create the secret object and expect the Reconcile
 	const (
-		secretName   = "dummyapikey"
+		secretName   = "secret-ibm-cloud-operator"
 		secretAPIKey = "VExS246avaUT6MXZ56SH_I-AeWo_-JmW0u79Jd8LiBH" // nolint:gosec // Fake API key
 	)
 
@@ -62,7 +62,7 @@ func TestToken(t *testing.T) {
 
 	var secret corev1.Secret
 	assert.Eventually(t, func() bool {
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "dummyapikey-tokens"}, &secret)
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Namespace: "default", Name: "secret-ibm-cloud-operator-tokens"}, &secret)
 		if err != nil {
 			t.Log("Failed to get secret:", err)
 			return false
