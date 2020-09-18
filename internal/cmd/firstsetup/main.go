@@ -27,8 +27,8 @@ func run() error {
 		return err
 	}
 
-	_, secretErr := k8sClient.CoreV1().Secrets(namespace).Get("secret-ibm-cloud-operator", metav1.GetOptions{})
-	_, configMapErr := k8sClient.CoreV1().ConfigMaps(namespace).Get("config-ibm-cloud-operator", metav1.GetOptions{})
+	_, secretErr := k8sClient.CoreV1().Secrets(namespace).Get("ibmcloud-operator-secret", metav1.GetOptions{})
+	_, configMapErr := k8sClient.CoreV1().ConfigMaps(namespace).Get("ibmcloud-operator-defaults", metav1.GetOptions{})
 	if secretErr == nil && configMapErr == nil {
 		fmt.Println("IBM Cloud Operators configmap and secret already set up. Skipping...")
 		return nil
@@ -38,11 +38,10 @@ func run() error {
 
 	_, err = k8sClient.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "secret-ibm-cloud-operator",
+			Name:      "ibmcloud-operator-secret",
 			Namespace: namespace,
 			Labels: map[string]string{
-				"seed.ibm.com/ibmcloud-token": "apikey",
-				"app.kubernetes.io/name":      "ibmcloud-operator",
+				"app.kubernetes.io/name": "ibmcloud-operator",
 			},
 		},
 		Data: map[string][]byte{
@@ -56,7 +55,7 @@ func run() error {
 
 	_, err = k8sClient.CoreV1().ConfigMaps(namespace).Create(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "config-ibm-cloud-operator",
+			Name:      "ibmcloud-operator-defaults",
 			Namespace: namespace,
 			Labels: map[string]string{
 				"app.kubernetes.io/name": "ibmcloud-operator",

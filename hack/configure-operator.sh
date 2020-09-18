@@ -187,9 +187,8 @@ store_creds() {
 apiVersion: v1
 kind: Secret
 metadata:
-  name: secret-ibm-cloud-operator
+  name: ibmcloud-operator-secret
   labels:
-    seed.ibm.com/ibmcloud-token: "apikey"
     app.kubernetes.io/name: ibmcloud-operator
   namespace: default
 type: Opaque
@@ -212,7 +211,7 @@ EOT
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: config-ibm-cloud-operator
+  name: ibmcloud-operator-defaults
   namespace: default
   labels:
     app.kubernetes.io/name: ibmcloud-operator

@@ -16,7 +16,7 @@ type Deployment struct {
 
 func getDeployments(output string) ([]Deployment, error) {
 	var deployment appsv1.Deployment
-	deploymentBytes, err := ioutil.ReadFile(filepath.Join(output, "apps_v1_deployment_ibmcloud-operators-controller-manager.yaml"))
+	deploymentBytes, err := ioutil.ReadFile(filepath.Join(output, "apps_v1_deployment_ibmcloud-operator-controller-manager.yaml"))
 	if err != nil {
 		return nil, errors.Wrap(err, "Error reading generated deployment file. Did kustomize run yet?")
 	}

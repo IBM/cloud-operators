@@ -26,10 +26,10 @@ import (
 
 const (
 	aliasPlan    = "alias"
-	seedInstall  = "ibm-cloud-operator"
-	seedSecret   = "secret-ibm-cloud-operator"
-	seedDefaults = "config-ibm-cloud-operator"
-	seedTokens   = "secret-ibm-cloud-operator-tokens"
+	icoConfigMap = "ibmcloud-operator-config"
+	seedSecret   = "ibmcloud-operator-secret"
+	seedDefaults = "ibmcloud-operator-defaults"
+	seedTokens   = "ibmcloud-operator-tokens"
 )
 
 // Info kept all the needed client API resource and instance Info
@@ -349,7 +349,7 @@ func getIBMCloudContext(instance *ibmcloudv1beta1.Service, cm *v1.ConfigMap) ibm
 
 func getDefaultNamespace(r client.Client) (string, bool) {
 	cm := &v1.ConfigMap{}
-	err := r.Get(context.Background(), types.NamespacedName{Namespace: config.Get().ControllerNamespace, Name: seedInstall}, cm)
+	err := r.Get(context.Background(), types.NamespacedName{Namespace: config.Get().ControllerNamespace, Name: icoConfigMap}, cm)
 	if err != nil {
 		return "default", false
 	}
