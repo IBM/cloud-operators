@@ -28,6 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+)
+
+const (
+	secretLabelName  = "app.kubernetes.io/name"
+	secretLabelValue = "ibmcloud-operator"
 )
 
 // TokenReconciler reconciles a Token object
@@ -118,5 +125,20 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}).
+		WithEventFilter(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				return shouldProcessSecret(e.Meta)
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				return shouldProcessSecret(e.Meta)
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				return shouldProcessSecret(e.MetaNew)
+			},
+		}).
 		Complete(r)
+}
+
+func shouldProcessSecret(meta metav1.Object) bool {
+	return meta.GetLabels()[secretLabelName] == secretLabelValue
 }
