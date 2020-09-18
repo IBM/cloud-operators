@@ -1,7 +1,7 @@
 packageName: {{.Name}}
 channels:
-  - name: alpha
-    currentCSV: ibmcloud-operator.v0.1.11
   - name: stable
     currentCSV: {{.Name}}.v{{.Version}}
+  - name: alpha
+    currentCSV: ibmcloud-operator.v0.1.11
 defaultChannel: stable
