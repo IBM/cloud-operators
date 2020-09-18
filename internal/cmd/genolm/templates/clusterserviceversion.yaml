@@ -53,9 +53,11 @@ spec:
     strategy: deployment
     spec:
       clusterPermissions:
-      {{.RBAC | yaml | indent 6 | trimSpace}}
+      {{.ClusterRoles | yaml | indent 6 | trimSpace}}
+      permissions:
+      {{.Roles | yaml | indent 6 | trimSpace}}
       deployments: 
-      - {{.DeploymentSpec | yaml | indent 8 | trimSpace}}
+      {{.Deployments | yaml | indent 6 | trimSpace}}
   customresourcedefinitions:
     owned:
       {{.CRDs | yaml | indent 6 | trimSpace}}
