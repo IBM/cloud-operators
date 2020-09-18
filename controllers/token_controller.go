@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -33,8 +34,8 @@ import (
 )
 
 const (
-	secretLabelName  = "app.kubernetes.io/name"
-	secretLabelValue = "ibmcloud-operator"
+	icoSecretName = "secret-ibm-cloud-operator"
+	icoTokensName = "secret-ibm-cloud-operator-tokens"
 )
 
 // TokenReconciler reconciles a Token object
@@ -97,7 +98,7 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err // requeue
 	}
 
-	tokensRef := secret.Name + "-tokens"
+	tokensRef := strings.TrimSuffix(secret.Name, icoSecretName) + icoTokensName // need to trim suffix, since management namespace could be the prefix
 	logt.Info("creating tokens secret", "name", tokensRef)
 
 	tokens := &corev1.Secret{
@@ -140,5 +141,5 @@ func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func shouldProcessSecret(meta metav1.Object) bool {
-	return meta.GetLabels()[secretLabelName] == secretLabelValue
+	return meta.GetName() == icoSecretName || strings.HasSuffix(meta.GetName(), "-"+icoSecretName)
 }
