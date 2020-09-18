@@ -127,15 +127,9 @@ func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}).
 		WithEventFilter(predicate.Funcs{
-			CreateFunc: func(e event.CreateEvent) bool {
-				return shouldProcessSecret(e.Meta)
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				return shouldProcessSecret(e.Meta)
-			},
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				return shouldProcessSecret(e.MetaNew)
-			},
+			CreateFunc: func(e event.CreateEvent) bool { return shouldProcessSecret(e.Meta) },
+			DeleteFunc: func(e event.DeleteEvent) bool { return shouldProcessSecret(e.Meta) },
+			UpdateFunc: func(e event.UpdateEvent) bool { return shouldProcessSecret(e.MetaNew) },
 		}).
 		Complete(r)
 }

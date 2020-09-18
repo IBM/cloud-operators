@@ -320,3 +320,15 @@ func TestTokenRaceCreateFailed(t *testing.T) {
 	assert.True(t, k8sErrors.IsAlreadyExists(err))
 	assert.Equal(t, ctrl.Result{}, result)
 }
+
+func TestShouldProcessSecret(t *testing.T) {
+	t.Parallel()
+
+	t.Run("normal secret", func(t *testing.T) {
+		assert.True(t, shouldProcessSecret(&metav1.ObjectMeta{Name: "secret-ibm-cloud-operator"}))
+	})
+
+	t.Run("management namespace secret", func(t *testing.T) {
+		assert.True(t, shouldProcessSecret(&metav1.ObjectMeta{Name: "mynamespace-secret-ibm-cloud-operator"}))
+	})
+}
