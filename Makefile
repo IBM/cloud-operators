@@ -185,6 +185,10 @@ operator-courier:
 
 .PHONY: verify-operator-meta
 verify-operator-meta: release-prep operator-courier
+	# Download the alpha channel's last release of CSV and CRDs so it passes validation
+	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/001_ibmcloud_v1alpha1_binding.yaml > out/0.1.11_ibmcloud_v1alpha1_binding.yaml
+	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/002_ibmcloud_v1alpha1_service.yaml > out/0.1.11_ibmcloud_v1alpha1_service.yaml
+	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/ibmcloud_operator.v0.1.11.clusterserviceversion.yaml > out/ibmcloud_operator.v0.1.11.clusterserviceversion.yaml
 	operator-courier verify --ui_validate_io out/
 
 .PHONY: operator-push-test
