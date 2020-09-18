@@ -23,6 +23,7 @@ type CRD struct {
 	SpecDescriptors   []Descriptor `json:"specDescriptors,omitempty"`
 	StatusDescriptors []Descriptor `json:"statusDescriptors,omitempty"`
 	ActionDescriptors []Descriptor `json:"actionDescriptors,omitempty"`
+	Version           string       `json:"version"`
 }
 
 type TypeMeta struct {
@@ -101,6 +102,7 @@ func NewCRD(src apiextensionsv1beta1.CustomResourceDefinition, ownedResources []
 		OwnedResources:    ownedResources,
 		SpecDescriptors:   descriptorsFor("spec", latestVersion, xDescriptors),
 		StatusDescriptors: descriptorsFor("status", latestVersion, xDescriptors),
+		Version:           src.Spec.Version,
 	}
 }
 

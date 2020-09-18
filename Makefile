@@ -169,10 +169,40 @@ out:
 
 # Prepares Kubernetes yaml files for release. Useful for testing against your own cluster.
 .PHONY: release-prep
-release-prep: kustomize out 
+release-prep: kustomize manifests out 
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default --output out/
 	go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
 
 .PHONY: release
 release: release-prep docker-push
+
+.PHONY: operator-courier
+operator-courier:
+	@if ! which operator-courier; then \
+		pip3 install operator-courier; \
+	fi
+
+.PHONY: verify-operator-meta
+verify-operator-meta: release-prep operator-courier
+	operator-courier verify --ui_validate_io out/
+
+.PHONY: operator-push-test
+operator-push-test: IMG = quay.io/${QUAY_NAMESPACE}/${QUAY_REPO}:${RELEASE_VERSION}
+operator-push-test: verify-operator-meta docker-build
+	# Example values:
+	#
+	# QUAY_NAMESPACE=myuser
+	# QUAY_REPO=ibmcloud-operator-image
+	# QUAY_APP=ibmcloud-operator  NOTE: Must have a repository AND a quay "application". They aren't the same thing.
+	# QUAY_USER=myuser+mybot      NOTE: Bot users are best, so you can manage permissions better.
+	# QUAY_TOKEN=abcdef1234567
+	@for v in "${QUAY_NAMESPACE}" "${QUAY_APP}" "${QUAY_REPO}" "${RELEASE_VERSION}" "${QUAY_USER}" "${QUAY_TOKEN}"; do \
+		if [[ -z "$$v" ]]; then \
+			echo 'Not all Quay variables set. See the make target for details.'; \
+			exit 1; \
+		fi; \
+	done
+	docker login -u="${QUAY_USER}" -p="${QUAY_TOKEN}" quay.io
+	docker push "${IMG}"
+	operator-courier push ./out "${QUAY_NAMESPACE}" "${QUAY_APP}" "${RELEASE_VERSION}" "Basic $$(printf "${QUAY_USER}:${QUAY_TOKEN}" | base64)"

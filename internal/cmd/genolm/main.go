@@ -17,7 +17,6 @@ import (
 	"github.com/blang/semver/v4"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -36,20 +35,22 @@ func main() {
 
 type Data struct {
 	CRDs           []CRD
-	DeploymentSpec appsv1.DeploymentSpec
+	Deployments    []Deployment
 	Examples       []runtime.RawExtension
 	Image          string
 	Maintainers    []Maintainer
 	Name           string
 	Now            string
-	RBAC           []roleRules
+	ClusterRoles   []roleRules
+	Roles          []roleRules
 	README         string
 	ReplaceVersion string
 	Version        string
 }
 
 type roleRules struct {
-	Rules []rbacv1.PolicyRule `json:"rules"`
+	Rules              []rbacv1.PolicyRule `json:"rules"`
+	ServiceAccountName string              `json:"serviceAccountName"`
 }
 
 func run(output, repoRoot, versionStr string) error {
@@ -96,19 +97,12 @@ func run(output, repoRoot, versionStr string) error {
 		return err
 	}
 
-	// DeploymentSpec
-	var deployment appsv1.Deployment
-	deploymentBytes, err := ioutil.ReadFile(filepath.Join(output, "apps_v1_deployment_ibmcloud-operators-controller-manager.yaml"))
-	if err != nil {
-		return errors.Wrap(err, "Error reading generated deployment file. Did kustomize run yet?")
-	}
-	err = yaml.Unmarshal(deploymentBytes, &deployment)
+	deployments, err := getDeployments(output)
 	if err != nil {
 		return err
 	}
-	deploymentSpec := deployment.Spec
 
-	rbac, err := getRBAC(output)
+	clusterRoles, roles, err := getRBAC(output)
 	if err != nil {
 		return err
 	}
@@ -125,13 +119,14 @@ func run(output, repoRoot, versionStr string) error {
 
 	data := Data{
 		CRDs:           crds,
-		DeploymentSpec: deploymentSpec,
+		Deployments:    deployments,
 		Examples:       samples,
 		Image:          "cloudoperators/ibmcloud-operator",
 		Maintainers:    maintainers,
 		Name:           "ibmcloud-operator",
 		Now:            time.Now().UTC().Format(time.RFC3339),
-		RBAC:           []roleRules{rbac},
+		ClusterRoles:   []roleRules{clusterRoles},
+		Roles:          []roleRules{roles},
 		README:         readme,
 		ReplaceVersion: replaceVersion,
 		Version:        version.String(),
@@ -195,28 +190,66 @@ func templateYAMLMarshal(v interface{}) (string, error) {
 	return string(buf), err
 }
 
-func getRBAC(output string) (roleRules, error) {
-	var rbac roleRules
+func getRBAC(output string) (clusterRoles, roles roleRules, err error) {
 	rbacFiles, err := filepath.Glob(filepath.Join(output, "rbac.*.yaml"))
 	if err != nil {
-		return roleRules{}, err
+		return roleRules{}, roleRules{}, err
 	}
 	for _, path := range rbacFiles {
 		buf, err := ioutil.ReadFile(path)
 		if err != nil {
-			return roleRules{}, err
+			return roleRules{}, roleRules{}, err
 		}
-		var role rbacv1.Role
-		err = yaml.Unmarshal(buf, &role)
+		var meta runtime.TypeMeta
+		err = yaml.Unmarshal(buf, &meta)
 		if err != nil {
-			return roleRules{}, err
+			return roleRules{}, roleRules{}, err
 		}
-		kind := role.GetObjectKind().GroupVersionKind().Kind
-		if kind == "ClusterRole" || kind == "Role" {
-			rbac.Rules = append(rbac.Rules, role.Rules...)
+		kind := meta.Kind
+		switch kind {
+		case "ClusterRole":
+			var role rbacv1.ClusterRole
+			err := yaml.Unmarshal(buf, &role)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
+			clusterRoles.Rules = append(clusterRoles.Rules, role.Rules...)
+		case "Role":
+			var role rbacv1.Role
+			err := yaml.Unmarshal(buf, &role)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
+			roles.Rules = append(roles.Rules, role.Rules...)
+		case "ClusterRoleBinding":
+			var binding rbacv1.RoleBinding
+			err := yaml.Unmarshal(buf, &binding)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
+			for _, sub := range binding.Subjects {
+				if sub.Kind == "ServiceAccount" {
+					clusterRoles.ServiceAccountName = sub.Name
+					break
+				}
+			}
+		case "RoleBinding":
+			var binding rbacv1.ClusterRoleBinding
+			err := yaml.Unmarshal(buf, &binding)
+			if err != nil {
+				return roleRules{}, roleRules{}, err
+			}
+			for _, sub := range binding.Subjects {
+				if sub.Kind == "ServiceAccount" {
+					roles.ServiceAccountName = sub.Name
+					break
+				}
+			}
+		default:
+			panic("Unrecognized role type: " + kind)
 		}
 	}
-	return rbac, nil
+	return clusterRoles, roles, nil
 }
 
 func getSamples(repoRoot string) ([]runtime.RawExtension, error) {
