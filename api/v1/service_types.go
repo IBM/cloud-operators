@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package v1beta1
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,6 +78,7 @@ type ServiceStatus struct {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
+// +kubebuilder:storageversion
 
 // Service is an instance of a Service resource on IBM Cloud.
 type Service struct {

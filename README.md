@@ -80,10 +80,8 @@ Next log into the IBM Cloud account that owns the ServiceId and follow the instr
 
 To install the latest stable release of the operator, run the below script.
 
-To install the latest release of the operator, remove `-v 0.1.11`. NOTE: `v0.2.x` involved major changes and is undergoing further testing to ensure a smoother transition.
-
 ```bash
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.1.11 install
+curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- install
 ```
 
 The above script stores an API key in a Kubernetes secret that can be accessed by the operator.
@@ -134,7 +132,7 @@ curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/confi
 You can create an instance of an IBM public cloud service using the following custom resource:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1beta1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Service
 metadata:
     name: myservice
@@ -168,7 +166,7 @@ myservice      Online   12s
 You can bind to a service with name `myservice` using the following custom resource:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1beta1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Binding
 metadata:
     name: mybinding

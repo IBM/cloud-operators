@@ -31,7 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
@@ -71,7 +71,7 @@ type ServiceReconciler struct {
 
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ibmcloudv1beta1.Service{}).
+		For(&ibmcloudv1.Service{}).
 		Complete(r)
 }
 
@@ -86,7 +86,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	logt := r.Log.WithValues("service", request.NamespacedName)
 
 	// Fetch the Service instance
-	instance := &ibmcloudv1beta1.Service{}
+	instance := &ibmcloudv1.Service{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
@@ -112,7 +112,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	var (
-		resourceContext ibmcloudv1beta1.ResourceContext
+		resourceContext ibmcloudv1.ResourceContext
 		session         *session.Session
 		resourceGroupID,
 		serviceClassType,
@@ -156,7 +156,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Set the Status field for the first time
-	if reflect.DeepEqual(instance.Status, ibmcloudv1beta1.ServiceStatus{}) {
+	if reflect.DeepEqual(instance.Status, ibmcloudv1.ServiceStatus{}) {
 		instance.Status.State = serviceStatePending
 		instance.Status.Message = "Processing Resource"
 		//setStatusFieldsFromSpec(instance, ibmCloudInfo)
@@ -362,8 +362,8 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	return r.updateStatus(session, logt, instance, resourceContext, instance.Status.InstanceID, state, serviceClassType)
 }
 
-func specChanged(instance *ibmcloudv1beta1.Service) bool {
-	if reflect.DeepEqual(instance.Status, ibmcloudv1beta1.ServiceStatus{}) { // Object does not have a status field yet
+func specChanged(instance *ibmcloudv1.Service) bool {
+	if reflect.DeepEqual(instance.Status, ibmcloudv1.ServiceStatus{}) { // Object does not have a status field yet
 		return false
 	}
 	// If the Plan has not been set, then there is no need to test is spec has changed, Object has not been fully initialized yet
@@ -391,7 +391,7 @@ func specChanged(instance *ibmcloudv1beta1.Service) bool {
 }
 
 // containsServiceFinalizer checks if the instance contains service finalizer
-func containsServiceFinalizer(instance *ibmcloudv1beta1.Service) bool {
+func containsServiceFinalizer(instance *ibmcloudv1.Service) bool {
 	for _, finalizer := range instance.ObjectMeta.Finalizers {
 		if strings.Contains(finalizer, serviceFinalizer) {
 			return true
@@ -401,7 +401,7 @@ func containsServiceFinalizer(instance *ibmcloudv1beta1.Service) bool {
 }
 
 // deleteServiceFinalizer delete service finalizer
-func deleteServiceFinalizer(instance *ibmcloudv1beta1.Service) []string {
+func deleteServiceFinalizer(instance *ibmcloudv1.Service) []string {
 	var result []string
 	for _, finalizer := range instance.ObjectMeta.Finalizers {
 		if finalizer == serviceFinalizer {
@@ -412,7 +412,7 @@ func deleteServiceFinalizer(instance *ibmcloudv1beta1.Service) []string {
 	return result
 }
 
-func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1beta1.Service, state string, err error) (ctrl.Result, error) {
+func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1.Service, state string, err error) (ctrl.Result, error) {
 	logt := r.Log.WithValues("namespacedname", instance.Namespace+"/"+instance.Name)
 	message := err.Error()
 	logt.Error(err, "Updating status with error")
@@ -433,7 +433,7 @@ func (r *ServiceReconciler) updateStatusError(instance *ibmcloudv1beta1.Service,
 	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
-func (r *ServiceReconciler) deleteService(session *session.Session, logt logr.Logger, instance *ibmcloudv1beta1.Service, serviceClassType string) error {
+func (r *ServiceReconciler) deleteService(session *session.Session, logt logr.Logger, instance *ibmcloudv1.Service, serviceClassType string) error {
 	if isAlias(instance) {
 		logt.Info("Aliased service will not be deleted", "Name", instance.Name)
 		return nil
@@ -458,14 +458,14 @@ func (r *ServiceReconciler) deleteService(session *session.Session, logt logr.Lo
 	return nil
 }
 
-func getExternalName(instance *ibmcloudv1beta1.Service) string {
+func getExternalName(instance *ibmcloudv1.Service) string {
 	if instance.Spec.ExternalName != "" {
 		return instance.Spec.ExternalName
 	}
 	return instance.Name
 }
 
-func (r *ServiceReconciler) getParams(ctx context.Context, instance *ibmcloudv1beta1.Service) (map[string]interface{}, error) {
+func (r *ServiceReconciler) getParams(ctx context.Context, instance *ibmcloudv1.Service) (map[string]interface{}, error) {
 	params := make(map[string]interface{})
 
 	for _, p := range instance.Spec.Parameters {
@@ -479,7 +479,7 @@ func (r *ServiceReconciler) getParams(ctx context.Context, instance *ibmcloudv1b
 }
 
 // paramToJSON converts variable value to JSON value
-func (r *ServiceReconciler) paramToJSON(ctx context.Context, p ibmcloudv1beta1.Param, namespace string) (interface{}, error) {
+func (r *ServiceReconciler) paramToJSON(ctx context.Context, p ibmcloudv1.Param, namespace string) (interface{}, error) {
 	if p.Value != nil && p.ValueFrom != nil {
 		return nil, fmt.Errorf("Value and ValueFrom properties are mutually exclusive (for %s variable)", p.Name)
 	}
@@ -496,7 +496,7 @@ func (r *ServiceReconciler) paramToJSON(ctx context.Context, p ibmcloudv1beta1.P
 }
 
 // paramValueToJSON takes a ParamSource and resolves its value
-func (r *ServiceReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmcloudv1beta1.ParamSource, namespace string) (interface{}, error) {
+func (r *ServiceReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmcloudv1.ParamSource, namespace string) (interface{}, error) {
 	if valueFrom.SecretKeyRef != nil {
 		data, err := getKubeSecretValue(ctx, r, r.Log, valueFrom.SecretKeyRef.Name, valueFrom.SecretKeyRef.Key, true, namespace)
 		if err != nil {
@@ -515,15 +515,15 @@ func (r *ServiceReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmc
 	return nil, fmt.Errorf("Missing secretKeyRef or configMapKeyRef")
 }
 
-func getTags(instance *ibmcloudv1beta1.Service) []string {
+func getTags(instance *ibmcloudv1.Service) []string {
 	return instance.Spec.Tags
 }
 
-func isAlias(instance *ibmcloudv1beta1.Service) bool {
+func isAlias(instance *ibmcloudv1.Service) bool {
 	return strings.ToLower(instance.Spec.Plan) == aliasPlan
 }
 
-func (r *ServiceReconciler) updateStatus(session *session.Session, logt logr.Logger, instance *ibmcloudv1beta1.Service, resourceContext ibmcloudv1beta1.ResourceContext, instanceID, instanceState, serviceClassType string) (ctrl.Result, error) {
+func (r *ServiceReconciler) updateStatus(session *session.Session, logt logr.Logger, instance *ibmcloudv1.Service, resourceContext ibmcloudv1.ResourceContext, instanceID, instanceState, serviceClassType string) (ctrl.Result, error) {
 	r.Log.Info("the instance state", "is:", instanceState)
 	state := getState(instanceState)
 	if instance.Status.State != state || instance.Status.InstanceID != instanceID || tagsOrParamsChanged(instance) {
@@ -552,7 +552,7 @@ func getState(serviceInstanceState string) string {
 	return serviceInstanceState
 }
 
-func setStatusFieldsFromSpec(instance *ibmcloudv1beta1.Service, resourceContext ibmcloudv1beta1.ResourceContext) {
+func setStatusFieldsFromSpec(instance *ibmcloudv1.Service, resourceContext ibmcloudv1.ResourceContext) {
 	instance.Status.Plan = instance.Spec.Plan
 	instance.Status.ExternalName = instance.Spec.ExternalName
 	instance.Status.ServiceClass = instance.Spec.ServiceClass
@@ -563,7 +563,7 @@ func setStatusFieldsFromSpec(instance *ibmcloudv1beta1.Service, resourceContext 
 	instance.Spec.Context = resourceContext
 }
 
-func tagsOrParamsChanged(instance *ibmcloudv1beta1.Service) bool {
+func tagsOrParamsChanged(instance *ibmcloudv1.Service) bool {
 	return !reflect.DeepEqual(instance.Spec.Parameters, instance.Status.Parameters) || !reflect.DeepEqual(instance.Spec.Tags, instance.Status.Tags)
 }
 
