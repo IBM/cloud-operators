@@ -172,7 +172,7 @@ out:
 release-prep: kustomize manifests out 
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default --output out/
-	go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
+	ulimit -n 1000 && go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
 
 .PHONY: release
 release: release-prep docker-push

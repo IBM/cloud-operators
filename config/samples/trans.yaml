@@ -1,4 +1,4 @@
-apiVersion: ibmcloud.ibm.com/v1beta1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Service
 metadata:
   name: mytranslator
@@ -8,7 +8,7 @@ spec:
   plan: lite
   serviceClass: language-translator
 ---
-apiVersion: ibmcloud.ibm.com/v1beta1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Binding
 metadata:
   name: binding-translator

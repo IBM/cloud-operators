@@ -26,7 +26,7 @@ import (
 
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
@@ -79,11 +79,11 @@ type BindingReconciler struct {
 
 type ControllerReferenceSetter func(owner, controlled metav1.Object, scheme *runtime.Scheme) error
 
-type IBMCloudInfoGetter func(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error)
+type IBMCloudInfoGetter func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error)
 
 func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ibmcloudv1beta1.Binding{}).
+		For(&ibmcloudv1.Binding{}).
 		Complete(r)
 }
 
@@ -103,7 +103,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	logt := r.Log.WithValues("binding", request.NamespacedName)
 
 	// Fetch the Binding instance
-	instance := &ibmcloudv1beta1.Binding{}
+	instance := &ibmcloudv1.Binding{}
 	err := r.Get(context.Background(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -116,7 +116,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Set the Status field for the first time
-	if reflect.DeepEqual(instance.Status, ibmcloudv1beta1.BindingStatus{}) {
+	if reflect.DeepEqual(instance.Status, ibmcloudv1.BindingStatus{}) {
 		instance.Status.State = bindingStatePending
 		instance.Status.Message = "Processing Resource"
 		if err := r.Status().Update(ctx, instance); err != nil {
@@ -338,20 +338,20 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	return r.updateStatusOnline(session, instance, serviceInstance, serviceClassType)
 }
 
-func (r *BindingReconciler) getServiceInstance(instance *ibmcloudv1beta1.Binding) (*ibmcloudv1beta1.Service, error) {
+func (r *BindingReconciler) getServiceInstance(instance *ibmcloudv1.Binding) (*ibmcloudv1.Service, error) {
 	serviceNameSpace := instance.ObjectMeta.Namespace
 	if instance.Spec.ServiceNamespace != "" {
 		serviceNameSpace = instance.Spec.ServiceNamespace
 	}
-	serviceInstance := &ibmcloudv1beta1.Service{}
+	serviceInstance := &ibmcloudv1.Service{}
 	err := r.Get(context.Background(), types.NamespacedName{Name: instance.Spec.ServiceName, Namespace: serviceNameSpace}, serviceInstance)
 	if err != nil {
-		return &ibmcloudv1beta1.Service{}, err
+		return &ibmcloudv1.Service{}, err
 	}
 	return serviceInstance, nil
 }
 
-func (r *BindingReconciler) resetResource(instance *ibmcloudv1beta1.Binding) (ctrl.Result, error) {
+func (r *BindingReconciler) resetResource(instance *ibmcloudv1.Binding) (ctrl.Result, error) {
 	instance.Status.State = bindingStatePending
 	instance.Status.Message = "Processing Resource"
 	instance.Status.InstanceID = ""
@@ -373,7 +373,7 @@ func (r *BindingReconciler) resetResource(instance *ibmcloudv1beta1.Binding) (ct
 	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
-func (r *BindingReconciler) updateStatusError(instance *ibmcloudv1beta1.Binding, state string, err error) (ctrl.Result, error) {
+func (r *BindingReconciler) updateStatusError(instance *ibmcloudv1.Binding, state string, err error) (ctrl.Result, error) {
 	message := err.Error()
 	r.Log.Info(message)
 
@@ -396,7 +396,7 @@ func (r *BindingReconciler) updateStatusError(instance *ibmcloudv1beta1.Binding,
 }
 
 // deleteCredentials also deletes the corresponding secret
-func (r *BindingReconciler) deleteCredentials(session *session.Session, instance *ibmcloudv1beta1.Binding, serviceClassType string) error {
+func (r *BindingReconciler) deleteCredentials(session *session.Session, instance *ibmcloudv1.Binding, serviceClassType string) error {
 	r.Log.Info("Deleting", "credentials", instance.ObjectMeta.Name)
 
 	if instance.Spec.Alias == "" { // Delete only if it not alias
@@ -415,7 +415,7 @@ func (r *BindingReconciler) deleteCredentials(session *session.Session, instance
 	return r.deleteSecret(instance)
 }
 
-func (r *BindingReconciler) getAliasCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1beta1.Binding, serviceClassType string) (string, map[string]interface{}, error) {
+func (r *BindingReconciler) getAliasCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1.Binding, serviceClassType string) (string, map[string]interface{}, error) {
 	logt.Info("Getting", " alias credentials", instance.ObjectMeta.Name)
 	name := instance.Spec.Alias
 
@@ -445,7 +445,7 @@ func (r *BindingReconciler) getAliasCredentials(logt logr.Logger, session *sessi
 	return guid, credentials, nil
 }
 
-func (r *BindingReconciler) createCredentials(ctx context.Context, session *session.Session, instance *ibmcloudv1beta1.Binding, serviceClassType string) (string, map[string]interface{}, error) {
+func (r *BindingReconciler) createCredentials(ctx context.Context, session *session.Session, instance *ibmcloudv1.Binding, serviceClassType string) (string, map[string]interface{}, error) {
 	r.Log.Info("Creating", "credentials", instance.ObjectMeta.Name)
 	parameters, err := r.getParams(ctx, instance)
 	if err != nil {
@@ -459,7 +459,7 @@ func (r *BindingReconciler) createCredentials(ctx context.Context, session *sess
 	return r.getResourceServiceCredentials(session, instance, parameters)
 }
 
-func (r *BindingReconciler) getResourceServiceCredentials(session *session.Session, instance *ibmcloudv1beta1.Binding, parameters map[string]interface{}) (string, map[string]interface{}, error) {
+func (r *BindingReconciler) getResourceServiceCredentials(session *session.Session, instance *ibmcloudv1.Binding, parameters map[string]interface{}) (string, map[string]interface{}, error) {
 	instanceCRN, serviceID, err := r.GetServiceInstanceCRN(session, instance.Status.InstanceID)
 	if err != nil {
 		return "", nil, err
@@ -477,7 +477,7 @@ func (r *BindingReconciler) getResourceServiceCredentials(session *session.Sessi
 	return r.CreateResourceServiceKey(session, instance.ObjectMeta.Name, instanceCRN, parameters)
 }
 
-func (r *BindingReconciler) createSecret(instance *ibmcloudv1beta1.Binding, keyContents map[string]interface{}) error {
+func (r *BindingReconciler) createSecret(instance *ibmcloudv1.Binding, keyContents map[string]interface{}) error {
 	r.Log.Info("Creating ", "secret", instance.ObjectMeta.Name)
 	datamap, err := processKey(keyContents)
 	if err != nil {
@@ -505,7 +505,7 @@ func (r *BindingReconciler) createSecret(instance *ibmcloudv1beta1.Binding, keyC
 	return nil
 }
 
-func (r *BindingReconciler) updateStatusOnline(session *session.Session, instance *ibmcloudv1beta1.Binding, serviceInstance *ibmcloudv1beta1.Service, serviceClassType string) (ctrl.Result, error) {
+func (r *BindingReconciler) updateStatusOnline(session *session.Session, instance *ibmcloudv1.Binding, serviceInstance *ibmcloudv1.Service, serviceClassType string) (ctrl.Result, error) {
 	instance.Status.State = bindingStateOnline
 	instance.Status.Message = bindingStateOnline
 	instance.Status.SecretName = getSecretName(instance)
@@ -521,7 +521,7 @@ func (r *BindingReconciler) updateStatusOnline(session *session.Session, instanc
 	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
-func (r *BindingReconciler) getCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1beta1.Binding, serviceClassType string) (string, map[string]interface{}, error) {
+func (r *BindingReconciler) getCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1.Binding, serviceClassType string) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "credentials", instance.ObjectMeta.Name)
 
 	if serviceClassType == "CF" { // service type is CF
@@ -537,7 +537,7 @@ func (r *BindingReconciler) getCredentials(logt logr.Logger, session *session.Se
 	return "", nil, fmt.Errorf(notFound)
 }
 
-func getSecretName(instance *ibmcloudv1beta1.Binding) string {
+func getSecretName(instance *ibmcloudv1.Binding) string {
 	secretName := instance.ObjectMeta.Name
 	if instance.Spec.SecretName != "" {
 		secretName = instance.Spec.SecretName
@@ -553,7 +553,7 @@ func keyContentsChanged(keyContents map[string]interface{}, secret *corev1.Secre
 	return !reflect.DeepEqual(newContent, secret.Data), nil
 }
 
-func (r *BindingReconciler) deleteSecret(instance *ibmcloudv1beta1.Binding) error {
+func (r *BindingReconciler) deleteSecret(instance *ibmcloudv1.Binding) error {
 	r.Log.Info("Deleting ", "secret", instance.Status.SecretName)
 	secret, err := getSecret(r, instance)
 	if err != nil {
@@ -568,12 +568,12 @@ func (r *BindingReconciler) deleteSecret(instance *ibmcloudv1beta1.Binding) erro
 	return nil
 }
 
-func (r *BindingReconciler) getCFCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1beta1.Binding, name string) (string, map[string]interface{}, error) {
+func (r *BindingReconciler) getCFCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1.Binding, name string) (string, map[string]interface{}, error) {
 	logt.Info("Getting", "CF credentials", name)
 	return r.GetCFServiceKeyCredentials(session, instance.Status.InstanceID, name)
 }
 
-func (r *BindingReconciler) getParams(ctx context.Context, instance *ibmcloudv1beta1.Binding) (map[string]interface{}, error) {
+func (r *BindingReconciler) getParams(ctx context.Context, instance *ibmcloudv1.Binding) (map[string]interface{}, error) {
 	params := make(map[string]interface{})
 
 	for _, p := range instance.Spec.Parameters {
@@ -604,7 +604,7 @@ func processKey(keyContents map[string]interface{}) (map[string][]byte, error) {
 }
 
 // paramToJSON converts variable value to JSON value
-func (r *BindingReconciler) paramToJSON(ctx context.Context, p ibmcloudv1beta1.Param, namespace string) (interface{}, error) {
+func (r *BindingReconciler) paramToJSON(ctx context.Context, p ibmcloudv1.Param, namespace string) (interface{}, error) {
 	if p.Value != nil && p.ValueFrom != nil {
 		return nil, fmt.Errorf("Value and ValueFrom properties are mutually exclusive (for %s variable)", p.Name)
 	}
@@ -621,7 +621,7 @@ func (r *BindingReconciler) paramToJSON(ctx context.Context, p ibmcloudv1beta1.P
 }
 
 // paramValueToJSON takes a ParamSource and resolves its value
-func (r *BindingReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmcloudv1beta1.ParamSource, namespace string) (interface{}, error) {
+func (r *BindingReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmcloudv1.ParamSource, namespace string) (interface{}, error) {
 	if valueFrom.SecretKeyRef != nil {
 		data, err := getKubeSecretValue(ctx, r, r.Log, valueFrom.SecretKeyRef.Name, valueFrom.SecretKeyRef.Key, true, namespace)
 		if err != nil {
@@ -640,7 +640,7 @@ func (r *BindingReconciler) paramValueToJSON(ctx context.Context, valueFrom ibmc
 	return nil, fmt.Errorf("Missing secretKeyRef or configMapKeyRef")
 }
 
-func paramToJSONFromRaw(content *ibmcloudv1beta1.ParamValue) (interface{}, error) {
+func paramToJSONFromRaw(content *ibmcloudv1.ParamValue) (interface{}, error) {
 	var data interface{}
 
 	if err := json.Unmarshal(content.RawMessage, &data); err != nil {
@@ -670,7 +670,7 @@ func paramToJSONFromString(content string) (interface{}, error) {
 }
 
 // containsBindingFinalizer checks if the instance contains service finalizer
-func containsBindingFinalizer(instance *ibmcloudv1beta1.Binding) bool {
+func containsBindingFinalizer(instance *ibmcloudv1.Binding) bool {
 	for _, finalizer := range instance.ObjectMeta.Finalizers {
 		if strings.Contains(finalizer, bindingFinalizer) {
 			return true
@@ -680,7 +680,7 @@ func containsBindingFinalizer(instance *ibmcloudv1beta1.Binding) bool {
 }
 
 // deleteBindingFinalizer delete service finalizer
-func deleteBindingFinalizer(instance *ibmcloudv1beta1.Binding) []string {
+func deleteBindingFinalizer(instance *ibmcloudv1.Binding) []string {
 	var result []string
 	for _, finalizer := range instance.ObjectMeta.Finalizers {
 		if finalizer == bindingFinalizer {

@@ -12,7 +12,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/stretchr/testify/assert"
@@ -51,9 +51,9 @@ func TestBinding(t *testing.T) {
 		bindingfile = "testdata/translator-binding.yaml"
 	)
 
-	var service ibmcloudv1beta1.Service
+	var service ibmcloudv1.Service
 	mustLoadObject(t, servicefile, &service, &service.ObjectMeta)
-	var binding ibmcloudv1beta1.Binding
+	var binding ibmcloudv1.Binding
 	mustLoadObject(t, bindingfile, &binding, &binding.ObjectMeta)
 
 	ready := t.Run("should be ready", func(t *testing.T) {
@@ -63,14 +63,14 @@ func TestBinding(t *testing.T) {
 		require.NoError(t, err)
 
 		// make sure service is online
-		require.Eventually(t, verifyStatus(ctx, t, service.ObjectMeta, new(ibmcloudv1beta1.Service), serviceStateOnline), defaultWait, defaultTick)
+		require.Eventually(t, verifyStatus(ctx, t, service.ObjectMeta, new(ibmcloudv1.Service), serviceStateOnline), defaultWait, defaultTick)
 
 		// now test creation of binding
 		err = k8sClient.Create(ctx, &binding)
 		require.NoError(t, err)
 
 		// check binding is online
-		require.Eventually(t, verifyStatus(ctx, t, binding.ObjectMeta, new(ibmcloudv1beta1.Binding), bindingStateOnline), defaultWait, defaultTick)
+		require.Eventually(t, verifyStatus(ctx, t, binding.ObjectMeta, new(ibmcloudv1.Binding), bindingStateOnline), defaultWait, defaultTick)
 
 		// check secret is created
 		err = getObject(ctx, binding.ObjectMeta, &corev1.Secret{})
@@ -96,7 +96,7 @@ func TestBinding(t *testing.T) {
 		require.NoError(t, k8sClient.Delete(ctx, &service))
 
 		assert.Eventually(t, func() bool {
-			err := getObject(ctx, service.ObjectMeta, &ibmcloudv1beta1.Service{})
+			err := getObject(ctx, service.ObjectMeta, &ibmcloudv1.Service{})
 			return errors.IsNotFound(err)
 		}, defaultWait, defaultTick)
 	})
@@ -134,9 +134,9 @@ func TestBindingFailInitialStatus(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
+		&ibmcloudv1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Name: "mybinding"},
-			Status:     ibmcloudv1beta1.BindingStatus{}, // empty
+			Status:     ibmcloudv1.BindingStatus{}, // empty
 		},
 	}
 	client := fake.NewFakeClientWithScheme(scheme, objects...)
@@ -161,18 +161,18 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 	now := metav1Now(t)
 	for _, tc := range []struct {
 		description        string
-		binding            *ibmcloudv1beta1.Binding
+		binding            *ibmcloudv1.Binding
 		fakeClient         *MockConfig
-		expectUpdate       *ibmcloudv1beta1.Binding
-		expectStatusUpdate *ibmcloudv1beta1.Binding
+		expectUpdate       *ibmcloudv1.Binding
+		expectStatusUpdate *ibmcloudv1.Binding
 		expectResult       ctrl.Result
 	}{
 		{
 			description: "no service instance",
-			binding: &ibmcloudv1beta1.Binding{
-				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			binding: &ibmcloudv1.Binding{
+				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding"},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
 			},
@@ -183,87 +183,87 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 		},
 		{
 			description: "binding is deleting",
-			binding: &ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			binding: &ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
 					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
-				Status: ibmcloudv1beta1.BindingStatus{State: bindingStateOnline},
+				Status: ibmcloudv1.BindingStatus{State: bindingStateOnline},
 			},
 			fakeClient: &MockConfig{},
-			expectUpdate: &ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			expectUpdate: &ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
 					DeletionTimestamp: now,
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
-				Status: ibmcloudv1beta1.BindingStatus{State: bindingStateOnline},
+				Status: ibmcloudv1.BindingStatus{State: bindingStateOnline},
 			},
 			expectResult: ctrl.Result{},
 		},
 		{
 			description: "binding is deleting but update fails",
-			binding: &ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			binding: &ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
 					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
-				Status: ibmcloudv1beta1.BindingStatus{State: bindingStateOnline},
+				Status: ibmcloudv1.BindingStatus{State: bindingStateOnline},
 			},
 			fakeClient: &MockConfig{UpdateErr: fmt.Errorf("failed")},
-			expectUpdate: &ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			expectUpdate: &ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "mybinding",
 					DeletionTimestamp: now,
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
-				Status: ibmcloudv1beta1.BindingStatus{State: bindingStateOnline},
+				Status: ibmcloudv1.BindingStatus{State: bindingStateOnline},
 			},
 			expectResult: ctrl.Result{},
 		},
 		{
 			description: "binding is deleting and status service instance is set",
-			binding: &ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			binding: &ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "mybinding",
 					Finalizers: []string{bindingFinalizer},
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
-				Status: ibmcloudv1beta1.BindingStatus{
+				Status: ibmcloudv1.BindingStatus{
 					State:         bindingStateOnline,
 					KeyInstanceID: "myinstance",
 				},
 			},
 			fakeClient: &MockConfig{},
-			expectStatusUpdate: &ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			expectStatusUpdate: &ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "mybinding",
 					Finalizers: []string{bindingFinalizer},
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
-				Status: ibmcloudv1beta1.BindingStatus{
+				Status: ibmcloudv1.BindingStatus{
 					State:   bindingStatePending,
 					Message: "Processing Resource",
 				},
@@ -306,15 +306,15 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
 		objects := []runtime.Object{
-			&ibmcloudv1beta1.Binding{
-				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Binding{
+				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
 			},
-			&ibmcloudv1beta1.Service{
-				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Service{
+				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: namespace},
 			},
 		}
@@ -339,18 +339,18 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
 		objects := []runtime.Object{
-			&ibmcloudv1beta1.Binding{
-				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Binding{
+				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
-				Status: ibmcloudv1beta1.BindingStatus{
+				Status: ibmcloudv1.BindingStatus{
 					State: bindingStateOnline,
 				},
 			},
-			&ibmcloudv1beta1.Service{
-				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Service{
+				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: namespace},
 			},
 		}
@@ -374,13 +374,13 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 		})
 		assert.Equal(t, ctrl.Result{}, result)
 		assert.NoError(t, err)
-		assert.Equal(t, &ibmcloudv1beta1.Binding{
-			TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		assert.Equal(t, &ibmcloudv1.Binding{
+			TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: "myservice",
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State: bindingStateOnline,
 			},
 		}, client.LastUpdate())
@@ -393,17 +393,17 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
 		objects := []runtime.Object{
-			&ibmcloudv1beta1.Binding{
-				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Binding{
+				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
 			},
-			&ibmcloudv1beta1.Service{
-				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Service{
+				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: namespace},
-				Status: ibmcloudv1beta1.ServiceStatus{
+				Status: ibmcloudv1.ServiceStatus{
 					InstanceID: "",
 				},
 			},
@@ -432,17 +432,17 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
 		objects := []runtime.Object{
-			&ibmcloudv1beta1.Binding{
-				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Binding{
+				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: "myservice",
 				},
 			},
-			&ibmcloudv1beta1.Service{
-				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Service{
+				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: namespace},
-				Status: ibmcloudv1beta1.ServiceStatus{
+				Status: ibmcloudv1.ServiceStatus{
 					InstanceID: inProgress,
 				},
 			},
@@ -479,21 +479,21 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 		someInstanceID = "some-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
 				DeletionTimestamp: now,
 				Finalizers:        []string{bindingFinalizer},
 			},
-			Spec:   ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
-			Status: ibmcloudv1beta1.BindingStatus{State: bindingStateFailed},
+			Spec:   ibmcloudv1.BindingSpec{ServiceName: serviceName},
+			Status: ibmcloudv1.BindingStatus{State: bindingStateFailed},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -509,7 +509,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				r.Client = newMockClient( // swap out client so next update fails
 					fake.NewFakeClientWithScheme(scheme, objects...),
 					MockConfig{UpdateErr: fmt.Errorf("failed")},
@@ -523,16 +523,16 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 		})
 		assert.Equal(t, ctrl.Result{}, result)
 		assert.NoError(t, err)
-		assert.Equal(t, &ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		assert.Equal(t, &ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
 				DeletionTimestamp: now,
 				Finalizers:        nil, // attempt to remove finalizers
 			},
-			Spec:   ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
-			Status: ibmcloudv1beta1.BindingStatus{State: bindingStateFailed},
+			Spec:   ibmcloudv1.BindingSpec{ServiceName: serviceName},
+			Status: ibmcloudv1.BindingStatus{State: bindingStateFailed},
 		}, r.Client.(MockClient).LastUpdate())
 		assert.Equal(t, nil, r.Client.(MockClient).LastStatusUpdate())
 	})
@@ -546,7 +546,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
-			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return nil, fmt.Errorf("failed")
 			},
 		}
@@ -559,16 +559,16 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			RequeueAfter: config.Get().SyncPeriod,
 		}, result)
 		assert.NoError(t, err)
-		assert.Equal(t, &ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		assert.Equal(t, &ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
 				DeletionTimestamp: now,
 				Finalizers:        []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Spec: ibmcloudv1.BindingSpec{ServiceName: serviceName},
+			Status: ibmcloudv1.BindingStatus{
 				State:   bindingStatePending,
 				Message: "failed",
 			},
@@ -590,24 +590,24 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			someInstanceID = "some-instance-id"
 		)
 		objects := []runtime.Object{
-			&ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              bindingName,
 					Namespace:         namespace,
 					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: serviceName,
 					Alias:       "some-binding-alias", // use alias plan to mock fewer dependencies during delete creds
 					SecretName:  secretName,
 				},
 			},
-			&ibmcloudv1beta1.Service{
-				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Service{
+				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-				Status: ibmcloudv1beta1.ServiceStatus{
+				Status: ibmcloudv1.ServiceStatus{
 					InstanceID: someInstanceID,
 				},
 			},
@@ -624,7 +624,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -656,25 +656,25 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			someInstanceID = "some-instance-id"
 		)
 		objects := []runtime.Object{
-			&ibmcloudv1beta1.Binding{
-				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Binding{
+				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              bindingName,
 					Namespace:         namespace,
 					DeletionTimestamp: now,
 					Finalizers:        []string{bindingFinalizer},
 				},
-				Spec: ibmcloudv1beta1.BindingSpec{
+				Spec: ibmcloudv1.BindingSpec{
 					ServiceName: serviceName,
 					Alias:       "some-binding-alias", // use alias plan to mock fewer dependencies during delete creds
 					SecretName:  secretName,
 				},
-				Status: ibmcloudv1beta1.BindingStatus{State: bindingStatePending},
+				Status: ibmcloudv1.BindingStatus{State: bindingStatePending},
 			},
-			&ibmcloudv1beta1.Service{
-				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+			&ibmcloudv1.Service{
+				TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-				Status: ibmcloudv1beta1.ServiceStatus{
+				Status: ibmcloudv1.ServiceStatus{
 					InstanceID: someInstanceID,
 				},
 			},
@@ -688,7 +688,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				r.Client = newMockClient( // swap out client so next update fails
 					fake.NewFakeClientWithScheme(scheme, objects...),
 					MockConfig{UpdateErr: fmt.Errorf("failed")},
@@ -705,8 +705,8 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 		})
 		assert.Equal(t, ctrl.Result{}, result)
 		assert.NoError(t, err)
-		assert.Equal(t, &ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		assert.Equal(t, &ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
@@ -714,12 +714,12 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 				Finalizers:        nil, // attempt to remove finalizers
 				ResourceVersion:   "1",
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				Alias:       "some-binding-alias",
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{State: bindingStatePending},
+			Status: ibmcloudv1.BindingStatus{State: bindingStatePending},
 		}, r.Client.(MockClient).LastUpdate())
 	})
 }
@@ -735,21 +735,21 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 		someInstanceID = "some-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              bindingName,
 				Namespace:         namespace,
 				DeletionTimestamp: nil, // not deleting
 				Finalizers:        nil, // AND missing finalizer
 			},
-			Spec:   ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
-			Status: ibmcloudv1beta1.BindingStatus{State: bindingStatePending},
+			Spec:   ibmcloudv1.BindingSpec{ServiceName: serviceName},
+			Status: ibmcloudv1.BindingStatus{State: bindingStatePending},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -760,7 +760,7 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 		Log:    testLogger(t),
 		Scheme: scheme,
 
-		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			r.Client = newMockClient( // swap out client so next update fails
 				fake.NewFakeClientWithScheme(scheme, objects...),
 				MockConfig{UpdateErr: fmt.Errorf("failed")},
@@ -777,16 +777,16 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 	})
 	assert.Equal(t, ctrl.Result{}, result)
 	assert.NoError(t, err)
-	assert.Equal(t, &ibmcloudv1beta1.Binding{
-		TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+	assert.Equal(t, &ibmcloudv1.Binding{
+		TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            bindingName,
 			Namespace:       namespace,
 			Finalizers:      []string{bindingFinalizer}, // added a finalizer
 			ResourceVersion: "1",
 		},
-		Spec:   ibmcloudv1beta1.BindingSpec{ServiceName: serviceName},
-		Status: ibmcloudv1beta1.BindingStatus{State: bindingStatePending},
+		Spec:   ibmcloudv1.BindingSpec{ServiceName: serviceName},
+		Status: ibmcloudv1.BindingStatus{State: bindingStatePending},
 	}, r.Client.(MockClient).LastUpdate())
 }
 
@@ -801,28 +801,28 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 		someInstanceID = "some-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       bindingName,
 				Namespace:  namespace,
 				Finalizers: []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				Alias:       "some-binding-alias", // use alias plan to mock fewer dependencies during delete creds
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:      bindingStatePending,
 				InstanceID: "a-deleted-instance-id",
 				SecretName: secretName,
 			},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -836,7 +836,7 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 		Log:    testLogger(t),
 		Scheme: scheme,
 
-		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			r.Client = newMockClient( // swap out client so next delete fails
 				fake.NewFakeClientWithScheme(scheme, objects...),
 				MockConfig{DeleteErr: fmt.Errorf("failed")},
@@ -856,20 +856,20 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 		RequeueAfter: config.Get().SyncPeriod,
 	}, result)
 	assert.NoError(t, err)
-	assert.Equal(t, &ibmcloudv1beta1.Binding{
-		TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+	assert.Equal(t, &ibmcloudv1.Binding{
+		TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            bindingName,
 			Namespace:       namespace,
 			Finalizers:      []string{bindingFinalizer},
 			ResourceVersion: "1",
 		},
-		Spec: ibmcloudv1beta1.BindingSpec{
+		Spec: ibmcloudv1.BindingSpec{
 			ServiceName: serviceName,
 			Alias:       "some-binding-alias",
 			SecretName:  secretName,
 		},
-		Status: ibmcloudv1beta1.BindingStatus{
+		Status: ibmcloudv1.BindingStatus{
 			State:      bindingStateFailed, // should move to failed state
 			Message:    "failed",
 			InstanceID: "a-deleted-instance-id",
@@ -895,44 +895,44 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 		someInstanceID  = "some-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       bindingName,
 				Namespace:  namespace,
 				Finalizers: []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:      bindingStatePending,
 				InstanceID: someInstanceID,
 				SecretName: secretName,
 			},
 		},
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       aliasTargetName,
 				Namespace:  namespace,
 				Finalizers: []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:      bindingStatePending,
 				InstanceID: someInstanceID,
 				SecretName: secretName,
 			},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -1024,7 +1024,7 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			var testObjects []runtime.Object
 			for _, obj := range objects {
-				if binding, ok := obj.(*ibmcloudv1beta1.Binding); ok && binding.Name != aliasTargetName {
+				if binding, ok := obj.(*ibmcloudv1.Binding); ok && binding.Name != aliasTargetName {
 					binding = binding.DeepCopy()
 					if tc.instanceIDKey {
 						binding.Annotations = map[string]string{idkey: someInstanceID}
@@ -1045,7 +1045,7 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 				Log:    testLogger(t),
 				Scheme: scheme,
 
-				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
 				},
 				SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1075,8 +1075,8 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 			assert.NoError(t, err)
 
 			update := r.Client.(MockClient).LastStatusUpdate()
-			require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-			status := update.(*ibmcloudv1beta1.Binding).Status
+			require.IsType(t, &ibmcloudv1.Binding{}, update)
+			status := update.(*ibmcloudv1.Binding).Status
 			assert.Equal(t, tc.expectState, status.State)
 			assert.Equal(t, tc.expectMessage, status.Message)
 		})
@@ -1095,28 +1095,28 @@ func TestBindingEnsureCredentialsFailed(t *testing.T) {
 		someKeyInstanceID = "some-key-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       bindingName,
 				Namespace:  namespace,
 				Finalizers: []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:         bindingStatePending,
 				InstanceID:    someInstanceID,
 				SecretName:    secretName,
 				KeyInstanceID: someKeyInstanceID,
 			},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -1133,7 +1133,7 @@ func TestBindingEnsureCredentialsFailed(t *testing.T) {
 		Log:    testLogger(t),
 		Scheme: scheme,
 
-		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			return &ibmcloud.Info{}, nil
 		},
 		SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1165,8 +1165,8 @@ func TestBindingEnsureCredentialsFailed(t *testing.T) {
 	}, result)
 	assert.NoError(t, err)
 	update := r.Client.(MockClient).LastStatusUpdate()
-	require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-	status := update.(*ibmcloudv1beta1.Binding).Status
+	require.IsType(t, &ibmcloudv1.Binding{}, update)
+	status := update.(*ibmcloudv1.Binding).Status
 	assert.Equal(t, bindingStateFailed, status.State)
 	assert.Equal(t, "failed", status.Message)
 }
@@ -1183,48 +1183,48 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 		someKeyInstanceID = "some-key-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        bindingName,
 				Namespace:   namespace,
 				Finalizers:  []string{bindingFinalizer},
 				Annotations: map[string]string{idkey: someInstanceID},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				SecretName:  secretName,
 				Alias:       aliasTargetName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:         bindingStatePending,
 				InstanceID:    someInstanceID,
 				SecretName:    secretName,
 				KeyInstanceID: someKeyInstanceID,
 			},
 		},
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       aliasTargetName,
 				Namespace:  namespace,
 				Finalizers: []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:         bindingStatePending,
 				InstanceID:    someInstanceID,
 				SecretName:    secretName,
 				KeyInstanceID: someKeyInstanceID,
 			},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -1243,7 +1243,7 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1263,8 +1263,8 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 		}, result)
 		assert.NoError(t, err)
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStatePending, status.State)
 		assert.Equal(t, "Processing Resource", status.Message)
 	})
@@ -1279,7 +1279,7 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1311,8 +1311,8 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 		}, result)
 		assert.NoError(t, err)
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStateFailed, status.State)
 		assert.Equal(t, "failed", status.Message)
 	})
@@ -1330,28 +1330,28 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 		someKeyInstanceID = "some-key-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       bindingName,
 				Namespace:  namespace,
 				Finalizers: []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:         bindingStatePending,
 				InstanceID:    someInstanceID,
 				SecretName:    secretName,
 				KeyInstanceID: someKeyInstanceID,
 			},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -1366,7 +1366,7 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1399,8 +1399,8 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 		}, r.Client.(MockClient).LastCreate())
 
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStateOnline, status.State)
 		assert.Equal(t, bindingStateOnline, status.Message)
 	})
@@ -1414,7 +1414,7 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1447,8 +1447,8 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 		}, r.Client.(MockClient).LastCreate())
 
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStateFailed, status.State)
 		assert.Equal(t, "failed", status.Message)
 	})
@@ -1466,28 +1466,28 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		someKeyInstanceID = "some-key-instance-id"
 	)
 	objects := []runtime.Object{
-		&ibmcloudv1beta1.Binding{
-			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       bindingName,
 				Namespace:  namespace,
 				Finalizers: []string{bindingFinalizer},
 			},
-			Spec: ibmcloudv1beta1.BindingSpec{
+			Spec: ibmcloudv1.BindingSpec{
 				ServiceName: serviceName,
 				SecretName:  secretName,
 			},
-			Status: ibmcloudv1beta1.BindingStatus{
+			Status: ibmcloudv1.BindingStatus{
 				State:         bindingStatePending,
 				InstanceID:    someInstanceID,
 				SecretName:    secretName,
 				KeyInstanceID: someKeyInstanceID,
 			},
 		},
-		&ibmcloudv1beta1.Service{
-			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1beta1"},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
-			Status: ibmcloudv1beta1.ServiceStatus{
+			Status: ibmcloudv1.ServiceStatus{
 				InstanceID: someInstanceID,
 			},
 		},
@@ -1520,7 +1520,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1556,8 +1556,8 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		}, r.Client.(MockClient).LastCreate())
 
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStateOnline, status.State)
 		assert.Equal(t, bindingStateOnline, status.Message)
 	})
@@ -1589,7 +1589,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1612,8 +1612,8 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		assert.Nil(t, r.Client.(MockClient).LastCreate())
 
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStateOnline, status.State)
 		assert.Equal(t, bindingStateOnline, status.Message)
 	})
@@ -1636,7 +1636,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1662,8 +1662,8 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		}, r.Client.(MockClient).LastDelete())
 
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStateFailed, status.State)
 		assert.Equal(t, "failed", status.Message)
 	})
@@ -1686,7 +1686,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1beta1.Service) (*ibmcloud.Info, error) {
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
@@ -1722,8 +1722,8 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		}, r.Client.(MockClient).LastCreate())
 
 		update := r.Client.(MockClient).LastStatusUpdate()
-		require.IsType(t, &ibmcloudv1beta1.Binding{}, update)
-		status := update.(*ibmcloudv1beta1.Binding).Status
+		require.IsType(t, &ibmcloudv1.Binding{}, update)
+		status := update.(*ibmcloudv1.Binding).Status
 		assert.Equal(t, bindingStateFailed, status.State)
 		assert.Equal(t, "failed", status.Message)
 	})
@@ -1736,9 +1736,9 @@ func TestBindingResetResource(t *testing.T) {
 		secretName = "mysecret"
 		namespace  = "mynamespace"
 	)
-	binding := &ibmcloudv1beta1.Binding{
+	binding := &ibmcloudv1.Binding{
 		ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
-		Spec: ibmcloudv1beta1.BindingSpec{
+		Spec: ibmcloudv1.BindingSpec{
 			SecretName: secretName,
 		},
 	}
@@ -1864,8 +1864,8 @@ func TestBindingUpdateStatusError(t *testing.T) {
 	} {
 		t.Run(tc.description, func(t *testing.T) {
 			scheme := schemas(t)
-			binding := &ibmcloudv1beta1.Binding{
-				Status: ibmcloudv1beta1.BindingStatus{
+			binding := &ibmcloudv1.Binding{
+				Status: ibmcloudv1.BindingStatus{
 					State:   tc.initialState,
 					Message: tc.initialMessage,
 				},
@@ -1885,8 +1885,8 @@ func TestBindingUpdateStatusError(t *testing.T) {
 			assert.NoError(t, err)
 			var expectBinding runtime.Object
 			if tc.expectState != "" {
-				expectBinding = &ibmcloudv1beta1.Binding{
-					Status: ibmcloudv1beta1.BindingStatus{
+				expectBinding = &ibmcloudv1.Binding{
+					Status: ibmcloudv1.BindingStatus{
 						State:   tc.expectState,
 						Message: tc.expectMessage,
 					},
@@ -1901,40 +1901,40 @@ func TestBindingParamToJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		description string
-		param       ibmcloudv1beta1.Param
+		param       ibmcloudv1.Param
 		expectJSON  map[string]interface{}
 		expectErr   string
 	}{
 		{
 			description: "error: value and valueFrom both set",
-			param: ibmcloudv1beta1.Param{
+			param: ibmcloudv1.Param{
 				Name:      "myvalue",
-				Value:     &ibmcloudv1beta1.ParamValue{},
-				ValueFrom: &ibmcloudv1beta1.ParamSource{},
+				Value:     &ibmcloudv1.ParamValue{},
+				ValueFrom: &ibmcloudv1.ParamSource{},
 			},
 			expectErr: "Value and ValueFrom properties are mutually exclusive (for myvalue variable)",
 		},
 		{
 			description: "empty valueFrom error",
-			param: ibmcloudv1beta1.Param{
+			param: ibmcloudv1.Param{
 				Name:      "myvalue",
-				ValueFrom: &ibmcloudv1beta1.ParamSource{},
+				ValueFrom: &ibmcloudv1.ParamSource{},
 			},
 			expectErr: "Missing secretKeyRef or configMapKeyRef",
 		},
 		{
 			description: "empty value error",
-			param: ibmcloudv1beta1.Param{
+			param: ibmcloudv1.Param{
 				Name:  "myvalue",
-				Value: &ibmcloudv1beta1.ParamValue{},
+				Value: &ibmcloudv1.ParamValue{},
 			},
 			expectErr: "unexpected end of JSON input",
 		},
 		{
 			description: "value happy path",
-			param: ibmcloudv1beta1.Param{
+			param: ibmcloudv1.Param{
 				Name: "myvalue",
-				Value: &ibmcloudv1beta1.ParamValue{
+				Value: &ibmcloudv1.ParamValue{
 					RawMessage: json.RawMessage(`{"hello": true, "world": {"!": 1}}`),
 				},
 			},
@@ -1947,7 +1947,7 @@ func TestBindingParamToJSON(t *testing.T) {
 		},
 		{
 			description: "neither value nor valueFrom set",
-			param:       ibmcloudv1beta1.Param{Name: "myvalue"},
+			param:       ibmcloudv1.Param{Name: "myvalue"},
 			expectJSON:  nil,
 			expectErr:   "",
 		},
@@ -1998,7 +1998,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 
 	for _, tc := range []struct {
 		description string
-		valueFrom   ibmcloudv1beta1.ParamSource
+		valueFrom   ibmcloudv1.ParamSource
 		expectJSON  interface{}
 		expectErr   string
 	}{
@@ -2008,7 +2008,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		},
 		{
 			description: "secret ref success",
-			valueFrom: ibmcloudv1beta1.ParamSource{
+			valueFrom: ibmcloudv1.ParamSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: secretName,
@@ -2020,7 +2020,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		},
 		{
 			description: "secret ref name failure",
-			valueFrom: ibmcloudv1beta1.ParamSource{
+			valueFrom: ibmcloudv1.ParamSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: "wrong-secret-name",
@@ -2032,7 +2032,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		},
 		{
 			description: "secret ref key failure",
-			valueFrom: ibmcloudv1beta1.ParamSource{
+			valueFrom: ibmcloudv1.ParamSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: secretName,
@@ -2044,7 +2044,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		},
 		{
 			description: "configmap ref success",
-			valueFrom: ibmcloudv1beta1.ParamSource{
+			valueFrom: ibmcloudv1.ParamSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: configMapName,
@@ -2056,7 +2056,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		},
 		{
 			description: "configmap ref name failure",
-			valueFrom: ibmcloudv1beta1.ParamSource{
+			valueFrom: ibmcloudv1.ParamSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: "wrong-configmap-name",
@@ -2068,7 +2068,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		},
 		{
 			description: "configmap ref key failure",
-			valueFrom: ibmcloudv1beta1.ParamSource{
+			valueFrom: ibmcloudv1.ParamSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: configMapName,
@@ -2136,28 +2136,28 @@ func TestDeleteBindingFinalizer(t *testing.T) {
 	t.Parallel()
 	t.Run("no finalizer found", func(t *testing.T) {
 		finalizers := []string(nil)
-		assert.Equal(t, finalizers, deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+		assert.Equal(t, finalizers, deleteBindingFinalizer(&ibmcloudv1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
 		}))
 	})
 
 	t.Run("one other finalizer found", func(t *testing.T) {
 		finalizers := []string{"not-binding-finalizer"}
-		assert.Equal(t, finalizers, deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+		assert.Equal(t, finalizers, deleteBindingFinalizer(&ibmcloudv1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
 		}))
 	})
 
 	t.Run("one finalizer found", func(t *testing.T) {
 		finalizers := []string{bindingFinalizer}
-		assert.Equal(t, []string(nil), deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+		assert.Equal(t, []string(nil), deleteBindingFinalizer(&ibmcloudv1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
 		}))
 	})
 
 	t.Run("multiple finalizers found", func(t *testing.T) {
 		finalizers := []string{bindingFinalizer, bindingFinalizer}
-		assert.Equal(t, []string(nil), deleteBindingFinalizer(&ibmcloudv1beta1.Binding{
+		assert.Equal(t, []string(nil), deleteBindingFinalizer(&ibmcloudv1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Finalizers: finalizers},
 		}))
 	})
@@ -2166,9 +2166,9 @@ func TestDeleteBindingFinalizer(t *testing.T) {
 func TestBindingDeleteCredentials(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
-	binding := &ibmcloudv1beta1.Binding{
+	binding := &ibmcloudv1.Binding{
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
-		Spec: ibmcloudv1beta1.BindingSpec{
+		Spec: ibmcloudv1.BindingSpec{
 			Alias: "", // not an alias, so should delete IBM Cloud resources
 		},
 	}
@@ -2178,9 +2178,9 @@ func TestBindingDeleteCredentials(t *testing.T) {
 	}
 	objects := []runtime.Object{
 		binding,
-		&ibmcloudv1beta1.Service{
+		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
-			Spec:       ibmcloudv1beta1.ServiceSpec{},
+			Spec:       ibmcloudv1.ServiceSpec{},
 		},
 		secret,
 	}
@@ -2254,13 +2254,13 @@ func TestBindingDeleteCredentials(t *testing.T) {
 func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
-	binding := &ibmcloudv1beta1.Binding{
+	binding := &ibmcloudv1.Binding{
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
-		Spec:       ibmcloudv1beta1.BindingSpec{},
+		Spec:       ibmcloudv1.BindingSpec{},
 	}
-	service := &ibmcloudv1beta1.Service{
+	service := &ibmcloudv1.Service{
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
-		Spec:       ibmcloudv1beta1.ServiceSpec{},
+		Spec:       ibmcloudv1.ServiceSpec{},
 	}
 
 	client := newMockClient(
@@ -2283,13 +2283,13 @@ func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
 		RequeueAfter: config.Get().SyncPeriod,
 	}, result)
 	assert.NoError(t, err)
-	assert.Equal(t, &ibmcloudv1beta1.Binding{
+	assert.Equal(t, &ibmcloudv1.Binding{
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
-		Status: ibmcloudv1beta1.BindingStatus{
+		Status: ibmcloudv1.BindingStatus{
 			State:      bindingStateOnline,
 			Message:    bindingStateOnline,
 			SecretName: "myservice",
 		},
-		Spec: ibmcloudv1beta1.BindingSpec{},
+		Spec: ibmcloudv1.BindingSpec{},
 	}, client.LastStatusUpdate())
 }

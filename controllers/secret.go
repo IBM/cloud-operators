@@ -5,14 +5,14 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // getSecret takes a name and namespace for a Binding and returns the corresponding secret
-func getSecret(r client.Client, binding *ibmcloudv1beta1.Binding) (*v1.Secret, error) {
+func getSecret(r client.Client, binding *ibmcloudv1.Binding) (*v1.Secret, error) {
 	secretName := binding.Name
 	if binding.Spec.SecretName != "" {
 		secretName = binding.Spec.SecretName

@@ -13,4 +13,10 @@ resources:
 - group: ibmcloud
   kind: Service
   version: v1beta1
+- group: ibmcloud
+  kind: Binding
+  version: v1
+- group: ibmcloud
+  kind: Service
+  version: v1
 version: "2"

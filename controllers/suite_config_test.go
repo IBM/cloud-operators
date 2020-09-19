@@ -15,14 +15,13 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -47,7 +46,7 @@ func setup() error {
 func setupConfigs() error {
 	ctx := context.Background()
 
-	err := k8sClient.Create(ctx, &v1.ConfigMap{
+	err := k8sClient.Create(ctx, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ibmcloud-operator-defaults",
 			Namespace: testNamespace,
@@ -64,7 +63,7 @@ func setupConfigs() error {
 		return err
 	}
 
-	err = k8sClient.Create(ctx, &v1.Secret{
+	err = k8sClient.Create(ctx, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ibmcloud-operator-secret",
 			Namespace: testNamespace,
@@ -77,7 +76,7 @@ func setupConfigs() error {
 		return err
 	}
 
-	return k8sClient.Create(ctx, &v1.Secret{
+	return k8sClient.Create(ctx, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ibmcloud-operator-tokens",
 			Namespace: testNamespace,
@@ -159,7 +158,7 @@ func getAuthTokens(sess *session.Session) (uaaAccessToken, uaaRefreshToken strin
 }
 
 func schemas(t *testing.T) *runtime.Scheme {
-	scheme, err := ibmcloudv1beta1.SchemeBuilder.Build()
+	scheme, err := ibmcloudv1.SchemeBuilder.Build()
 	require.NoError(t, err)
 	require.NoError(t, corev1.SchemeBuilder.AddToScheme(scheme))
 	return scheme

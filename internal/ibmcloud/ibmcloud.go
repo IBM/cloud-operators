@@ -16,7 +16,7 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/models"
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/config"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,11 +55,11 @@ type Info struct {
 	ServicePlanID    string
 	TargetCrn        string
 	Token            string
-	Context          ibmcloudv1beta1.ResourceContext
+	Context          ibmcloudv1.ResourceContext
 }
 
 // GetInfo initializes sessions and sets up a struct to faciliate making calls to bx
-func GetInfo(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (*Info, error) {
+func GetInfo(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*Info, error) {
 	bxConfig, err := getBxConfig(logt, r, instance)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func GetInfo(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Servic
 	return getInfoHelper(logt, r, &bxConfig, ibmCloudContext, instance)
 }
 
-func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nctx ibmcloudv1beta1.ResourceContext, instance *ibmcloudv1beta1.Service) (*Info, error) {
+func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nctx ibmcloudv1.ResourceContext, instance *ibmcloudv1.Service) (*Info, error) {
 	servicename := instance.Spec.ServiceClass
 	servicetype := instance.Spec.ServiceClassType
 	serviceplan := instance.Spec.Plan
@@ -229,7 +229,7 @@ func getInfoHelper(logt logr.Logger, r client.Client, config *bluemix.Config, nc
 	}, nil
 }
 
-func getBxConfig(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (bluemix.Config, error) {
+func getBxConfig(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (bluemix.Config, error) {
 	secretName := seedSecret
 	secretNameSpace := instance.ObjectMeta.Namespace
 
@@ -258,9 +258,9 @@ func getBxConfig(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Se
 	return c, nil
 }
 
-func getIBMCloudDefaultContext(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (ibmcloudv1beta1.ResourceContext, error) {
+func getIBMCloudDefaultContext(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (ibmcloudv1.ResourceContext, error) {
 	// If the object already has the context set in its Status, then we don't read from the configmap
-	if !reflect.DeepEqual(instance.Status.Context, ibmcloudv1beta1.ResourceContext{}) {
+	if !reflect.DeepEqual(instance.Status.Context, ibmcloudv1.ResourceContext{}) {
 		return instance.Status.Context, nil
 	}
 
@@ -271,14 +271,14 @@ func getIBMCloudDefaultContext(logt logr.Logger, r client.Client, instance *ibmc
 	err := getConfigOrSecret(logt, r, cmNameSpace, cmName, cm)
 	if err != nil {
 		logt.Info("Unable to get IBM Cloud Operator configmap in namespace", cmNameSpace, err)
-		return ibmcloudv1beta1.ResourceContext{}, err
+		return ibmcloudv1.ResourceContext{}, err
 	}
 
 	ibmCloudContext := getIBMCloudContext(instance, cm)
 	return ibmCloudContext, nil
 }
 
-func getIamToken(logt logr.Logger, r client.Client, instance *ibmcloudv1beta1.Service) (string, string, string, string, error) {
+func getIamToken(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (string, string, string, string, error) {
 	secretName := seedTokens
 	secretNameSpace := instance.ObjectMeta.Namespace
 
@@ -318,9 +318,9 @@ func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace stri
 	return nil
 }
 
-func getIBMCloudContext(instance *ibmcloudv1beta1.Service, cm *v1.ConfigMap) ibmcloudv1beta1.ResourceContext {
-	if (ibmcloudv1beta1.ResourceContext{}) == instance.Spec.Context {
-		newContext := ibmcloudv1beta1.ResourceContext{
+func getIBMCloudContext(instance *ibmcloudv1.Service, cm *v1.ConfigMap) ibmcloudv1.ResourceContext {
+	if (ibmcloudv1.ResourceContext{}) == instance.Spec.Context {
+		newContext := ibmcloudv1.ResourceContext{
 			Org:             cm.Data["org"],
 			Space:           cm.Data["space"],
 			Region:          cm.Data["region"],
