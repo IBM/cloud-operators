@@ -149,7 +149,7 @@ func getVersions(v interface{}) []string {
 			strA += "~"
 		}
 		if isDigits(strings.TrimPrefix(strB, "v")) {
-			strA += "~"
+			strB += "~"
 		}
 		return strA < strB
 	})

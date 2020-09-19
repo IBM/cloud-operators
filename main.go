@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
 	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	// +kubebuilder:scaffold:imports
@@ -49,6 +50,7 @@ func init() {
 
 	_ = ibmcloudv1alpha1.AddToScheme(scheme)
 	_ = ibmcloudv1beta1.AddToScheme(scheme)
+	_ = ibmcloudv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

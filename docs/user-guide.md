@@ -10,7 +10,7 @@ IBM Cloud public instances.
 To create an instance of an IBM public cloud service, create the following custom resource, `service.yaml`:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Service
 metadata:
     name: myservice
@@ -58,7 +58,7 @@ Failed: No deployment found for service plan <plan> at location <location>. Vali
 
 Here's an example of how to set the region to `global`:
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Service
 metadata:
   name: mycos
@@ -96,7 +96,7 @@ instance and the reserved plan name `Alias`. For example, if the service `mytran
 use the following custom resource to link it:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Service
 metadata:
   name: mytranslator
@@ -111,7 +111,7 @@ The following would also work:
 
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Service
 metadata:
   name: mytranslator-alias
@@ -178,7 +178,7 @@ Let's assume you want to use the first instance; then, simply copy the ID value 
 `ibmcloud.ibm.com/instanceId` annotation. The resource definition for this example is then:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Service
 metadata:
   name: mytranslator
@@ -217,7 +217,7 @@ then deleting the resource will not delete the service instance.
 You can bind to a service with name `myservice` using the following custom resource:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Binding
 metadata:
     name: mybinding
@@ -248,7 +248,7 @@ In this case, the binding needs to be deleted manually and will not be deleted w
 Bindings can also be created by specifying Roles and ServiceIds. The following example shows a binding yaml with a specific Role:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Binding
 metadata:
   name: binding-myes
@@ -262,7 +262,7 @@ The strings allowed for Roles depend on the service for which credentials are be
 ServiceIds can be specified by passing a parameter in the binding yaml:
 
 ```yaml
-apiVersion: ibmcloud.ibm.com/v1alpha1
+apiVersion: ibmcloud.ibm.com/v1
 kind: Binding
 metadata:
   name: binding-translator
@@ -286,8 +286,8 @@ ibmcloud iam service-id <serviceId-name>
 When many bindings are needed on the same service, it is possible to link to the same set of credentials on the service instance,
 instead of creating new ones.
 
-```
-apiVersion: ibmcloud.ibm.com/v1alpha1
+```yaml
+apiVersion: ibmcloud.ibm.com/v1
 kind: Binding
 metadata:
   name: binding-translator-alias

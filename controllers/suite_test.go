@@ -46,7 +46,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -128,7 +128,7 @@ func mainSetup(ctx context.Context) error {
 		return err
 	}
 
-	err = ibmcloudv1beta1.AddToScheme(scheme.Scheme)
+	err = ibmcloudv1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		return err
 	}
