@@ -10,6 +10,7 @@ import (
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -20,15 +21,15 @@ type Controllers struct {
 	*TokenReconciler
 }
 
-func SetUpControllers(mgr ctrl.Manager) (*Controllers, error) {
+func SetUpControllers(mgr ctrl.Manager, options controller.Options) (*Controllers, error) {
 	c := setUpControllerDependencies(mgr)
-	if err := c.BindingReconciler.SetupWithManager(mgr); err != nil {
+	if err := c.BindingReconciler.SetupWithManager(mgr, options); err != nil {
 		return nil, errors.Wrap(err, "Unable to setup binding controller")
 	}
-	if err := c.ServiceReconciler.SetupWithManager(mgr); err != nil {
+	if err := c.ServiceReconciler.SetupWithManager(mgr, options); err != nil {
 		return nil, errors.Wrap(err, "Unable to setup service controller")
 	}
-	if err := c.TokenReconciler.SetupWithManager(mgr); err != nil {
+	if err := c.TokenReconciler.SetupWithManager(mgr, options); err != nil {
 		return nil, errors.Wrap(err, "Unable to setup token controller")
 	}
 

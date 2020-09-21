@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/config"
@@ -69,8 +70,8 @@ type ServiceReconciler struct {
 	UpdateResourceServiceInstance   resource.ServiceInstanceUpdater
 }
 
-func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOpt controller.Options) error {
+	return ctrl.NewControllerManagedBy(mgr).WithOptions(ctrlOpt).
 		For(&ibmcloudv1.Service{}).
 		Complete(r)
 }

@@ -37,6 +37,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -134,7 +135,10 @@ func mainSetup(ctx context.Context) error {
 		return err
 	}
 
-	c, err := SetUpControllers(k8sManager)
+	options := controller.Options{
+		MaxConcurrentReconciles: 1,
+	}
+	c, err := SetUpControllers(k8sManager, options)
 	if err != nil {
 		return err
 	}
