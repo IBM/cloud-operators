@@ -18,20 +18,13 @@ package main
 
 import (
 	"flag"
-	"net/http"
 	"os"
 
 	"github.com/ibm/cloud-operators/controllers"
-	"github.com/ibm/cloud-operators/internal/ibmcloud"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
@@ -77,52 +70,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.BindingReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
-		Scheme: mgr.GetScheme(),
-
-		CreateCFServiceKey:         cfservice.CreateKey,
-		CreateResourceServiceKey:   resource.CreateKey,
-		DeleteCFServiceKey:         cfservice.DeleteKey,
-		DeleteResourceServiceKey:   resource.DeleteKey,
-		GetCFServiceKeyCredentials: cfservice.GetKey,
-		GetIBMCloudInfo:            ibmcloud.GetInfo,
-		GetResourceServiceKey:      resource.GetKey,
-		GetServiceName:             resource.GetServiceName,
-		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
-		SetControllerReference:     controllerutil.SetControllerReference,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Binding")
+	if _, err := controllers.SetUpControllers(mgr); err != nil {
+		setupLog.Error(err, "Unable to set up controllers")
 		os.Exit(1)
 	}
-	if err = (&controllers.ServiceReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Service"),
-		Scheme: mgr.GetScheme(),
-
-		CreateCFServiceInstance:         cfservice.CreateInstance,
-		CreateResourceServiceInstance:   resource.CreateServiceInstance,
-		DeleteResourceServiceInstance:   resource.DeleteServiceInstance,
-		GetCFServiceInstance:            cfservice.GetInstance,
-		GetIBMCloudInfo:                 ibmcloud.GetInfo,
-		GetResourceServiceAliasInstance: resource.GetServiceAliasInstance,
-		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
-		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Service")
-		os.Exit(1)
-	}
-	if err = (&controllers.TokenReconciler{
-		Client:       mgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("Token"),
-		Scheme:       mgr.GetScheme(),
-		Authenticate: auth.New(http.DefaultClient),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Token")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
