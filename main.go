@@ -27,10 +27,12 @@ import (
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/iam"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
+	"github.com/kelseyhightower/envconfig"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -54,6 +56,10 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
+type ControllerConfig struct {
+	MaxConcurrentReconciles int `envconfig:"max_concurrent_reconciles"`
+}
+
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -65,6 +71,8 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
+	var controllerConfig ControllerConfig
+	envconfig.MustProcess("", &controllerConfig)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -92,7 +100,9 @@ func main() {
 		GetServiceName:             resource.GetServiceName,
 		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
 		SetControllerReference:     controllerutil.SetControllerReference,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{
+		MaxConcurrentReconciles: controllerConfig.MaxConcurrentReconciles,
+	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Binding")
 		os.Exit(1)
 	}
@@ -109,7 +119,9 @@ func main() {
 		GetResourceServiceAliasInstance: resource.GetServiceAliasInstance,
 		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
 		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{
+		MaxConcurrentReconciles: controllerConfig.MaxConcurrentReconciles,
+	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
 	}
@@ -118,7 +130,9 @@ func main() {
 		Log:          ctrl.Log.WithName("controllers").WithName("Token"),
 		Scheme:       mgr.GetScheme(),
 		Authenticate: auth.New(http.DefaultClient),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{
+		MaxConcurrentReconciles: controllerConfig.MaxConcurrentReconciles,
+	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Token")
 		os.Exit(1)
 	}

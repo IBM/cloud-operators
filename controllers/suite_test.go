@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -156,7 +157,9 @@ func mainSetup(ctx context.Context) error {
 		GetServiceName:             resource.GetServiceName,
 		GetServiceRoleCRN:          iam.GetServiceRoleCRN,
 		SetControllerReference:     controllerutil.SetControllerReference,
-	}).SetupWithManager(k8sManager); err != nil {
+	}).SetupWithManager(k8sManager, controller.Options{
+		MaxConcurrentReconciles: 1,
+	}); err != nil {
 		return errors.Wrap(err, "Failed to set up binding controller")
 	}
 	if err = (&ServiceReconciler{
@@ -172,7 +175,9 @@ func mainSetup(ctx context.Context) error {
 		GetResourceServiceAliasInstance: resource.GetServiceAliasInstance,
 		GetResourceServiceInstanceState: resource.GetServiceInstanceState,
 		UpdateResourceServiceInstance:   resource.UpdateServiceInstance,
-	}).SetupWithManager(k8sManager); err != nil {
+	}).SetupWithManager(k8sManager, controller.Options{
+		MaxConcurrentReconciles: 1,
+	}); err != nil {
 		return errors.Wrap(err, "Failed to set up service controller")
 	}
 	tokenReconciler := &TokenReconciler{
@@ -187,7 +192,9 @@ func mainSetup(ctx context.Context) error {
 			tokenReconciler.Authenticate = auth.New(http.DefaultClient)
 		})
 	}
-	if err = tokenReconciler.SetupWithManager(k8sManager); err != nil {
+	if err = tokenReconciler.SetupWithManager(k8sManager, controller.Options{
+		MaxConcurrentReconciles: 1,
+	}); err != nil {
 		return errors.Wrap(err, "Failed to set up token controller")
 	}
 

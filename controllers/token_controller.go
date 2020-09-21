@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -123,8 +124,8 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{RequeueAfter: 10 * time.Minute}, nil
 }
 
-func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOpt controller.Options) error {
+	return ctrl.NewControllerManagedBy(mgr).WithOptions(ctrlOpt).
 		For(&corev1.Secret{}).
 		WithEventFilter(predicate.Funcs{
 			CreateFunc: func(e event.CreateEvent) bool { return shouldProcessSecret(e.Meta) },
