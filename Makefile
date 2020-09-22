@@ -3,6 +3,8 @@ export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
+KUBEVAL_VERSION= 0.15.0
+KUBEVAL_KUBE_VERSION=1.18.1
 # Set PATH to pick up cached tools. The additional 'sed' is required for cross-platform support of quoting the args to 'env'
 SHELL := /usr/bin/env PATH=$(shell echo ${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH} | sed 's/ /\\ /g') bash
 
@@ -177,6 +179,10 @@ release-prep: kustomize manifests out
 .PHONY: release
 release: release-prep docker-push
 
+.PHONY: validate-release
+validate-release: verify-operator-meta docker-build kubeval
+	kubeval -d out --kubernetes-version "${KUBEVAL_KUBE_VERSION}" --ignored-filename-patterns package.yaml --ignore-missing-schemas
+
 .PHONY: operator-courier
 operator-courier:
 	@if ! which operator-courier; then \
@@ -210,3 +216,10 @@ operator-push-test: verify-operator-meta docker-build
 	docker login -u="${QUAY_USER}" -p="${QUAY_TOKEN}" quay.io
 	docker push "${IMG}"
 	operator-courier push ./out "${QUAY_NAMESPACE}" "${QUAY_APP}" "${RELEASE_VERSION}" "Basic $$(printf "${QUAY_USER}:${QUAY_TOKEN}" | base64)"
+
+.PHONY: kubeval
+kubeval: cache/bin
+	@if [[ ! -f cache/bin/kubeval ]]; then \
+		set -ex -o pipefail; \
+		curl -sL https://github.com/instrumenta/kubeval/releases/download/${KUBEVAL_VERSION}/kubeval-$$(uname)-amd64.tar.gz | tar -xz -C cache/bin; \
+	fi
