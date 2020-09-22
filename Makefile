@@ -3,6 +3,8 @@ export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
+KUBEVAL_VERSION= 0.15.0
+KUBEVAL_KUBE_VERSION=1.18.1
 # Set PATH to pick up cached tools. The additional 'sed' is required for cross-platform support of quoting the args to 'env'
 SHELL := /usr/bin/env PATH=$(shell echo ${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH} | sed 's/ /\\ /g') bash
 
@@ -62,7 +64,12 @@ cache/bin/kustomize: cache/bin
 	@rm -f cache/bin/kustomize
 	cd cache/bin && \
 		set -o pipefail && \
-		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+		for (( i = 0; i < 5; i++ )); do \
+			curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash; \
+			if [[ "$$(which kustomize)" =~ cache/bin/kustomize ]]; then \
+				break; \
+			fi \
+		done
 	[[ "$$(which kustomize)" =~ cache/bin/kustomize ]]
 
 .PHONY: test-fast
@@ -177,6 +184,12 @@ release-prep: kustomize manifests out
 .PHONY: release
 release: release-prep docker-push
 
+# Validates release artifacts.
+# TODO add validation for operator-courier. Currently hitting WAY too many issues with Travis CI and Python deps.
+.PHONY: validate-release
+validate-release: kubeval release-prep docker-build
+	kubeval -d out --kubernetes-version "${KUBEVAL_KUBE_VERSION}" --ignored-filename-patterns package.yaml --ignore-missing-schemas
+
 .PHONY: operator-courier
 operator-courier:
 	@if ! which operator-courier; then \
@@ -189,6 +202,7 @@ verify-operator-meta: release-prep operator-courier
 	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/001_ibmcloud_v1alpha1_binding.yaml > out/0.1.11_ibmcloud_v1alpha1_binding.yaml
 	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/002_ibmcloud_v1alpha1_service.yaml > out/0.1.11_ibmcloud_v1alpha1_service.yaml
 	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/ibmcloud_operator.v0.1.11.clusterserviceversion.yaml > out/ibmcloud_operator.v0.1.11.clusterserviceversion.yaml
+	ls out
 	operator-courier verify --ui_validate_io out/
 
 .PHONY: operator-push-test
@@ -210,3 +224,10 @@ operator-push-test: verify-operator-meta docker-build
 	docker login -u="${QUAY_USER}" -p="${QUAY_TOKEN}" quay.io
 	docker push "${IMG}"
 	operator-courier push ./out "${QUAY_NAMESPACE}" "${QUAY_APP}" "${RELEASE_VERSION}" "Basic $$(printf "${QUAY_USER}:${QUAY_TOKEN}" | base64)"
+
+.PHONY: kubeval
+kubeval: cache/bin
+	@if [[ ! -f cache/bin/kubeval ]]; then \
+		set -ex -o pipefail; \
+		curl -sL https://github.com/instrumenta/kubeval/releases/download/${KUBEVAL_VERSION}/kubeval-$$(uname)-amd64.tar.gz | tar -xz -C cache/bin; \
+	fi
