@@ -21,11 +21,12 @@ import (
 	"os"
 
 	"github.com/ibm/cloud-operators/controllers"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	zapLog "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
@@ -56,7 +57,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	ctrl.SetLogger(zapLog.New(zapLog.UseDevMode(true), zapLog.RawZapOpts(zap.AddCaller())))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
