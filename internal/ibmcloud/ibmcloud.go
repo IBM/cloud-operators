@@ -293,7 +293,7 @@ func getIamToken(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service
 }
 
 func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace string, objName string, obj runtime.Object) error {
-	defaultNamespace, isManagement := getDefaultNamespace(r)
+	defaultNamespace, isManagement := getDefaultNamespace(logt, r)
 	if isManagement {
 		objName = instanceNamespace + "-" + objName
 		err := r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: defaultNamespace}, obj)
@@ -308,11 +308,12 @@ func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace stri
 		if IsNotFound(err) {
 			err = r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: defaultNamespace}, obj)
 			if err != nil {
-				logt.Info("Unable to find secret or config in namespace", objName, defaultNamespace)
+				logt.Info("Unable to find secret or config in same namespace or default namespace", "secret or config", objName, "namespace", instanceNamespace, "default namespace", defaultNamespace)
 				return err
 			}
 			return nil
 		}
+		logt.Error(err, "Unknown error getting config or secret", "name", objName, "namespace", instanceNamespace)
 		return err
 	}
 	return nil
@@ -347,7 +348,7 @@ func getIBMCloudContext(instance *ibmcloudv1.Service, cm *v1.ConfigMap) ibmcloud
 	return instance.Spec.Context
 }
 
-func getDefaultNamespace(r client.Client) (string, bool) {
+func getDefaultNamespace(logt logr.Logger, r client.Client) (string, bool) {
 	cm := &v1.ConfigMap{}
 	err := r.Get(context.Background(), types.NamespacedName{Namespace: config.Get().ControllerNamespace, Name: icoConfigMap}, cm)
 	if err != nil {
@@ -355,5 +356,6 @@ func getDefaultNamespace(r client.Client) (string, bool) {
 	}
 
 	// There exists an ico-management configmap in the controller namespace
+	logt.Info("Found ibmcloud-operator-config in own namespace, using that namespace for configuration", "own namespace", config.Get().ControllerNamespace, "management namespace", cm.Data["namespace"])
 	return cm.Data["namespace"], true
 }
