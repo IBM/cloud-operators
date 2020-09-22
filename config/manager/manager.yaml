@@ -40,7 +40,7 @@ spec:
           limits:
             cpu: 100m
             # TODO(johnstarich): Reduce back to 30Mi once this is resolved: https://github.com/IBM/cloud-operators/issues/199
-            memory: 125Mi
+            memory: 175Mi
           requests:
             cpu: 100m
             memory: 20Mi
