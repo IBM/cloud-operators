@@ -64,7 +64,11 @@ cache/bin/kustomize: cache/bin
 	@rm -f cache/bin/kustomize
 	cd cache/bin && \
 		set -o pipefail && \
-		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+		for (( i = 0; i < 5; i++ )); do \
+			if curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash; then \
+				break; \
+			fi \
+		done
 	[[ "$$(which kustomize)" =~ cache/bin/kustomize ]]
 
 .PHONY: test-fast
