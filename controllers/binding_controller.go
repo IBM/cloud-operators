@@ -39,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 const (
@@ -81,8 +82,9 @@ type ControllerReferenceSetter func(owner, controlled metav1.Object, scheme *run
 
 type IBMCloudInfoGetter func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error)
 
-func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(options).
 		For(&ibmcloudv1.Binding{}).
 		Complete(r)
 }
