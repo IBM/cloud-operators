@@ -65,7 +65,8 @@ cache/bin/kustomize: cache/bin
 	cd cache/bin && \
 		set -o pipefail && \
 		for (( i = 0; i < 5; i++ )); do \
-			if curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash; then \
+			curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash; \
+			if [[ "$$(which kustomize)" =~ cache/bin/kustomize ]]; then \
 				break; \
 			fi \
 		done
@@ -183,18 +184,16 @@ release-prep: kustomize manifests out
 .PHONY: release
 release: release-prep docker-push
 
+# Validates release artifacts.
+# TODO add validation for operator-courier. Currently hitting WAY too many issues with Travis CI and Python deps.
 .PHONY: validate-release
-validate-release: verify-operator-meta docker-build kubeval
+validate-release: kubeval release-prep docker-build
 	kubeval -d out --kubernetes-version "${KUBEVAL_KUBE_VERSION}" --ignored-filename-patterns package.yaml --ignore-missing-schemas
 
 .PHONY: operator-courier
 operator-courier:
 	@if ! which operator-courier; then \
-		if which pip; then \
-			pip install operator-courier; \
-		else \
-			pip3 install operator-courier; \
-		fi
+		pip3 install operator-courier; \
 	fi
 
 .PHONY: verify-operator-meta
@@ -203,6 +202,7 @@ verify-operator-meta: release-prep operator-courier
 	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/001_ibmcloud_v1alpha1_binding.yaml > out/0.1.11_ibmcloud_v1alpha1_binding.yaml
 	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/002_ibmcloud_v1alpha1_service.yaml > out/0.1.11_ibmcloud_v1alpha1_service.yaml
 	curl -sL https://github.com/IBM/cloud-operators/releases/download/v0.1.11/ibmcloud_operator.v0.1.11.clusterserviceversion.yaml > out/ibmcloud_operator.v0.1.11.clusterserviceversion.yaml
+	ls out
 	operator-courier verify --ui_validate_io out/
 
 .PHONY: operator-push-test
