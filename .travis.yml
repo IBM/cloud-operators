@@ -15,8 +15,8 @@ jobs:
       if: (branch = master AND type = push) OR type = pull_request  # Don't run int tests too much on the same account in parallel, risks service name conflict failures
     - name: Test End-to-end
       script: make test-e2e
-    - name: Docker Build
-      script: make docker-build
+    - name: Release Validation
+      script: make validate-release RELEASE_VERSION=0.3.0  # Fake version, just used for quick validation
     - name: Release
       stage: release
       script: make -e RELEASE_VERSION="${TRAVIS_TAG/v}" release
