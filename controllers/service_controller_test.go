@@ -32,6 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+var (
+	testErrNotFound = fmt.Errorf("not found")
+)
+
 func TestService(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
@@ -84,7 +88,7 @@ func TestService(t *testing.T) {
 					}, defaultWait, defaultTick)
 
 					_, err = getServiceInstanceFromObj(logger, serviceCopy)
-					assert.True(t, ibmcloud.IsNotFound(err), "Expect service to be deleted")
+					assert.Equal(t, testErrNotFound, err, "Expect service to be deleted")
 				}
 			})
 		}
@@ -126,7 +130,7 @@ func TestService(t *testing.T) {
 		}, defaultWait, defaultTick)
 
 		_, err := getServiceInstanceFromObj(logger, serviceCopy)
-		assert.True(t, ibmcloud.IsNotFound(err))
+		assert.Equal(t, testErrNotFound, err)
 	})
 
 	t.Run("should fail", func(t *testing.T) {
@@ -182,7 +186,7 @@ func getServiceInstanceFromObj(logt logr.Logger, service *ibmcloudv1.Service) (m
 			return instance, nil
 		}
 	}
-	return models.ServiceInstance{}, fmt.Errorf("not found")
+	return models.ServiceInstance{}, testErrNotFound
 }
 
 func TestServiceV1Alpha1Compat(t *testing.T) {
@@ -212,7 +216,7 @@ func TestServiceV1Alpha1Compat(t *testing.T) {
 	}, defaultWait, defaultTick)
 
 	_, err = getServiceInstanceFromObj(logger, serviceCopy)
-	assert.True(t, ibmcloud.IsNotFound(err), "Expect service to be deleted")
+	assert.Equal(t, testErrNotFound, err, "Expect service to be deleted")
 }
 
 func TestServiceV1Beta1Compat(t *testing.T) {
@@ -242,7 +246,7 @@ func TestServiceV1Beta1Compat(t *testing.T) {
 	}, defaultWait, defaultTick)
 
 	_, err = getServiceInstanceFromObj(logger, serviceCopy)
-	assert.True(t, ibmcloud.IsNotFound(err), "Expect service to be deleted")
+	assert.Equal(t, testErrNotFound, err, "Expect service to be deleted")
 }
 
 func TestServiceLoadServiceFailed(t *testing.T) {
