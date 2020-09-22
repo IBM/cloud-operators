@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	testErrNotFound = fmt.Errorf("not found")
+	errNotFoundTest = fmt.Errorf("not found")
 )
 
 func TestService(t *testing.T) {
@@ -88,7 +88,7 @@ func TestService(t *testing.T) {
 					}, defaultWait, defaultTick)
 
 					_, err = getServiceInstanceFromObj(logger, serviceCopy)
-					assert.Equal(t, testErrNotFound, err, "Expect service to be deleted")
+					assert.Equal(t, errNotFoundTest, err, "Expect service to be deleted")
 				}
 			})
 		}
@@ -130,7 +130,7 @@ func TestService(t *testing.T) {
 		}, defaultWait, defaultTick)
 
 		_, err := getServiceInstanceFromObj(logger, serviceCopy)
-		assert.Equal(t, testErrNotFound, err)
+		assert.Equal(t, errNotFoundTest, err)
 	})
 
 	t.Run("should fail", func(t *testing.T) {
@@ -186,7 +186,7 @@ func getServiceInstanceFromObj(logt logr.Logger, service *ibmcloudv1.Service) (m
 			return instance, nil
 		}
 	}
-	return models.ServiceInstance{}, testErrNotFound
+	return models.ServiceInstance{}, errNotFoundTest
 }
 
 func TestServiceV1Alpha1Compat(t *testing.T) {
@@ -216,7 +216,7 @@ func TestServiceV1Alpha1Compat(t *testing.T) {
 	}, defaultWait, defaultTick)
 
 	_, err = getServiceInstanceFromObj(logger, serviceCopy)
-	assert.Equal(t, testErrNotFound, err, "Expect service to be deleted")
+	assert.Equal(t, errNotFoundTest, err, "Expect service to be deleted")
 }
 
 func TestServiceV1Beta1Compat(t *testing.T) {
@@ -246,7 +246,7 @@ func TestServiceV1Beta1Compat(t *testing.T) {
 	}, defaultWait, defaultTick)
 
 	_, err = getServiceInstanceFromObj(logger, serviceCopy)
-	assert.Equal(t, testErrNotFound, err, "Expect service to be deleted")
+	assert.Equal(t, errNotFoundTest, err, "Expect service to be deleted")
 }
 
 func TestServiceLoadServiceFailed(t *testing.T) {
