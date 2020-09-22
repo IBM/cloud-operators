@@ -40,7 +40,7 @@ func getMaintainers(repoRoot string) ([]Maintainer, error) {
 	}
 
 	var commits []*object.Commit
-	const maxCommits = 200
+	const maxCommits = 100
 	for i := 0; i < maxCommits; i++ {
 		commit, err := commitIter.Next()
 		if err == io.EOF {
