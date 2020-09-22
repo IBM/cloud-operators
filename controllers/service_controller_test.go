@@ -1292,6 +1292,9 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 				GetResourceServiceAliasInstance: func(session *session.Session, instanceID, resourceGroupID, servicePlanID, externalName string, logt logr.Logger) (id string, state string, err error) {
 					return "", "", resource.NotFoundError{Err: fmt.Errorf("failed")}
 				},
+				CreateResourceServiceInstance: func(session *session.Session, externalName, servicePlanID, resourceGroupID, targetCrn string, params map[string]interface{}, tags []string) (id, state string, err error) {
+					panic("Must not re-create an alias service") // https://github.com/IBM/cloud-operators/issues/71
+				},
 			}
 			result, err := r.Reconcile(ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
@@ -1336,6 +1339,9 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 				},
 				GetResourceServiceAliasInstance: func(session *session.Session, instanceID, resourceGroupID, servicePlanID, externalName string, logt logr.Logger) (id string, state string, err error) {
 					return "", "", fmt.Errorf("failed")
+				},
+				CreateResourceServiceInstance: func(session *session.Session, externalName, servicePlanID, resourceGroupID, targetCrn string, params map[string]interface{}, tags []string) (id, state string, err error) {
+					panic("Must not re-create an alias service") // https://github.com/IBM/cloud-operators/issues/71
 				},
 			}
 			result, err := r.Reconcile(ctrl.Request{
@@ -1745,6 +1751,9 @@ func TestServiceVerifyExists(t *testing.T) {
 			GetResourceServiceInstanceState: func(session *session.Session, resourceGroupID, servicePlanID, externalName, instanceID string) (state string, err error) {
 				return "", resource.NotFoundError{Err: fmt.Errorf("failed")}
 			},
+			CreateResourceServiceInstance: func(session *session.Session, externalName, servicePlanID, resourceGroupID, targetCrn string, params map[string]interface{}, tags []string) (id, state string, err error) {
+				panic("Must not re-create an alias service") // https://github.com/IBM/cloud-operators/issues/71
+			},
 		}
 
 		result, err := r.Reconcile(ctrl.Request{
@@ -1768,6 +1777,55 @@ func TestServiceVerifyExists(t *testing.T) {
 				Plan:         aliasPlan,
 				ServiceClass: "service-name",
 				InstanceID:   "",
+			},
+			Spec: ibmcloudv1.ServiceSpec{
+				Plan:         aliasPlan,
+				ServiceClass: "service-name",
+			},
+		}, r.Client.(MockClient).LastStatusUpdate())
+	})
+
+	t.Run("other error alias", func(t *testing.T) {
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, aliasObjects...),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
+				return &ibmcloud.Info{}, nil
+			},
+			GetResourceServiceInstanceState: func(session *session.Session, resourceGroupID, servicePlanID, externalName, instanceID string) (state string, err error) {
+				return "", fmt.Errorf("failed")
+			},
+			CreateResourceServiceInstance: func(session *session.Session, externalName, servicePlanID, resourceGroupID, targetCrn string, params map[string]interface{}, tags []string) (id, state string, err error) {
+				panic("Must not re-create an alias service") // https://github.com/IBM/cloud-operators/issues/71
+			},
+		}
+
+		result, err := r.Reconcile(ctrl.Request{
+			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
+		})
+		assert.Equal(t, ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: config.Get().SyncPeriod,
+		}, result)
+		assert.NoError(t, err)
+		assert.Equal(t, &ibmcloudv1.Service{
+			TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       serviceName,
+				Namespace:  namespace,
+				Finalizers: []string{serviceFinalizer},
+			},
+			Status: ibmcloudv1.ServiceStatus{
+				State:        serviceStatePending,
+				Message:      "failed",
+				Plan:         aliasPlan,
+				ServiceClass: "service-name",
+				InstanceID:   "myinstanceid",
 			},
 			Spec: ibmcloudv1.ServiceSpec{
 				Plan:         aliasPlan,
