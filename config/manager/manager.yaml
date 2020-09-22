@@ -33,7 +33,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: MAX_CONCURRENT_RECONCILES
-          value: 1
+          value: "1"
         image: controller:latest
         name: manager
         resources:
