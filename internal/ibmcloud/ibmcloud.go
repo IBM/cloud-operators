@@ -19,6 +19,7 @@ import (
 	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/config"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -305,7 +306,7 @@ func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace stri
 	}
 	err := r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: instanceNamespace}, obj)
 	if err != nil {
-		if IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			err = r.Get(context.TODO(), types.NamespacedName{Name: objName, Namespace: defaultNamespace}, obj)
 			if err != nil {
 				logt.Info("Unable to find secret or config in same namespace or default namespace", "secret or config", objName, "namespace", instanceNamespace, "default namespace", defaultNamespace)
