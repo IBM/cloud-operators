@@ -124,8 +124,9 @@ func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{RequeueAfter: 10 * time.Minute}, nil
 }
 
-func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOpt controller.Options) error {
-	return ctrl.NewControllerManagedBy(mgr).WithOptions(ctrlOpt).
+func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(options).
 		For(&corev1.Secret{}).
 		WithEventFilter(predicate.Funcs{
 			CreateFunc: func(e event.CreateEvent) bool { return shouldProcessSecret(e.Meta) },

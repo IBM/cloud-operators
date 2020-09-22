@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/ibm/cloud-operators/internal/config"
 	"github.com/ibm/cloud-operators/internal/ibmcloud"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
@@ -21,8 +22,12 @@ type Controllers struct {
 	*TokenReconciler
 }
 
-func SetUpControllers(mgr ctrl.Manager, options controller.Options) (*Controllers, error) {
+func SetUpControllers(mgr ctrl.Manager) (*Controllers, error) {
 	c := setUpControllerDependencies(mgr)
+
+	options := controller.Options{
+		MaxConcurrentReconciles: config.Get().MaxConcurrentReconciles,
+	}
 	if err := c.BindingReconciler.SetupWithManager(mgr, options); err != nil {
 		return nil, errors.Wrap(err, "Unable to setup binding controller")
 	}

@@ -70,8 +70,9 @@ type ServiceReconciler struct {
 	UpdateResourceServiceInstance   resource.ServiceInstanceUpdater
 }
 
-func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOpt controller.Options) error {
-	return ctrl.NewControllerManagedBy(mgr).WithOptions(ctrlOpt).
+func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(options).
 		For(&ibmcloudv1.Service{}).
 		Complete(r)
 }

@@ -21,13 +21,11 @@ import (
 	"os"
 
 	"github.com/ibm/cloud-operators/controllers"
-	"github.com/kelseyhightower/envconfig"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	zapLog "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
@@ -50,10 +48,6 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-type ControllerConfig struct {
-	MaxConcurrentReconciles int `envconfig:"max_concurrent_reconciles"`
-}
-
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -65,8 +59,6 @@ func main() {
 
 	ctrl.SetLogger(zapLog.New(zapLog.UseDevMode(true), zapLog.RawZapOpts(zap.AddCaller())))
 
-	var controllerConfig ControllerConfig
-	envconfig.MustProcess("", &controllerConfig)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -79,10 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	options := controller.Options{
-		MaxConcurrentReconciles: controllerConfig.MaxConcurrentReconciles,
-	}
-	if _, err := controllers.SetUpControllers(mgr, options); err != nil {
+	if _, err := controllers.SetUpControllers(mgr); err != nil {
 		setupLog.Error(err, "Unable to set up controllers")
 		os.Exit(1)
 	}

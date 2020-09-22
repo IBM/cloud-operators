@@ -82,8 +82,9 @@ type ControllerReferenceSetter func(owner, controlled metav1.Object, scheme *run
 
 type IBMCloudInfoGetter func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error)
 
-func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOpt controller.Options) error {
-	return ctrl.NewControllerManagedBy(mgr).WithOptions(ctrlOpt).
+func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(options).
 		For(&ibmcloudv1.Binding{}).
 		Complete(r)
 }
