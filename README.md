@@ -64,6 +64,10 @@ Existing `Service` and `Binding` resources **do not** need modification for the 
 
 **Tip:** Forgot to update the secret and configmap names before upgrading? The operator will not take action on Service and Binding resources until the new secrets and configmaps have been created. Creating these after the upgrade will also work.
 
+### Changelog
+
+For a list of recent changes, see the [releases page](https://github.com/IBM/cloud-operators/releases).
+
 <!-- END SHOW operator hub -->
 [Back to top](#ibm-cloud-operator)
 <!-- SHOW operator hub -->
