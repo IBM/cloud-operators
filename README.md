@@ -199,9 +199,11 @@ Before you begin, complete the [prerequisite steps](#prerequisites) to log in to
 [Back to top](#ibm-cloud-operator)
 
 ### Uninstalling the operator
+**WARNING:** This is a destructive operation. The uninstaller deletes the `Service` and `Binding` CRDs, which deletes the custom resources of those types. If you only want to upgrade to a newer version, only delete the operator's Deployment.
+
 Before you begin, complete the [prerequisite steps](#prerequisites) to log in to IBM Cloud and your cluster.
 
-To remove the operator, run the following script:
+To remove the operator and all of the associated custom resources, run the following script:
 
 ```bash
 curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- remove
