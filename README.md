@@ -62,6 +62,8 @@ Existing `Service` and `Binding` resources **do not** need modification for the 
 | ${namespace}-secret-ibm-cloud-operator | **${namespace}-ibmcloud-operator-secret**   | Management namespace Secret with the API key for ${namespace}.                        |
 | ${namespace}-config-ibm-cloud-operator | **${namespace}-ibmcloud-operator-defaults** | Management namespace ConfigMap with default values for new resources in ${namespace}. |
 
+**Tip:** Forgot to update the secret and configmap names before upgrading? The operator will not take action on Service and Binding resources until the new secrets and configmaps have been created. Creating these after the upgrade will also work.
+
 <!-- END SHOW operator hub -->
 [Back to top](#ibm-cloud-operator)
 <!-- SHOW operator hub -->
