@@ -45,9 +45,31 @@ With the IBM Cloud Operator, you can provision and bind [IBM public cloud servic
 <!-- SHOW operator hub -->
 
 ## Upgrading the operator
-To upgrade an OperatorHub installation, use the OpenShift web console to perform the upgrade. If upgrading from the `alpha` channel subscription to `stable`, follow the additional upgrade instructions below.
 
-To upgrade other installations, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator). If your current installation is version 0.1.x or 0.2.x, then follow the additional upgrade instructions below.
+<!-- END SHOW operator hub -->
+
+Follow the instructions for the kind of installation you used: OperatorHub or the `curl` [installation command](README.md#setting-up-the-operator).
+
+### `curl` installation command
+
+To upgrade existing `curl` installs, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator).
+If your current installation is version 0.1.x or 0.2.x, then follow these steps to complete a successful upgrade.
+
+1. [Copy your secrets and configmaps](#upgrading-to-version-03-or-10) to use the new names.
+2. Re-run the `curl` [installation command](#setting-up-the-operator) to install the latest version.
+3. Verify the new operator is running.
+    ```bash
+    kubectl get pods -n ibmcloud-operator-system
+    ```
+4. Verify `ibmcloud.ibm.com/v1` `Service` versions provision correctly.
+5. Delete the old version with `kubectl delete ns ibmcloud-operators`.
+6. Delete the secrets and configmaps using the old names from step 1.
+
+### OperatorHub
+
+<!-- SHOW operator hub -->
+
+To upgrade an OperatorHub installation, use the OpenShift web console to perform the upgrade. If upgrading from the `alpha` channel subscription to `stable`, follow the additional upgrade instructions below.
 
 ### Upgrading to version v0.3 or v1.0
 **IMPORTANT NOTICE:** v0.1 and v0.2 used a different naming scheme for secrets and configmaps. Before you update the IBM Cloud Operator, create secret and configmap resources with these names and copy the contents of your previous resources to the new resources. Then, the upgraded operator recognizes and continues to update the resources.
@@ -63,6 +85,7 @@ Existing `Service` and `Binding` resources **do not** need modification for the 
 | ${namespace}-config-ibm-cloud-operator | **${namespace}-ibmcloud-operator-defaults** | Management namespace ConfigMap with default values for new resources in ${namespace}. |
 
 **Tip:** Forgot to update the secret and configmap names before upgrading? The operator will not take action on Service and Binding resources until the new secrets and configmaps have been created. Creating these after the upgrade will also work.
+
 
 ### OperatorHub stable channel
 We're committed to providing continuous updates and bug fixes to the latest stable channel. Subscribing to the `stable` channel in OperatorHub means you automatically get the latest updates without breaking backward compatibility.
