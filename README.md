@@ -87,7 +87,7 @@ Existing `Service` and `Binding` resources **do not** need modification for the 
     ibmcloud target -g default -r us-south
     ```
 
-6.  If you intend to provision Cloud Foundry services, target the appropriate `org` and `space` (`--cf`).
+6.  If you also want to provision Cloud Foundry services, target the appropriate `org` and `space` (`--cf`).
 
     ```bash
     ibmcloud target --cf
