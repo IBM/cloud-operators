@@ -128,11 +128,13 @@ For a list of recent changes, see the [releases page](https://github.com/IBM/clo
 <!-- END SHOW operator hub -->
 
 If your cluster is in IBM Cloud Kubernetes Service, run the following command.
+
 ```bash
 ibmcloud ks cluster config -c <cluster_name_or_ID>
 ```
 
 To check that your Kubernetes context is set to your cluster, run the following command.
+
 ```bash
 kubectl config current-context
 ```
@@ -147,6 +149,7 @@ By default, the installation script stores an API key in a Kubernetes secret in 
 Next, the script sets default values that are used to provision IBM Cloud services, like the resource group and region to provision the services in. Later, you can override any default value in the `Service` custom resource. Finally, the script deploys the operator in your cluster.
 
 To use your own API key, set the `IBMCLOUD_API_KEY` environment variable to the key before running the installation script:
+
 ```bash
 export IBMCLOUD_API_KEY="CUSTOM_API_KEY"
 ```
