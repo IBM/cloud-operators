@@ -75,36 +75,47 @@ To upgrade, you can reinstall the operator through the OperatorHub or the `curl`
     ibmcloud login
     ```
 
-5.  Target the appropriate environment (`--cf`) and resource group (`-g`). Note that you must still set the Cloud Foundry `org` and `space` environment, even if you do not create any Cloud Foundry services.
+5.  Target the appropriate resource group (`-g`) and default region (`-r`) for provisioning services:
 
     ```bash
-    ibmcloud target --cf -g <default>
+    ibmcloud target -g default -r us-south
     ```
 
-6.  Set the Kubernetes context of your CLI to your cluster so that you can run `kubectl` commands. For example, if your cluster runs OpenShift, use the `oc login` command.
+6.  If you intend to provision Cloud Foundry services, target the appropriate `org` and `space` (`--cf`).
+
+    ```bash
+    ibmcloud target --cf
+    ```
+
+7.  Set the Kubernetes context of your CLI to your cluster so that you can run `kubectl` commands. For example, if your cluster runs OpenShift, use the `oc login` command.
 
 <!-- END SHOW operator hub -->
 
 If your cluster is in IBM Cloud Kubernetes Service, run the following command.
+```bash
+ibmcloud ks cluster config -c <cluster_name_or_ID>
+```
 
-    ```bash
-    ibmcloud ks cluster config -c <cluster_name_or_ID>
-    ```
-
-    To check that your Kubernetes context is set to your cluster, run the following command.
-
-    ```bash
-    kubectl config current-context
-    ```
+To check that your Kubernetes context is set to your cluster, run the following command.
+```bash
+kubectl config current-context
+```
 
 [Back to top](#ibm-cloud-operator)
 <!-- SHOW operator hub -->
 
 ## Setting up the operator
 
-You can use an installation script to set up the IBM Cloud Operator. The installation script stores an API key in a Kubernetes secret in your cluster that can be accessed by the IBM Cloud Operator. Next, the script sets default values that are used to provision IBM Cloud services, like the resource group and region to provision the services in. Later, you can override any default value in the `Service` custom resource. Finally, the script deploys the operator in your cluster.
+You can use an installation script to set up the IBM Cloud Operator.
+By default, the installation script stores an API key in a Kubernetes secret in your cluster that can be accessed by the IBM Cloud Operator.
+Next, the script sets default values that are used to provision IBM Cloud services, like the resource group and region to provision the services in. Later, you can override any default value in the `Service` custom resource. Finally, the script deploys the operator in your cluster.
 
-If installed with Operator Hub, the operator will be installed into `openshift-operators`. Otherwise, it will be installed in the `ibmcloud-operator-system` namespace.
+To use your own API key, set the `IBMCLOUD_API_KEY` environment variable to the key before running the installation script:
+```bash
+export IBMCLOUD_API_KEY="CUSTOM_API_KEY"
+```
+
+If installed with Operator Hub, the operator will run in the `openshift-operators` namespace. Otherwise, it will run in the `ibmcloud-operator-system` namespace.
 
 Prefer to create the secrets and defaults yourself? See the [IBM Cloud Operator installation guide](docs/install.md).
 
@@ -133,7 +144,7 @@ By default, the installation script creates an IBM Cloud API key that impersonat
 4.  Set the API key of the service ID as your CLI environment variable. Now, when you run the installation script, the script uses the service ID's API key. The following command is an example for macOS.
 
     ```bash
-    setenv IBMCLOUD_API_KEY <apikey-ico-value>
+    export IBMCLOUD_API_KEY=<apikey-ico-value>
     ```
 
 5.  Confirm that the API key environment variable is set in your CLI.
