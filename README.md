@@ -49,10 +49,12 @@ To upgrade an OperatorHub installation, use the OpenShift web console to perform
 
 To upgrade other installations, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator). If your current installation is less than version 0.3.0, then follow the additional upgrade instructions below.
 
-### Upgrading to version 0.3.0 or later
+### Upgrading to version v0.3 or v1.0
 **IMPORTANT NOTICE:** v0.1 and v0.2 used a different naming scheme for secrets and configmaps. Before you update the IBM Cloud Operator, create secret and configmap resources with these names and copy the contents of your previous resources to the new resources. Then, the upgraded operator recognizes and continues to update the resources.
 
-| Previous names (v0.1 and v0.2)         | **Current names (v0.3 and v1)**             | Description                                                                           |
+Existing `Service` and `Binding` resources **do not** need modification for the upgrade.
+
+| Previous names (v0.1 and v0.2)         | **Current names (v0.3 and v1.0)**             | Description                                                                           |
 |:---------------------------------------|:--------------------------------------------|:--------------------------------------------------------------------------------------|
 | secret-ibm-cloud-operator              | **ibmcloud-operator-secret**                | Secret with the API key, scoped to the namespace.                                     |
 | config-ibm-cloud-operator              | **ibmcloud-operator-defaults**              | ConfigMap with the default values for new resources.                                  |
