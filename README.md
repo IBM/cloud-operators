@@ -55,7 +55,7 @@ Follow the instructions for the kind of installation you used: OperatorHub or th
 To upgrade existing `curl` installs, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator).
 If your current installation is version 0.1.x or 0.2.x, then follow these steps to complete a successful upgrade.
 
-1. [Copy your secrets and configmaps](#upgrading-to-version-03-or-10) to use the new names.
+1. [Copy your secrets and configmaps](#upgrading-to-version-v03-or-v10) to use the new names.
 2. Re-run the `curl` [installation command](#setting-up-the-operator) to install the latest version.
 3. Verify the new operator is running.
     ```bash
