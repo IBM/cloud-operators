@@ -102,7 +102,9 @@ If your cluster is in IBM Cloud Kubernetes Service, run the following command.
 
 ## Setting up the operator
 
-You can use an installation script to set up the IBM Cloud Operator. The installation script stores an API key in a Kubernetes secret in your cluster that can be accessed by the IBM Cloud Operator. Next, the script sets default values that are used to provision IBM Cloud services, like the resource group and region to provision the services in. Later, you can override any default value in the `Service` custom resource. Finally, the script deploys the operator in your cluster in the `ibmcloud-operators` namespace.
+You can use an installation script to set up the IBM Cloud Operator. The installation script stores an API key in a Kubernetes secret in your cluster that can be accessed by the IBM Cloud Operator. Next, the script sets default values that are used to provision IBM Cloud services, like the resource group and region to provision the services in. Later, you can override any default value in the `Service` custom resource. Finally, the script deploys the operator in your cluster.
+
+If installed with Operator Hub, the operator will be installed into `openshift-operators`. Otherwise, it will be installed in the `ibmcloud-operator-system` namespace.
 
 Prefer to create the secrets and defaults yourself? See the [IBM Cloud Operator installation guide](docs/install.md).
 
@@ -309,7 +311,7 @@ By default, the API key credentials and other IBM Cloud account information are 
     kind: ConfigMap
     metadata:
       name: ibmcloud-operator-config
-      namespace: ibmcloud-operators # Or update to the namespace where IBM Cloud Operator is running
+      namespace: openshift-operators # Or update to the namespace where IBM Cloud Operator is running
       labels:
         app.kubernetes.io/name: ibmcloud-operator
     data:
