@@ -47,7 +47,7 @@ With the IBM Cloud Operator, you can provision and bind [IBM public cloud servic
 ## Upgrading the operator
 To upgrade an OperatorHub installation, use the OpenShift web console to perform the upgrade. If upgrading from the `alpha` channel subscription to `stable`, follow the additional upgrade instructions below.
 
-To upgrade other installations, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator). If your current installation is less than version 0.3.0, then follow the additional upgrade instructions below.
+To upgrade other installations, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator). If your current installation is version 0.1.x or 0.2.x, then follow the additional upgrade instructions below.
 
 ### Upgrading to version v0.3 or v1.0
 **IMPORTANT NOTICE:** v0.1 and v0.2 used a different naming scheme for secrets and configmaps. Before you update the IBM Cloud Operator, create secret and configmap resources with these names and copy the contents of your previous resources to the new resources. Then, the upgraded operator recognizes and continues to update the resources.
