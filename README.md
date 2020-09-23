@@ -330,7 +330,7 @@ By default, the API key credentials and other IBM Cloud account information are 
     EOF
     ```
 
-3.  Copy the existing or create your own `ibmcloud-operator-secret` secrets and `ibmcloud-operator-defaults` configmaps from the other Kubernetes namespace into the `safe` namespace. **Important**: You must rename the secrets and configmaps with the following naming convention. **Tip**: You can create these new secrets and configmaps similarly to `make install`, if you are familiar with that process.
+3.  Copy the existing or create your own `ibmcloud-operator-secret` secrets and `ibmcloud-operator-defaults` configmaps from the other Kubernetes namespace into the `safe` namespace. **Important**: You must rename the secrets and configmaps with the following naming convention.
 
     ```
     <namespace>-ibmcloud-operator-secret
