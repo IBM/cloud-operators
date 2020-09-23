@@ -45,18 +45,20 @@ With the IBM Cloud Operator, you can provision and bind [IBM public cloud servic
 <!-- SHOW operator hub -->
 
 ## Upgrading the operator
-To upgrade, you can reinstall the operator through the OperatorHub or the `curl` [installation command](README.md#setting-up-the-operator).
+To upgrade an OperatorHub installation, use the OpenShift web console to perform the upgrade. If upgrading from the `alpha` channel subscription to `stable`, follow the additional upgrade instructions below.
+
+To upgrade other installations, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator). If your current installation is less than version 0.3.0, then follow the additional upgrade instructions below.
 
 ### Upgrading to version 0.3.0 or later
 **IMPORTANT NOTICE:** v0.1 and v0.2 used a different naming scheme for secrets and configmaps. Before you update the IBM Cloud Operator, create secret and configmap resources with these names and copy the contents of your previous resources to the new resources. Then, the upgraded operator recognizes and continues to update the resources.
 
-| Previous names (&lt; v0.3)             | **Current names (v0.3 or later)**           | Description                                                                                 |
-|:---------------------------------------|:--------------------------------------------|:--------------------------------------------------------------------------------------------|
-| secret-ibm-cloud-operator              | **ibmcloud-operator-secret**                | Secret with the API key, scoped to the namespace.                                           |
-| config-ibm-cloud-operator              | **ibmcloud-operator-defaults**              | ConfigMap with the default values for new resources.                                        |
-| ibm-cloud-operator                     | **ibmcloud-operator-config**                | ConfigMap with the management namespace configuration.                                      |
-| ${namespace}-secret-ibm-cloud-operator | **${namespace}-ibmcloud-operator-secret**   | Management namespace Secret with the API key for ${namespace}.                              |
-| ${namespace}-config-ibm-cloud-operator | **${namespace}-ibmcloud-operator-defaults** | Management namespace ConfigMap with default values for new resources in ${namespace}.       |
+| Previous names (v0.1 and v0.2)         | **Current names (v0.3 and v1)**             | Description                                                                           |
+|:---------------------------------------|:--------------------------------------------|:--------------------------------------------------------------------------------------|
+| secret-ibm-cloud-operator              | **ibmcloud-operator-secret**                | Secret with the API key, scoped to the namespace.                                     |
+| config-ibm-cloud-operator              | **ibmcloud-operator-defaults**              | ConfigMap with the default values for new resources.                                  |
+| ibm-cloud-operator                     | **ibmcloud-operator-config**                | ConfigMap with the management namespace configuration.                                |
+| ${namespace}-secret-ibm-cloud-operator | **${namespace}-ibmcloud-operator-secret**   | Management namespace Secret with the API key for ${namespace}.                        |
+| ${namespace}-config-ibm-cloud-operator | **${namespace}-ibmcloud-operator-defaults** | Management namespace ConfigMap with default values for new resources in ${namespace}. |
 
 <!-- END SHOW operator hub -->
 [Back to top](#ibm-cloud-operator)
