@@ -88,7 +88,7 @@ Existing `Service` and `Binding` resources **do not** need modification for the 
 
 
 ### OperatorHub stable channel
-We're committed to providing continuous updates and bug fixes to the latest stable channel. Subscribing to the `stable` channel in OperatorHub means you automatically get the latest updates without breaking backward compatibility.
+Continuous updates and bug fixes are provided in the latest stable channel. Subscribing to the `stable` channel in OperatorHub means you automatically get the latest updates without breaking backward compatibility.
 
 ### Changelog
 
