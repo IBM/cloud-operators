@@ -23,13 +23,13 @@ With the IBM Cloud Operator, you can provision and bind [IBM public cloud servic
     *   [Uninstalling the operator](#uninstalling-the-operator)
 *   [Using the IBM Cloud Operator](#using-the-ibm-cloud-operator)
 *   [Using separate IBM Cloud accounts](#using-separate-ibm-cloud-accounts)
-*   [Using a management namespace](#using-a-management-namespace)
+*   [Setting up a management namespace](#setting-up-a-management-namespace)
 *   [Reference documentation](#reference-documentation)
     * [Service properties](#service-properties)
     * [Binding properties](#binding-properties)
     * [Account context in operator secret and configmap](#account-context-in-operator-secret-and-configmap)
     * [Versions](#versions)
-*   [Contributing](#contributing)
+*   [Contributing to the project](#contributing-to-the-project)
 *   [Troubleshooting](#troubleshooting)
 
 <!-- SHOW operator hub -->
