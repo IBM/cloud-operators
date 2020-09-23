@@ -162,7 +162,7 @@ Prefer to create the secrets and defaults yourself? See the [IBM Cloud Operator 
 
 By default, the installation script creates an IBM Cloud API key that impersonates your user credentials, to use to set up the IBM Cloud Operator. However, you might want to create a service ID in IBM Cloud Identity and Access Managment (IAM). By using a service ID, you can control access for the IBM Cloud Operator without having the permissions tied to a particular user, such as if that user leaves the company. For more information, see the [IBM Cloud docs](https://cloud.ibm.com/docs/account?topic=account-serviceids).
 
-1.  Create a service ID in IBM Cloud IAM.
+1.  Create a service ID in IBM Cloud IAM. If possible, do not use spaces in the names for your IAM credentials. When you use the operator binding feature, any spaces are replaced with underscores.
 
     ```bash
     ibmcloud iam service-id-create serviceid-ico -d service-ID-for-ibm-cloud-operator
@@ -419,7 +419,7 @@ A `Binding` custom resources includes the properties in the following table. For
 |:-----------------|:---------|:---------|:------------------------------------------------------------------------------------------------------|
 | serviceName      | Yes      | `string` | The name of the `Service` resource that corresponds to the service instance on which to create credentials for the binding. |
 | serviceNamespace | No       | `string` | The namespace of the `Service` resource.|
-| alias            | No       | `string` | The name of existing IBM Cloud credentials to link this binding to. This binding creates a secret for these credentials in the cluster namespace, but cannot modify the existing credentials in IBM Cloud.|
+| alias            | No       | `string` | The name of existing IBM Cloud credentials to link this binding to. This binding creates a secret for these credentials in the cluster namespace, but cannot modify the existing credentials in IBM Cloud. Note that any spaces are replaced with underscores.|
 | secretName       | No       | `string` | The name of the `Secret` to be created. If you do not specify a value, the secret is given the same name as the binding.|
 | role             | No       | `string` | The IBM Cloud IAM role to create the credentials to the service instance. Review the each service's documentation for a description of the roles. If you do not specify a role, the IAM `Manager` service access role is used. If the service does not support the `Manager` role, the first returned role from the service is used. |
 | parameters       | No       | `[]Any`  | Parameters that are passed in to create the create the service credentials. These parameters vary by service, and can be anything, such as an integer, string, or object. |
