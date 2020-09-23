@@ -217,7 +217,7 @@ curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/confi
 
 To use the IBM Cloud Operator, create a service instance and then bind the service to your cluster. For more information, see the [sample configuration files](config/samples), [user guide](docs/user-guide.md), and [reference documentation](README.md#reference).
 
-**Step 1: Creating a service instance**
+#### Step 1: Creating a service instance
 
 1.  To create an instance of an IBM public cloud service, first create a `Service` custom resource file. For more options, see the [Service properties](README.md#service-properties) reference doc.
     *   `<SERVICE_CLASS>` is the IBM Cloud service that you want to create. To list IBM Cloud services, run `ibmcloud catalog service-marketplace` and use the **Name** value from the output.
@@ -253,9 +253,7 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
     ibmcloud resource service-instances | grep myservice
     ```
 
-<br>
-
-**Step 2: Binding the service instance**
+#### Step 2: Binding the service instance
 
 1.  To bind your service to the cluster so that your apps can use the service, create a `Binding` custom resource, where the `serviceName` field is the name of the `Service` custom resource that you previously created. For more options, see [Binding properties](README.md#binding-properties).
 
@@ -278,16 +276,16 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
 
     ```bash
     kubectl get bindings.ibmcloud
-    NAME                 STATUS   AGE
-    mybinding            Online   25s
+    NAME         STATUS   AGE
+    mybinding    Online   25s
     ```
 
 4.  Check that a secret of the same name as your binding is created. The secret contains the service credentials that apps in your cluster can use to access the service.
 
     ```bash
     kubectl get secrets
-    NAME                       TYPE                                  DATA   AGE
-    mybinding                  Opaque                                6      102s
+    NAME         TYPE      DATA   AGE
+    mybinding    Opaque    6      102s
     ```
 
 <!-- END SHOW operator hub -->
