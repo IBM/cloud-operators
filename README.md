@@ -58,9 +58,11 @@ If your current installation is version 0.1.x or 0.2.x, then follow these steps 
 1. [Copy your secrets and configmaps](#upgrading-to-version-v03-or-v10) to use the new names.
 2. Re-run the `curl` [installation command](#setting-up-the-operator) to install the latest version.
 3. Verify the new operator is running.
+
     ```bash
     kubectl get pods -n ibmcloud-operator-system
     ```
+
 4. Verify `ibmcloud.ibm.com/v1` `Service` versions provision correctly.
 5. Delete the old version with `kubectl delete ns ibmcloud-operators`.
 6. Delete the secrets and configmaps using the old names from step 1.
