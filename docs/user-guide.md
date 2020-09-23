@@ -298,9 +298,9 @@ spec:
   alias: binding-translator
 ```
 
-The field `alias` indicates the name of the credentials to link to. This name must be unique, i.e. there cannot be other credentials
-on the same service instance with the same name. The yaml also requires an annotation ` ibmcloud.ibm.com/keyId`
-for the ID of the credentials. This can be obtained by executing the following command and retrieving the `ID` field.
+The field `alias` indicates the name of the credentials to link to. This name must be unique, i.e. there cannot be other credentials on the same service instance with the same name. Note that binding secret keys replaces any spaces with underscores.
+
+The yaml also requires an annotation ` ibmcloud.ibm.com/keyId` for the ID of the credentials. This can be obtained by executing the following command and retrieving the `ID` field.
 
 ```bash
 ibmcloud resource service-key <name-of-credentials>
