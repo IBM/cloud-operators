@@ -70,29 +70,29 @@ To upgrade, you can reinstall the operator through the OperatorHub or the `curl`
     *   [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started) (`ibmcloud`)
     *   [Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (`kubectl`)
 4.  Log in to your IBM Cloud account from the CLI.
-    
+
     ```bash
     ibmcloud login
     ```
 
 5.  Target the appropriate environment (`--cf`) and resource group (`-g`). Note that you must still set the Cloud Foundry `org` and `space` environment, even if you do not create any Cloud Foundry services.
-    
+
     ```bash
     ibmcloud target --cf -g <default>
     ```
 
-6.  Set the Kubernetes context of your CLI to your cluster so that you can run `kubectl` commands. For example, if your cluster runs OpenShift, use the `oc login` command. 
+6.  Set the Kubernetes context of your CLI to your cluster so that you can run `kubectl` commands. For example, if your cluster runs OpenShift, use the `oc login` command.
 
 <!-- END SHOW operator hub -->
 
 If your cluster is in IBM Cloud Kubernetes Service, run the following command.
-    
+
     ```bash
     ibmcloud ks cluster config -c <cluster_name_or_ID>
     ```
 
     To check that your Kubernetes context is set to your cluster, run the following command.
-    
+
     ```bash
     kubectl config current-context
     ```
@@ -112,32 +112,32 @@ Prefer to create the secrets and defaults yourself? See the [IBM Cloud Operator 
 
 By default, the installation script creates an IBM Cloud API key that impersonates your user credentials, to use to set up the IBM Cloud Operator. However, you might want to create a service ID in IBM Cloud Identity and Access Managment (IAM). By using a service ID, you can control access for the IBM Cloud Operator without having the permissions tied to a particular user, such as if that user leaves the company. For more information, see the [IBM Cloud docs](https://cloud.ibm.com/docs/account?topic=account-serviceids).
 
-1.  Create a service ID in IBM Cloud IAM. 
-    
+1.  Create a service ID in IBM Cloud IAM.
+
     ```bash
     ibmcloud iam service-id-create serviceid-ico -d service-ID-for-ibm-cloud-operator
     ```
 
 2.  Assign the service ID access to the required permissions to work with the IBM Cloud services that you want the operator to manage. The required permissions vary with each IBM Cloud service. You can also scope an access policy to different regions or resource groups. For example, the following command grants the service ID the **Administrator** platform role in the default resource group in the US South (Dallas) region. For more information, see the [IBM Cloud docs](https://cloud.ibm.com/docs/account?topic=account-userroles).
-    
+
     ```bash
     ibmcloud iam service-policy-create serviceid-ico --roles Administrator --resource-group-name default --region us-south
     ```
 
 3.  Create an API key for the service ID.
-    
+
     ```bash
     ibmcloud iam service-api-key-create apikey-ico serviceid-ico -d api-key-for-ibm-cloud-operator
     ```
 
 4.  Set the API key of the service ID as your CLI environment variable. Now, when you run the installation script, the script uses the service ID's API key. The following command is an example for macOS.
-    
+
     ```bash
     setenv IBMCLOUD_API_KEY <apikey-ico-value>
     ```
 
 5.  Confirm that the API key environment variable is set in your CLI.
-    
+
     ```bash
     echo $IBMCLOUD_API_KEY
     ```
@@ -154,14 +154,14 @@ Before you begin, complete the [prerequisite steps](README.md#prerequisites) to 
 
 To configure the latest release for OpenShift before installing via the OperatorHub, run the following script:
 
-*   **Latest release**: 
-    
+*   **Latest release**:
+
     ```bash
     curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash
     ```
 
 *   **Specific release**: Replace `-v 0.0.0` with the specific version that you want to install.
-    
+
     ```bash
     curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0 store-creds
     ```
@@ -174,13 +174,13 @@ To configure the latest release for OpenShift before installing via the Operator
 Before you begin, complete the [prerequisite steps](#prerequisites) to log in to IBM Cloud and your cluster, and optionally set up a [service ID API key](#using-a-service-id).
 
 *   **Latest release**: To install the latest stable release of the operator, run the following script.
-    
+
     ```bash
     curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- install
     ```
 
 *   **Specific release**: Replace `-v 0.0.0` with the specific version that you want to install.
-    
+
     ```bash
     curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0 install
     ```
@@ -221,13 +221,13 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
     ```
 
 2.  Create the service instance in your cluster.
-    
+
     ```bash
     kubectl apply -f filepath/myservice.yaml
     ```
 
 3.  Check that your service status is **Online** in your cluster.
-    
+
     ```bash
     kubectl get services.ibmcloud
     NAME           STATUS   AGE
@@ -235,7 +235,7 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
     ```
 
 4.  Verify that your service instance is created in IBM Cloud.
-    
+
     ```bash
     ibmcloud resource service-instances | grep myservice
     ```
@@ -253,24 +253,24 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
         name: mybinding
     spec:
         serviceName: myservice
-    ```    
+    ```
 
 2.  Create the binding in your cluster.
-    
+
     ```bash
     kubectl apply -f filepath/mybinding.yaml
     ```
 
 3.  Check that your service status is **Online**.
-    
+
     ```bash
-    kubectl get bindings.ibmcloud 
+    kubectl get bindings.ibmcloud
     NAME                 STATUS   AGE
     mybinding            Online   25s
     ```
 
 4.  Check that a secret of the same name as your binding is created. The secret contains the service credentials that apps in your cluster can use to access the service.
-    
+
     ```bash
     kubectl get secrets
     NAME                       TYPE                                  DATA   AGE
@@ -282,14 +282,14 @@ To use the IBM Cloud Operator, create a service instance and then bind the servi
 
 ## Using separate IBM Cloud accounts
 
-You can provision IBM Cloud services in separate IBM Cloud accounts from the same cluster. To use separate accounts, update the secrets and configmap in the Kubernetes namespace where you want to create services and bindings. 
+You can provision IBM Cloud services in separate IBM Cloud accounts from the same cluster. To use separate accounts, update the secrets and configmap in the Kubernetes namespace where you want to create services and bindings.
 
 **Tip**: Just want to use a different account one time and don't want to manage a bunch of namespaces? You can also specify a different account in the individual [service configuration](#service-properties), by overriding the default [account context](#account-context-in-operator-secret-and-configmap).
 
 1.  Get the IBM Cloud account details, including account ID, Cloud Foundry org and space, resource group, region, and API key credentials.
 2.  Edit or replace the `ibmcloud-operator-secret` secret in the Kubernetes namespace that you want to use to create services in the account.
 3.  Edit or replace the `ibmcloud-operator-defaults` configmap in the Kubernetes namespace that you want to use to create services in the account.
-4.  Optional: [Set up a management namespace](#setting-up-a-management-namespace) so that cluster users with access across namespaces cannot see the API keys for the different IBM Cloud accounts. 
+4.  Optional: [Set up a management namespace](#setting-up-a-management-namespace) so that cluster users with access across namespaces cannot see the API keys for the different IBM Cloud accounts.
 
 [Back to top](#ibm-cloud-operator)
 
@@ -298,13 +298,13 @@ You can provision IBM Cloud services in separate IBM Cloud accounts from the sam
 By default, the API key credentials and other IBM Cloud account information are stored in a secret and a configmap within each namespace where you create IBM Cloud Operator service and binding custom resources. However, you might want to hide access to this information from cluster users in the namespace. For example, you might have multiple IBM Cloud accounts that you do not want cluster users in different namespaces to know about.
 
 1.  Create a management namespace that is named `safe`.
-    
+
     ```bash
     kubectl create namespace safe
     ```
 
 2.  In the namespace where the IBM Cloud Operator runs, create an `ibmcloud-operator-config` configmap that points to the `safe` namespace.
-    
+
     ```bash
     cat <<EOF | kubectl apply -f -
     apiVersion: v1
@@ -320,14 +320,14 @@ By default, the API key credentials and other IBM Cloud account information are 
     ```
 
 3.  Copy the existing or create your own `ibmcloud-operator-secret` secrets and `ibmcloud-operator-defaults` configmaps from the other Kubernetes namespace into the `safe` namespace. **Important**: You must rename the secrets and configmaps with the following naming convention. **Tip**: You can create these new secrets and configmaps similarly to `make install`, if you are familiar with that process.
-    
+
     ```
     <namespace>-ibmcloud-operator-secret
     <namespace>-ibmcloud-operator-defaults
     ```
 
     For example, if you have a cluster with three namespaces `default`, `test`, and `prod`:
-    
+
     ```
     default-ibmcloud-operator-secret
     default-ibmcloud-operator-defaults
@@ -337,7 +337,7 @@ By default, the API key credentials and other IBM Cloud account information are 
     prod-ibmcloud-operator-defaults
     ```
 
-4.  Delete the `ibmcloud-operator-secret` secrets and `ibmcloud-operator-defaults` configmaps in the other Kubernetes namespaces. 
+4.  Delete the `ibmcloud-operator-secret` secrets and `ibmcloud-operator-defaults` configmaps in the other Kubernetes namespaces.
 
 [Back to top](#ibm-cloud-operator)
 
