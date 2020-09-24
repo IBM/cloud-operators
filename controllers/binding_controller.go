@@ -154,19 +154,6 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{Requeue: true, RequeueAfter: requeueFast}, nil
 	}
 
-	// Set an owner reference if service and binding are in the same namespace
-	if serviceInstance.Namespace == instance.Namespace {
-		if err := r.SetControllerReference(serviceInstance, instance, r.Scheme); err != nil {
-			logt.Info("Binding could not update controller reference", instance.Name, err.Error())
-			return ctrl.Result{}, err
-		}
-
-		if err := r.Update(ctx, instance); err != nil {
-			logt.Info("Error setting controller reference", instance.Name, err.Error())
-			return ctrl.Result{}, nil
-		}
-	}
-
 	// If the service has not been initialized fully yet, then requeue
 	if serviceInstance.Status.InstanceID == "" || serviceInstance.Status.InstanceID == inProgress {
 		// The parent service has not been initialized fully yet
