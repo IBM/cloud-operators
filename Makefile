@@ -72,20 +72,16 @@ cache/bin/kustomize: cache/bin
 		done
 	[[ "$$(which kustomize)" =~ cache/bin/kustomize ]]
 
-.PHONY: test-fast
-test-fast: generate manifests kubebuilder
-	go test -short -coverprofile cover.out ./...
+.PHONY: test-unit
+test-unit: generate manifests kubebuilder
+	go test -race -short -coverprofile cover.out ./...
 
 .PHONY: test
 test: generate manifests kubebuilder
 	go test -race -coverprofile cover.out ./...
 
-.PHONY: test-e2e
-test-e2e:
-	exit 0  # not implemented
-
-.PHONY: coverage
-coverage: test
+.PHONY: coverage-unit
+coverage-unit: test-unit
 	bash <(curl -s https://codecov.io/bash)
 
 # Build manager binary

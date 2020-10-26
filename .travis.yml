@@ -10,11 +10,14 @@ jobs:
   include:
     - name: Lint
       script: make lint
-    - name: Test
-      script: make coverage
-      if: (branch = master AND type = push) OR type = pull_request  # Don't run int tests too much on the same account in parallel, risks service name conflict failures
-    - name: Test End-to-end
-      script: make test-e2e
+    - name: Unit Tests
+      script: make coverage-unit
+      if: fork = true
+    - name: Tests
+      script: make test
+      if: fork = false AND type = push  # Don't run int tests too much on the same account in parallel, risks service name conflict failures
+    #- name: Test End-to-end  # TODO Re-enable once an e2e env is set up.
+    #  script: make test-e2e
     - name: Release Validation
       script: make validate-release RELEASE_VERSION=0.3.0  # Fake version, just used for quick validation
     - name: Release
