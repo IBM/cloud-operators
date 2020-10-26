@@ -12,7 +12,6 @@ jobs:
       script: make lint
     - name: Unit Tests
       script: make coverage-unit
-      if: fork = true
     - name: Tests
       script: make test
       if: fork = false AND type = push  # Don't run int tests too much on the same account in parallel, risks service name conflict failures
