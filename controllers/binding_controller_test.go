@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 func mustLoadObject(t *testing.T, file string, obj runtime.Object, meta *metav1.ObjectMeta) {
@@ -2292,4 +2293,13 @@ func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
 		},
 		Spec: ibmcloudv1.BindingSpec{},
 	}, client.LastStatusUpdate())
+}
+
+func TestBindingSetupWithManager(t *testing.T) {
+	t.Parallel()
+	mgr := &mockManager{T: t}
+	options := controller.Options{MaxConcurrentReconciles: 1}
+
+	err := (&BindingReconciler{}).SetupWithManager(mgr, options)
+	assert.NoError(t, err)
 }

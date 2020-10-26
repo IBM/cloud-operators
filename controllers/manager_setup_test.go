@@ -9,11 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
 )
 
 func TestSetUpControllers(t *testing.T) {
@@ -170,4 +174,24 @@ func (m *mockManager) GetClient() client.Client {
 
 func (m *mockManager) GetScheme() *runtime.Scheme {
 	return schemas(m.T)
+}
+
+func (m *mockManager) GetConfig() *rest.Config {
+	return nil
+}
+
+func (m *mockManager) SetFields(interface{}) error {
+	return nil
+}
+
+func (m *mockManager) GetCache() cache.Cache {
+	return nil
+}
+
+func (m *mockManager) GetEventRecorderFor(string) record.EventRecorder {
+	return nil
+}
+
+func (m *mockManager) Add(c manager.Runnable) error {
+	return c.(inject.Injector).InjectFunc(m.SetFields)
 }

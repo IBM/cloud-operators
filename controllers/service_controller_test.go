@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 var (
@@ -2423,4 +2424,13 @@ func TestServiceUpdateStatusError(t *testing.T) {
 			},
 		}, r.Client.(MockClient).LastStatusUpdate())
 	})
+}
+
+func TestServiceSetupWithManager(t *testing.T) {
+	t.Parallel()
+	mgr := &mockManager{T: t}
+	options := controller.Options{MaxConcurrentReconciles: 1}
+
+	err := (&ServiceReconciler{}).SetupWithManager(mgr, options)
+	assert.NoError(t, err)
 }
