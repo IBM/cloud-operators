@@ -445,19 +445,12 @@ func (r *ServiceReconciler) deleteService(session *session.Session, logt logr.Lo
 	}
 	if serviceClassType == "CF" {
 		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-		err := r.DeleteCFServiceInstance(session, instance.Status.InstanceID, logt)
-		if err != nil {
-			return err
-		}
-
-	} else { // Resource is not CF
-		logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
-		err := r.DeleteResourceServiceInstance(session, instance.Status.InstanceID, logt)
-		if err != nil {
-			return err
-		}
+		return r.DeleteCFServiceInstance(session, instance.Status.InstanceID, logt)
 	}
-	return nil
+
+	// Resource is not CF
+	logt.Info("Deleting ", instance.ObjectMeta.Name, instance.Spec.ServiceClass)
+	return r.DeleteResourceServiceInstance(session, instance.Status.InstanceID, logt)
 }
 
 func getExternalName(instance *ibmcloudv1.Service) string {

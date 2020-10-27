@@ -17,6 +17,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 var (
@@ -331,4 +333,27 @@ func TestShouldProcessSecret(t *testing.T) {
 	t.Run("management namespace secret", func(t *testing.T) {
 		assert.True(t, shouldProcessSecret(&metav1.ObjectMeta{Name: "mynamespace-ibmcloud-operator-secret"}))
 	})
+}
+
+func TestTokenSetupWithManager(t *testing.T) {
+	t.Parallel()
+	mgr := &mockManager{T: t}
+	options := controller.Options{MaxConcurrentReconciles: 1}
+
+	err := (&TokenReconciler{}).SetupWithManager(mgr, options)
+	assert.NoError(t, err)
+}
+
+func TestTokenEventsFilter(t *testing.T) {
+	t.Parallel()
+
+	filter := eventsFilter()
+	shouldProcessEvent := &metav1.ObjectMeta{Name: icoSecretName}
+	shouldNotProcessEvent := &metav1.ObjectMeta{}
+	assert.True(t, filter.CreateFunc(event.CreateEvent{Meta: shouldProcessEvent}))
+	assert.False(t, filter.CreateFunc(event.CreateEvent{Meta: shouldNotProcessEvent}))
+	assert.True(t, filter.DeleteFunc(event.DeleteEvent{Meta: shouldProcessEvent}))
+	assert.False(t, filter.DeleteFunc(event.DeleteEvent{Meta: shouldNotProcessEvent}))
+	assert.True(t, filter.UpdateFunc(event.UpdateEvent{MetaNew: shouldProcessEvent}))
+	assert.False(t, filter.UpdateFunc(event.UpdateEvent{MetaNew: shouldNotProcessEvent}))
 }
