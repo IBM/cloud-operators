@@ -23,23 +23,35 @@ type Controllers struct {
 }
 
 func SetUpControllers(mgr ctrl.Manager) (*Controllers, error) {
-	c := setUpControllerDependencies(mgr)
+	return setUpControllers(mgr, setupWithManagerOrErr)
+}
 
+func setUpControllers(mgr ctrl.Manager, setup controllerSetUpFunc) (*Controllers, error) {
+	c := setUpControllerDependencies(mgr)
 	options := controller.Options{
 		MaxConcurrentReconciles: config.Get().MaxConcurrentReconciles,
 	}
-	if err := c.BindingReconciler.SetupWithManager(mgr, options); err != nil {
-		return nil, errors.Wrap(err, "Unable to setup binding controller")
-	}
-	if err := c.ServiceReconciler.SetupWithManager(mgr, options); err != nil {
-		return nil, errors.Wrap(err, "Unable to setup service controller")
-	}
-	if err := c.TokenReconciler.SetupWithManager(mgr, options); err != nil {
-		return nil, errors.Wrap(err, "Unable to setup token controller")
-	}
 
+	var err error
+	setup(&err, c.BindingReconciler, mgr, options)
+	setup(&err, c.ServiceReconciler, mgr, options)
+	setup(&err, c.TokenReconciler, mgr, options)
 	// +kubebuilder:scaffold:builder
-	return c, nil
+
+	return c, errors.Wrap(err, "Unable to setup controller")
+}
+
+type controllerSetUpFunc func(err *error, r reconciler, mgr ctrl.Manager, options controller.Options)
+
+type reconciler interface {
+	SetupWithManager(mgr ctrl.Manager, options controller.Options) error
+}
+
+func setupWithManagerOrErr(err *error, r reconciler, mgr ctrl.Manager, options controller.Options) {
+	if *err != nil {
+		return
+	}
+	*err = r.SetupWithManager(mgr, options)
 }
 
 func setUpControllerDependencies(mgr ctrl.Manager) *Controllers {

@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 var (
@@ -2423,4 +2424,151 @@ func TestServiceUpdateStatusError(t *testing.T) {
 			},
 		}, r.Client.(MockClient).LastStatusUpdate())
 	})
+}
+
+func TestServiceSetupWithManager(t *testing.T) {
+	t.Parallel()
+	mgr := &mockManager{T: t}
+	options := controller.Options{MaxConcurrentReconciles: 1}
+
+	err := (&ServiceReconciler{}).SetupWithManager(mgr, options)
+	assert.NoError(t, err)
+}
+
+func TestDeleteService(t *testing.T) {
+	t.Parallel()
+	const (
+		namespace   = "mynamespace"
+		serviceName = "myservice"
+	)
+	scheme := schemas(t)
+	instance := &ibmcloudv1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+		Status: ibmcloudv1.ServiceStatus{
+			Plan:         "Lite",
+			ServiceClass: "service-name",
+			InstanceID:   "myinstanceid",
+		},
+		Spec: ibmcloudv1.ServiceSpec{
+			Plan:         "Lite",
+			ServiceClass: "service-name",
+		},
+	}
+
+	t.Run("alias is a no-op", func(t *testing.T) {
+		instanceCopy := *instance
+		instanceCopy.Spec.Plan = aliasPlan
+		instanceCopy.Status.Plan = aliasPlan
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, &instanceCopy),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		err := r.deleteService(nil, r.Log, &instanceCopy, "")
+		assert.NoError(t, err)
+	})
+
+	t.Run("empty instance ID is a no-op", func(t *testing.T) {
+		instanceCopy := *instance
+		instanceCopy.Status.InstanceID = ""
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, &instanceCopy),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+		}
+
+		err := r.deleteService(nil, r.Log, &instanceCopy, "")
+		assert.NoError(t, err)
+	})
+
+	t.Run("delete CF service", func(t *testing.T) {
+		someErr := fmt.Errorf("some error")
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, instance),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			DeleteCFServiceInstance: func(session *session.Session, instanceID string, logt logr.Logger) error {
+				return someErr
+			},
+		}
+
+		err := r.deleteService(nil, r.Log, instance, "CF")
+		assert.Equal(t, someErr, err)
+	})
+
+	t.Run("delete resource service", func(t *testing.T) {
+		someErr := fmt.Errorf("some error")
+		r := &ServiceReconciler{
+			Client: newMockClient(
+				fake.NewFakeClientWithScheme(scheme, instance),
+				MockConfig{},
+			),
+			Log:    testLogger(t),
+			Scheme: scheme,
+
+			DeleteResourceServiceInstance: func(session *session.Session, instanceID string, logt logr.Logger) error {
+				return someErr
+			},
+		}
+
+		err := r.deleteService(nil, r.Log, instance, "")
+		assert.Equal(t, someErr, err)
+	})
+}
+
+func TestExternalName(t *testing.T) {
+	t.Parallel()
+
+	const someName = "some external name"
+
+	t.Run("external name is set", func(t *testing.T) {
+		assert.Equal(t,
+			someName,
+			getExternalName(&ibmcloudv1.Service{
+				Spec: ibmcloudv1.ServiceSpec{
+					ExternalName: someName,
+				},
+			}),
+		)
+	})
+
+	t.Run("fallback to name", func(t *testing.T) {
+		assert.Equal(t,
+			someName,
+			getExternalName(&ibmcloudv1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: someName,
+				},
+			}),
+		)
+	})
+}
+
+func TestGetState(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		state    string
+		expected string
+	}{
+		{state: "unknown", expected: "unknown"},
+		{state: "succeeded", expected: "Online"},
+		{state: "active", expected: "Online"},
+		{state: "provisioned", expected: "Online"},
+	} {
+		t.Run(tc.state+" "+tc.expected, func(t *testing.T) {
+			assert.Equal(t, tc.expected, getState(tc.state))
+		})
+	}
 }
