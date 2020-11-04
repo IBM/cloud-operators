@@ -112,10 +112,9 @@ func (s *mockStatusWriter) Update(ctx context.Context, obj runtime.Object, opts 
 	if s.ErrChan != nil {
 		err := <-s.ErrChan
 		return err
-	} else {
-		return s.StatusUpdateErr
-
 	}
+	return s.StatusUpdateErr
+
 }
 
 func (m *mockClient) LastStatusUpdate() runtime.Object {

@@ -2267,11 +2267,14 @@ func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 	errChan := make(chan error, 10)
 
 	//It return conflict error at first so retry will be triggered and succeed with no error and the function will succeed
-	errChan <- &k8sErrors.StatusError{metav1.Status{
-		Status: metav1.StatusFailure,
-		Code:   409,
-		Reason: metav1.StatusReasonConflict,
-	}}
+	conflictErr := k8sErrors.StatusError{
+		ErrStatus: metav1.Status{
+			Status: metav1.StatusFailure,
+			Code:   409,
+			Reason: metav1.StatusReasonConflict,
+		},
+	}
+	errChan <- &conflictErr
 	errChan <- nil
 
 	client := newMockClient(
