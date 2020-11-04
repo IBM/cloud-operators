@@ -45,6 +45,8 @@ type MockConfig struct {
 	StatusPatchErr  error
 	StatusUpdateErr error
 	UpdateErr       error
+
+	ErrChan chan error
 }
 
 func newMockClient(client client.Client, config MockConfig) MockClient {
@@ -107,7 +109,13 @@ func (m *mockClient) Status() client.StatusWriter {
 
 func (s *mockStatusWriter) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
 	s.lastStatusUpdate = obj.DeepCopyObject()
-	return s.StatusUpdateErr
+	if s.ErrChan != nil {
+		err := <-s.ErrChan
+		return err
+	} else {
+		return s.StatusUpdateErr
+
+	}
 }
 
 func (m *mockClient) LastStatusUpdate() runtime.Object {

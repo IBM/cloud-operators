@@ -2252,7 +2252,7 @@ func TestBindingDeleteCredentials(t *testing.T) {
 	}
 }
 
-func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
+func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
 	binding := &ibmcloudv1.Binding{
@@ -2264,9 +2264,19 @@ func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
 		Spec:       ibmcloudv1.ServiceSpec{},
 	}
 
+	errChan := make(chan error, 10)
+
+	//It return conflict error at first so retry will be triggered and succeed with no error and the function will succeed
+	errChan <- &k8sErrors.StatusError{metav1.Status{
+		Status: metav1.StatusFailure,
+		Code:   409,
+		Reason: metav1.StatusReasonConflict,
+	}}
+	errChan <- nil
+
 	client := newMockClient(
 		fake.NewFakeClientWithScheme(scheme, binding, service),
-		MockConfig{StatusUpdateErr: fmt.Errorf("status failed")},
+		MockConfig{ErrChan: errChan},
 	)
 	r := &BindingReconciler{
 		Client: client,
@@ -2278,21 +2288,48 @@ func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
 		},
 	}
 
-	result, err := r.updateStatusOnline(nil, binding, service, "")
+	result, err := r.updateStatusOnline(nil, binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue:      true,
 		RequeueAfter: config.Get().SyncPeriod,
 	}, result)
 	assert.NoError(t, err)
-	assert.Equal(t, &ibmcloudv1.Binding{
+}
+
+func TestBindingUpdateStatusOnlineFailedWithOtherErrror(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	binding := &ibmcloudv1.Binding{
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
-		Status: ibmcloudv1.BindingStatus{
-			State:      bindingStateOnline,
-			Message:    bindingStateOnline,
-			SecretName: "myservice",
+		Spec:       ibmcloudv1.BindingSpec{},
+	}
+	service := &ibmcloudv1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Spec:       ibmcloudv1.ServiceSpec{},
+	}
+
+	errChan := make(chan error, 10)
+
+	errChan <- fmt.Errorf("status failed")
+	client := newMockClient(
+		fake.NewFakeClientWithScheme(scheme, binding, service),
+		MockConfig{ErrChan: errChan},
+	)
+	r := &BindingReconciler{
+		Client: client,
+		Log:    testLogger(t),
+		Scheme: scheme,
+
+		DeleteResourceServiceKey: func(session *session.Session, keyID string) error {
+			return fmt.Errorf("failed")
 		},
-		Spec: ibmcloudv1.BindingSpec{},
-	}, client.LastStatusUpdate())
+	}
+
+	result, err := r.updateStatusOnline(nil, binding)
+	assert.Equal(t, ctrl.Result{
+		Requeue: true,
+	}, result)
+	assert.Error(t, err)
 }
 
 func TestBindingSetupWithManager(t *testing.T) {

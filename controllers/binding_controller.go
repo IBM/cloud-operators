@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -278,7 +279,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			return r.updateStatusError(instance, bindingStateFailed, err)
 		}
 
-		return r.updateStatusOnline(session, instance, serviceInstance, serviceClassType)
+		return r.updateStatusOnline(session, instance)
 	}
 
 	// The KeyInstanceID has been set (or is still inProgress), verify that the key and secret still exist
@@ -313,7 +314,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			logt.Info("Error creating secret", instance.Name, err.Error())
 			return r.updateStatusError(instance, bindingStateFailed, err)
 		}
-		return r.updateStatusOnline(session, instance, serviceInstance, serviceClassType)
+		return r.updateStatusOnline(session, instance)
 	}
 
 	// The secret exists, make sure it has the right content
@@ -335,9 +336,9 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			logt.Info("Error re-creating secret", instance.Name, err.Error())
 			return r.updateStatusError(instance, bindingStateFailed, err)
 		}
-		return r.updateStatusOnline(session, instance, serviceInstance, serviceClassType)
+		return r.updateStatusOnline(session, instance)
 	}
-	return r.updateStatusOnline(session, instance, serviceInstance, serviceClassType)
+	return r.updateStatusOnline(session, instance)
 }
 
 func (r *BindingReconciler) getServiceInstance(instance *ibmcloudv1.Binding) (*ibmcloudv1.Service, error) {
@@ -507,19 +508,23 @@ func (r *BindingReconciler) createSecret(instance *ibmcloudv1.Binding, keyConten
 	return nil
 }
 
-func (r *BindingReconciler) updateStatusOnline(session *session.Session, instance *ibmcloudv1.Binding, serviceInstance *ibmcloudv1.Service, serviceClassType string) (ctrl.Result, error) {
-	instance.Status.State = bindingStateOnline
-	instance.Status.Message = bindingStateOnline
-	instance.Status.SecretName = getSecretName(instance)
-	err := r.Status().Update(context.Background(), instance)
-	if err != nil {
-		r.Log.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
-		err = r.deleteCredentials(session, instance, serviceClassType)
+func (r *BindingReconciler) updateStatusOnline(session *session.Session, instance *ibmcloudv1.Binding) (ctrl.Result, error) {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentBindingInstance := &ibmcloudv1.Binding{}
+		err := r.Get(context.Background(), types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}, currentBindingInstance)
 		if err != nil {
-			r.Log.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, err.Error())
+			r.Log.Error(err, "Failed to fetch binding instance", "namespace", instance.Namespace, "name", instance.Name)
+			return err
 		}
+		currentBindingInstance.Status.State = bindingStateOnline
+		currentBindingInstance.Status.Message = bindingStateOnline
+		currentBindingInstance.Status.SecretName = getSecretName(currentBindingInstance)
+		return r.Status().Update(context.Background(), currentBindingInstance)
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to update binding instance after retry", "namespace", instance.Namespace, "name", instance.Name)
+		return ctrl.Result{Requeue: true}, err
 	}
-
 	return ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, nil
 }
 
