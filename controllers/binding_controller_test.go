@@ -2334,17 +2334,13 @@ func TestBindingUpdateStatusOnlineFailedWithOtherUpdateErrror(t *testing.T) {
 		Client: client,
 		Log:    testLogger(t),
 		Scheme: scheme,
-
-		DeleteResourceServiceKey: func(session *session.Session, keyID string) error {
-			return fmt.Errorf("failed")
-		},
 	}
 
 	result, err := r.updateStatusOnline(nil, binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue: true,
 	}, result)
-	assert.Error(t, err)
+	assert.EqualError(t, err, "status failed")
 }
 
 func TestBindingUpdateStatusOnlineFailedWithGetError(t *testing.T) {
@@ -2366,10 +2362,6 @@ func TestBindingUpdateStatusOnlineFailedWithGetError(t *testing.T) {
 		Client: client,
 		Log:    testLogger(t),
 		Scheme: scheme,
-
-		DeleteResourceServiceKey: func(session *session.Session, keyID string) error {
-			return fmt.Errorf("failed")
-		},
 	}
 
 	result, err := r.updateStatusOnline(nil, binding)
