@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -2264,9 +2265,8 @@ func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 		Spec:       ibmcloudv1.ServiceSpec{},
 	}
 
-	errChan := make(chan error, 10)
+	errChan := make(chan error, retry.DefaultRetry.Steps)
 
-	//It return conflict error at first so retry will be triggered and succeed with no error and the function will succeed
 	conflictErr := k8sErrors.StatusError{
 		ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,
@@ -2274,8 +2274,6 @@ func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 			Reason: metav1.StatusReasonConflict,
 		},
 	}
-	errChan <- &conflictErr
-	errChan <- nil
 
 	client := newMockClient(
 		fake.NewFakeClientWithScheme(scheme, binding, service),
@@ -2291,15 +2289,29 @@ func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 		},
 	}
 
+	//It return conflict error at first so retry will be triggered and succeed with no error and the function will succeed
+	errChan <- &conflictErr
+	errChan <- nil
 	result, err := r.updateStatusOnline(nil, binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue:      true,
 		RequeueAfter: config.Get().SyncPeriod,
 	}, result)
 	assert.NoError(t, err)
+
+	//It keeps returning conflict error so retry will fail
+	for i := 0; i < retry.DefaultRetry.Steps; i++ {
+		errChan <- &conflictErr
+
+	}
+	result, err = r.updateStatusOnline(nil, binding)
+	assert.Equal(t, ctrl.Result{
+		Requeue: true,
+	}, result)
+	assert.Error(t, err)
 }
 
-func TestBindingUpdateStatusOnlineFailedWithOtherErrror(t *testing.T) {
+func TestBindingUpdateStatusOnlineFailedWithOtherUpdateErrror(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
 	binding := &ibmcloudv1.Binding{
@@ -2311,7 +2323,7 @@ func TestBindingUpdateStatusOnlineFailedWithOtherErrror(t *testing.T) {
 		Spec:       ibmcloudv1.ServiceSpec{},
 	}
 
-	errChan := make(chan error, 10)
+	errChan := make(chan error, retry.DefaultRetry.Steps)
 
 	errChan <- fmt.Errorf("status failed")
 	client := newMockClient(
