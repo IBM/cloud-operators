@@ -2347,6 +2347,39 @@ func TestBindingUpdateStatusOnlineFailedWithOtherUpdateErrror(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestBindingUpdateStatusOnlineFailedWithGetError(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	binding := &ibmcloudv1.Binding{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Spec:       ibmcloudv1.BindingSpec{},
+	}
+	errChan := make(chan error, retry.DefaultRetry.Steps)
+	//there will be no error when do updating
+	errChan <- nil
+	client := newMockClient(
+		// the service and binding does not add so Get will return error
+		fake.NewFakeClientWithScheme(scheme),
+		MockConfig{ErrChan: errChan},
+	)
+	r := &BindingReconciler{
+		Client: client,
+		Log:    testLogger(t),
+		Scheme: scheme,
+
+		DeleteResourceServiceKey: func(session *session.Session, keyID string) error {
+			return fmt.Errorf("failed")
+		},
+	}
+
+	result, err := r.updateStatusOnline(nil, binding)
+	assert.Equal(t, ctrl.Result{
+		Requeue: true,
+	}, result)
+	assert.Error(t, err)
+	assert.Equal(t, true, k8sErrors.IsNotFound(err))
+}
+
 func TestBindingSetupWithManager(t *testing.T) {
 	t.Parallel()
 	mgr := &mockManager{T: t}
