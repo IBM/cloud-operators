@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -2252,7 +2253,7 @@ func TestBindingDeleteCredentials(t *testing.T) {
 	}
 }
 
-func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
+func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
 	binding := &ibmcloudv1.Binding{
@@ -2264,9 +2265,19 @@ func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
 		Spec:       ibmcloudv1.ServiceSpec{},
 	}
 
+	errChan := make(chan error, retry.DefaultRetry.Steps)
+
+	conflictErr := k8sErrors.StatusError{
+		ErrStatus: metav1.Status{
+			Status: metav1.StatusFailure,
+			Code:   409,
+			Reason: metav1.StatusReasonConflict,
+		},
+	}
+
 	client := newMockClient(
 		fake.NewFakeClientWithScheme(scheme, binding, service),
-		MockConfig{StatusUpdateErr: fmt.Errorf("status failed")},
+		MockConfig{ErrChan: errChan},
 	)
 	r := &BindingReconciler{
 		Client: client,
@@ -2278,21 +2289,87 @@ func TestBindingUpdateStatusOnlineFailed(t *testing.T) {
 		},
 	}
 
-	result, err := r.updateStatusOnline(nil, binding, service, "")
+	//It return conflict error at first so retry will be triggered and succeed with no error and the function will succeed
+	errChan <- &conflictErr
+	errChan <- nil
+	result, err := r.updateStatusOnline(nil, binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue:      true,
 		RequeueAfter: config.Get().SyncPeriod,
 	}, result)
 	assert.NoError(t, err)
-	assert.Equal(t, &ibmcloudv1.Binding{
+
+	//It keeps returning conflict error so retry will fail
+	for i := 0; i < retry.DefaultRetry.Steps; i++ {
+		errChan <- &conflictErr
+
+	}
+	result, err = r.updateStatusOnline(nil, binding)
+	assert.Equal(t, ctrl.Result{
+		Requeue: true,
+	}, result)
+	assert.Error(t, err)
+}
+
+func TestBindingUpdateStatusOnlineFailedWithOtherUpdateErrror(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	binding := &ibmcloudv1.Binding{
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
-		Status: ibmcloudv1.BindingStatus{
-			State:      bindingStateOnline,
-			Message:    bindingStateOnline,
-			SecretName: "myservice",
-		},
-		Spec: ibmcloudv1.BindingSpec{},
-	}, client.LastStatusUpdate())
+		Spec:       ibmcloudv1.BindingSpec{},
+	}
+	service := &ibmcloudv1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Spec:       ibmcloudv1.ServiceSpec{},
+	}
+
+	errChan := make(chan error, retry.DefaultRetry.Steps)
+
+	errChan <- fmt.Errorf("status failed")
+	client := newMockClient(
+		fake.NewFakeClientWithScheme(scheme, binding, service),
+		MockConfig{ErrChan: errChan},
+	)
+	r := &BindingReconciler{
+		Client: client,
+		Log:    testLogger(t),
+		Scheme: scheme,
+	}
+
+	result, err := r.updateStatusOnline(nil, binding)
+	assert.Equal(t, ctrl.Result{
+		Requeue: true,
+	}, result)
+	assert.EqualError(t, err, "status failed")
+}
+
+func TestBindingUpdateStatusOnlineFailedWithGetError(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	binding := &ibmcloudv1.Binding{
+		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
+		Spec:       ibmcloudv1.BindingSpec{},
+	}
+	errChan := make(chan error, retry.DefaultRetry.Steps)
+	//there will be no error when do updating
+	errChan <- nil
+	client := newMockClient(
+		// the service and binding does not add so Get will return error
+		fake.NewFakeClientWithScheme(scheme),
+		MockConfig{ErrChan: errChan},
+	)
+	r := &BindingReconciler{
+		Client: client,
+		Log:    testLogger(t),
+		Scheme: scheme,
+	}
+
+	result, err := r.updateStatusOnline(nil, binding)
+	assert.Equal(t, ctrl.Result{
+		Requeue: true,
+	}, result)
+	assert.Error(t, err)
+	assert.Equal(t, true, k8sErrors.IsNotFound(err))
 }
 
 func TestBindingSetupWithManager(t *testing.T) {
