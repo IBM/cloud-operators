@@ -32,7 +32,7 @@ set -o pipefail
 shopt -s extglob
 
 TMPDIR=$(mktemp -d)
-trap "set -x; rm -rf '$TMPDIR'" EXIT
+trap "set -x; rm -rf '""$TMPDIR""'" EXIT
 
 # error prints the arguments to stderr. If printing to a TTY, adds red color.
 error() {
@@ -76,7 +76,7 @@ json_grep() {
     declare -i max_matches=${2:-1} matches=0
     while read -r line; do
         if [[ "$line" =~ $pattern ]]; then
-            printf "${BASH_REMATCH[1]}"
+            printf '%s' "${BASH_REMATCH[1]}"
             if (( max_matches == -1 || max_matches > 1 )); then
                 echo # add new line
             fi
@@ -93,7 +93,7 @@ json_grep_after() {
     local after=$1
     local pattern=$2
     while read -r line; do
-        if [[ "$line" =~ "$after" ]]; then
+        if [[ "$line" == "$after" ]]; then
             json_grep "$pattern"
             break
         fi
@@ -105,7 +105,7 @@ fetch_assets() {
     local file_urls=("$@")
     if [[ -n "$DEBUG_OUT" ]]; then
         # Use custom assets directory for debugging purposes.
-        printf "$DEBUG_OUT"
+        printf '%s' "$DEBUG_OUT"
         return
     fi
 
@@ -115,7 +115,7 @@ fetch_assets() {
     ls "$TMPDIR" >&2
     popd >/dev/null
 
-    printf "$TMPDIR"
+    printf '%s' "$TMPDIR"
 }
 
 # valid_semver returns 0 if $1 is a valid semver number. Only allows MAJOR.MINOR.PATCH format.
@@ -140,24 +140,24 @@ compare_semver() {
         semver2=("${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}")
     fi
 
-    if (( ${semver1[0]} != ${semver2[0]} )); then
-        if (( ${semver1[0]} > ${semver2[0]} )); then
+    if (( semver1[0] != semver2[0] )); then
+        if (( semver1[0] > semver2[0] )); then
             echo 1
             return
         fi
         echo -1
         return
     fi
-    if (( ${semver1[1]} != ${semver2[1]} )); then
-        if (( ${semver1[1]} > ${semver2[1]} )); then
+    if (( semver1[1] != semver2[1] )); then
+        if (( semver1[1] > semver2[1] )); then
             echo 1
             return
         fi
         echo -1
         return
     fi
-    if (( ${semver1[2]} != ${semver2[2]} )); then
-        if (( ${semver1[2]} > ${semver2[2]} )); then
+    if (( semver1[2] != semver2[2] )); then
+        if (( semver1[2] > semver2[2] )); then
             echo 1
             return
         fi
@@ -170,18 +170,21 @@ compare_semver() {
 # store_creds ensures an API key Secret and operator ConfigMap are set up
 store_creds() {
     if [[ -z "$IBMCLOUD_API_KEY" ]]; then
-        local key_output=$(ibmcloud iam api-key-create ibmcloud-operator-key -d "Key for IBM Cloud Operator" --output json)
+        local key_output
+        key_output=$(ibmcloud iam api-key-create ibmcloud-operator-key -d "Key for IBM Cloud Operator" --output json)
         IBMCLOUD_API_KEY=$(json_grep apikey <<<"$key_output")
     fi
     IBMCLOUD_API_KEY=$(trim "$IBMCLOUD_API_KEY")
-    local target=$(ibmcloud target --output json)
-    local region=$(json_grep_after region name <<<"$target")
+    local target region
+    target=$(ibmcloud target --output json)
+    region=$(json_grep_after region name <<<"$target")
     if [[ -z "$region" ]]; then
-        error 'Region must be set. Run `ibmcloud target -r $region` and try again.'
+        error "Region must be set. Run 'ibmcloud target -r \$region' and try again."
         return 2
     fi
-    local b64_region=$(printf "$region" | base64)
-    local b64_apikey=$(printf "$IBMCLOUD_API_KEY" | base64)
+    local b64_region b64_apikey
+    b64_region=$(printf '%s' "$region" | base64)
+    b64_apikey=$(printf '%s' "$IBMCLOUD_API_KEY" | base64)
 
     kubectl apply -f - <<EOT
 apiVersion: v1
@@ -197,15 +200,16 @@ data:
   region: $b64_region
 EOT
 
-    local org=$(json_grep_after org name <<<"$target")
-    local space=$(json_grep_after space name <<<"$target")
-    local resource_group=$(json_grep_after resource_group name <<<"$target")
-    local resource_group_id=$(json_grep_after resource_group guid <<<"$target")
+    local org space resource_group resource_group_id user
+    org=$(json_grep_after org name <<<"$target")
+    space=$(json_grep_after space name <<<"$target")
+    resource_group=$(json_grep_after resource_group name <<<"$target")
+    resource_group_id=$(json_grep_after resource_group guid <<<"$target")
     if [[ -z "$resource_group_id" ]]; then
-        error 'Resource group must be set. Run `ibmcloud target -g $resource_group` and try again.'
+        error "Resource group must be set. Run 'ibmcloud target -g \$resource_group' and try again."
         return 2
     fi
-    local user=$(json_grep_after user display_name <<<"$target")
+    user=$(json_grep_after user display_name <<<"$target")
 
     kubectl apply -f - <<EOT
 apiVersion: v1
@@ -235,8 +239,9 @@ release_action() {
     if [[ "$version" != latest ]]; then
         download_version="tags/v${version}"
     fi
-    local release=$(curl -H 'Accept: application/vnd.github.v3+json' "https://api.github.com/repos/IBM/cloud-operators/releases/$download_version")
-    local urls=$(json_grep browser_download_url -1 <<<"$release")
+    local release urls
+    release=$(curl -H 'Accept: application/vnd.github.v3+json' "https://api.github.com/repos/IBM/cloud-operators/releases/$download_version")
+    urls=$(json_grep browser_download_url -1 <<<"$release")
     local file_urls=()
     while read -r url; do
         if ! [[ "$url" =~ package.yaml|clusterserviceversion.yaml ]]; then
@@ -244,7 +249,8 @@ release_action() {
         fi
     done <<<"$urls"
 
-    local assets=$(fetch_assets "${file_urls[@]}")
+    local assets
+    assets=$(fetch_assets "${file_urls[@]}")
 
     if [[ "$action" == apply ]]; then
         # Apply specially prefixed resources first. Typically these are namespaces and services.
@@ -287,6 +293,11 @@ while getopts "hv:" opt; do
                 exit 2
             fi
             VERSION=$OPTARG
+            ;;
+        *)
+            error "Invalid flag: $opt"
+            usage
+            exit 2
             ;;
     esac
 done
