@@ -345,8 +345,8 @@ case "$ACTION" in
         release_action delete "$VERSION"
         ;;
     *)
-        echo "Invalid action: $ACTION" >&2
-        echo "Valid actions: $VALID_ACTIONS"
+        error "Invalid action: $ACTION" >&2
+        error "Valid actions: $VALID_ACTIONS"
         exit 2
 esac
 
