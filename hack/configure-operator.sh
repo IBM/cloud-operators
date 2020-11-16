@@ -93,7 +93,7 @@ json_grep_after() {
     local after=$1
     local pattern=$2
     while read -r line; do
-        if [[ "$line" == "$after" ]]; then
+        if [[ "$line" == *"$after"* ]]; then
             json_grep "$pattern"
             break
         fi
