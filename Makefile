@@ -124,10 +124,15 @@ lint-deps:
 		set -o pipefail; \
 		curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v${LINT_VERSION}; \
 	fi
+	@if ! which shellcheck; then \
+		set -ex; curl -fsSL https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.$$(uname).x86_64.tar.xz | tar -xJv --strip-components=1 shellcheck-stable/shellcheck; \
+		mv shellcheck $(shell go env GOPATH)/bin/shellcheck; chmod +x $(shell go env GOPATH)/bin/shellcheck; \
+	fi
 
 .PHONY: lint
 lint: lint-deps
 	golangci-lint run
+	find . -name '*.*sh' | xargs shellcheck --color
 
 .PHONY: lint-fix
 lint-fix: lint-deps
