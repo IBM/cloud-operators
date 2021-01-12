@@ -519,6 +519,7 @@ func (r *BindingReconciler) updateStatusOnline(session *session.Session, instanc
 		currentBindingInstance.Status.State = bindingStateOnline
 		currentBindingInstance.Status.Message = bindingStateOnline
 		currentBindingInstance.Status.SecretName = getSecretName(currentBindingInstance)
+		currentBindingInstance.Status.KeyInstanceID = instance.Status.KeyInstanceID
 		return r.Status().Update(context.Background(), currentBindingInstance)
 	})
 	if err != nil {
