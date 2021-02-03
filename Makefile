@@ -133,6 +133,7 @@ lint-deps:
 lint: lint-deps
 	golangci-lint run
 	find . -name '*.*sh' | xargs shellcheck --color
+	go list -json -m all | docker run --rm -i sonatypecommunity/nancy:latest sleuth
 
 .PHONY: lint-fix
 lint-fix: lint-deps
