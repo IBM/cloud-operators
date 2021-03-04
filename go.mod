@@ -16,6 +16,7 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.6.1
 	go.uber.org/zap v1.10.0
+	golang.org/x/text v0.3.6-0.20210227105805-e3aa4adf54f6 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.17.17
 	k8s.io/apiextensions-apiserver v0.17.17
