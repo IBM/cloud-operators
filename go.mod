@@ -7,6 +7,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/coreos/etcd v3.3.25+incompatible // indirect
 	github.com/ghodss/yaml v1.0.0
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.0
