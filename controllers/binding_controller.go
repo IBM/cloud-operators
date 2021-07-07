@@ -156,15 +156,23 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Set an owner reference if service and binding are in the same namespace
+	// and if there is not parameter skipOwnerReferences='true' inside Binding CR
 	if serviceInstance.Namespace == instance.Namespace {
-		if err := r.SetControllerReference(serviceInstance, instance, r.Scheme); err != nil {
-			logt.Info("Binding could not update controller reference", instance.Name, err.Error())
+		parameters, err := r.getParams(ctx, instance)
+		if err != nil {
+			r.Log.Error(err, "Instance ", instance.ObjectMeta.Name, " has problems with its parameters")
 			return ctrl.Result{}, err
 		}
+		if parameters["skipOwnerReferences"] != "true" {
+			if err := r.SetControllerReference(serviceInstance, instance, r.Scheme); err != nil {
+				logt.Info("Binding could not update controller reference", instance.Name, err.Error())
+				return ctrl.Result{}, err
+			}
 
-		if err := r.Update(ctx, instance); err != nil {
-			logt.Info("Error setting controller reference", instance.Name, err.Error())
-			return ctrl.Result{}, nil
+			if err := r.Update(ctx, instance); err != nil {
+				logt.Info("Error setting controller reference", instance.Name, err.Error())
+				return ctrl.Result{}, nil
+			}
 		}
 	}
 
