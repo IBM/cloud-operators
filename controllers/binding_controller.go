@@ -164,7 +164,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		}
 
 		if err := r.Update(ctx, instance); err != nil {
-			logt.Info("Error setting controller reference", instance.Name, err.Error())
+			logt.Info("Error setting owner reference", instance.Name, err.Error())
 			return ctrl.Result{}, nil
 		}
 	}
