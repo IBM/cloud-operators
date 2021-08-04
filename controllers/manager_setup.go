@@ -72,6 +72,7 @@ func setUpControllerDependencies(mgr ctrl.Manager) *Controllers {
 			GetServiceName:             resource.GetServiceName,
 			GetServiceRoleCRN:          iam.GetServiceRoleCRN,
 			SetControllerReference:     controllerutil.SetControllerReference,
+			SetOwnerReference:          controllerutil.SetOwnerReference,
 		},
 		ServiceReconciler: &ServiceReconciler{
 			Client: mgr.GetClient(),

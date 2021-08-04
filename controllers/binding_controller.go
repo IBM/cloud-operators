@@ -76,10 +76,11 @@ type BindingReconciler struct {
 	GetCFServiceKeyCredentials cfservice.KeyGetter
 	GetServiceName             resource.ServiceNameGetter
 	GetServiceRoleCRN          iam.ServiceRolesGetter
-	SetControllerReference     ControllerReferenceSetter
+	SetControllerReference     OwnerReferenceSetter
+	SetOwnerReference          OwnerReferenceSetter
 }
 
-type ControllerReferenceSetter func(owner, controlled metav1.Object, scheme *runtime.Scheme) error
+type OwnerReferenceSetter func(owner, owned metav1.Object, scheme *runtime.Scheme) error
 
 type IBMCloudInfoGetter func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error)
 
@@ -157,8 +158,8 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 
 	// Set an owner reference if service and binding are in the same namespace
 	if serviceInstance.Namespace == instance.Namespace {
-		if err := r.SetControllerReference(serviceInstance, instance, r.Scheme); err != nil {
-			logt.Info("Binding could not update controller reference", instance.Name, err.Error())
+		if err := r.SetOwnerReference(serviceInstance, instance, r.Scheme); err != nil {
+			logt.Info("Binding could not update owner reference", instance.Name, err.Error())
 			return ctrl.Result{}, err
 		}
 

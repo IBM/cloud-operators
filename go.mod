@@ -23,7 +23,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.17.17
 	k8s.io/apimachinery v0.17.17
 	k8s.io/client-go v0.17.17
-	sigs.k8s.io/controller-runtime v0.5.0
+	sigs.k8s.io/controller-runtime v0.5.1
 )
 
 replace github.com/dgrijalva/jwt-go => github.com/form3tech-oss/jwt-go v3.2.1+incompatible // FIXME: https://github.com/dgrijalva/jwt-go/issues/463
