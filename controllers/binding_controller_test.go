@@ -73,6 +73,22 @@ func TestBinding(t *testing.T) {
 
 		// check binding is online
 		require.Eventually(t, verifyStatus(ctx, t, binding.ObjectMeta, new(ibmcloudv1.Binding), bindingStateOnline), defaultWait, defaultTick)
+		{ // check binding owner reference
+			var newBinding ibmcloudv1.Binding
+			require.NoError(t, getObject(ctx, binding.ObjectMeta, &newBinding))
+			for i := range newBinding.OwnerReferences {
+				newBinding.OwnerReferences[i].UID = ""
+			}
+			assert.Equal(t, []metav1.OwnerReference{
+				{
+					APIVersion:         "ibmcloud.ibm.com/v1",
+					Kind:               "Service",
+					Name:               "test-translator-2",
+					Controller:         nil, // controller must be nil. See https://github.com/IBM/cloud-operators/issues/222
+					BlockOwnerDeletion: nil,
+				},
+			}, newBinding.OwnerReferences)
+		}
 
 		// check secret is created
 		err = getObject(ctx, binding.ObjectMeta, &corev1.Secret{})
@@ -325,7 +341,7 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return fmt.Errorf("failed")
 			},
 		}
@@ -366,7 +382,7 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
@@ -415,7 +431,7 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
@@ -454,7 +470,7 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
@@ -508,7 +524,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
@@ -545,7 +561,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			Log:    testLogger(t),
 			Scheme: scheme,
 
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
@@ -629,7 +645,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
@@ -697,7 +713,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 				)
 				return &ibmcloud.Info{}, nil
 			},
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
@@ -769,7 +785,7 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 			)
 			return &ibmcloud.Info{}, nil
 		},
-		SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+		SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 			return nil
 		},
 	}
@@ -845,7 +861,7 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 			)
 			return &ibmcloud.Info{}, nil
 		},
-		SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+		SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 			return nil
 		},
 	}
@@ -1053,6 +1069,9 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 				SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 					return nil
 				},
+				SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+					return nil
+				},
 				GetServiceInstanceCRN: func(session *session.Session, instanceID string) (crn.CRN, string, error) {
 					return crn.CRN{}, "", nil
 				},
@@ -1138,7 +1157,7 @@ func TestBindingEnsureCredentialsFailed(t *testing.T) {
 		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			return &ibmcloud.Info{}, nil
 		},
-		SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+		SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 			return nil
 		},
 		GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
@@ -1248,7 +1267,7 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
@@ -1284,7 +1303,7 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
@@ -1374,6 +1393,9 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
 				return "", "", nil, nil
 			},
@@ -1420,6 +1442,9 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
@@ -1528,6 +1553,9 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
 				return "", "", keyContents, nil
 			},
@@ -1594,7 +1622,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
@@ -1641,7 +1669,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
 			},
-			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
@@ -1692,6 +1720,9 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 				return &ibmcloud.Info{}, nil
 			},
 			SetControllerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+				return nil
+			},
+			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetResourceServiceKey: func(session *session.Session, keyID string) (string, string, map[string]interface{}, error) {
