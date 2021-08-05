@@ -73,6 +73,22 @@ func TestBinding(t *testing.T) {
 
 		// check binding is online
 		require.Eventually(t, verifyStatus(ctx, t, binding.ObjectMeta, new(ibmcloudv1.Binding), bindingStateOnline), defaultWait, defaultTick)
+		{ // check binding owner reference
+			var newBinding ibmcloudv1.Binding
+			require.NoError(t, getObject(ctx, binding.ObjectMeta, &newBinding))
+			for i := range newBinding.OwnerReferences {
+				newBinding.OwnerReferences[i].UID = ""
+			}
+			assert.Equal(t, []metav1.OwnerReference{
+				{
+					APIVersion:         "ibmcloud.ibm.com/v1",
+					Kind:               "Service",
+					Name:               "test-translator-2",
+					Controller:         nil, // controller must be nil. See https://github.com/IBM/cloud-operators/issues/222
+					BlockOwnerDeletion: nil,
+				},
+			}, newBinding.OwnerReferences)
+		}
 
 		// check secret is created
 		err = getObject(ctx, binding.ObjectMeta, &corev1.Secret{})
