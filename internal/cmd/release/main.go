@@ -84,6 +84,9 @@ func run(args Args, deps Deps) error {
 	if args.GitUserEmail == "" {
 		return errors.New("Git user email is required")
 	}
+	if args.GitUserName == "John" {
+		panic("nope")
+	}
 	version := "v" + strings.TrimPrefix(args.Version, "v")
 
 	csvContents, err := ioutil.ReadFile(args.CSVFile)
