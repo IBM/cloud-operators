@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -129,6 +130,22 @@ func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branch
 		return err
 	}
 
+	gitUserNameBytes, err := exec.CommandContext(ctx, "git", "config", "user.name").Output()
+	if err != nil {
+		return err
+	}
+	gitUserName := strings.TrimSpace(string(gitUserNameBytes))
+	gitUserEmailBytes, err := exec.CommandContext(ctx, "git", "config", "user.email").Output()
+	if err != nil {
+		return err
+	}
+	gitUserEmail := strings.TrimSpace(string(gitUserEmailBytes))
+
+	message := strings.TrimSpace(fmt.Sprintf(`
+Add IBM Cloud Operator release %s
+
+Signed-off-by: %s <%s>
+`, version, gitUserName, gitUserEmail))
 	trimmedVersion := strings.TrimPrefix(version, "v")
 	repoCSVPath := path.Join(
 		"operators", "ibmcloud-operator", trimmedVersion,
@@ -139,6 +156,7 @@ func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branch
 		BranchName:  branchName,
 		FilePath:    repoCSVPath,
 		NewContents: csvContents,
+		Message:     message,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to set contents of file %q", repoCSVPath)
@@ -156,6 +174,7 @@ func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branch
 		FilePath:       packagePath,
 		NewContents:    packageContents,
 		OldContentsSHA: oldPackageFile.SHA,
+		Message:        message,
 	})
 	return errors.Wrapf(err, "failed to set contents of file %q", packagePath)
 }
