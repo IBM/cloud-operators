@@ -36,7 +36,7 @@ func (g *GitHub) request(ctx context.Context, method string, url url.URL, reques
 		requestReader = bytes.NewReader(requestBytes)
 	}
 	url.Scheme = "https"
-	url.Host = "github.com"
+	url.Host = "api.github.com"
 	req, err := http.NewRequestWithContext(ctx, method, url.String(), requestReader)
 	if err != nil {
 		return err
@@ -50,10 +50,7 @@ func (g *GitHub) request(ctx context.Context, method string, url url.URL, reques
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
-		responseBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
+		responseBytes, _ := ioutil.ReadAll(resp.Body)
 		return errors.Errorf("Request failed with %d: %s", resp.StatusCode, string(responseBytes))
 	}
 	if responseBody != nil {
@@ -173,4 +170,40 @@ func (g *GitHub) EnsurePullRequest(ctx context.Context, params CreatePullRequest
 		return prs[0], nil
 	}
 	return g.CreatePullRequest(ctx, params)
+}
+
+func BranchRef(branchName string) string {
+	return "heads/" + branchName
+}
+
+func (g *GitHub) GetRef(ctx context.Context, org, repo, ref string) (sha string, err error) {
+	var resp struct {
+		Object struct {
+			SHA string `json:"sha"`
+		} `json:"object"`
+	}
+	err = g.request(ctx, http.MethodGet, url.URL{Path: fmt.Sprintf("/repos/%s/%s/git/ref/%s", org, repo, ref)}, nil, &resp)
+	return resp.Object.SHA, err
+}
+
+func (g *GitHub) UpdateRef(ctx context.Context, org, repo, ref, sha string, force bool) error {
+	body := struct {
+		SHA   string `json:"sha"`
+		Force bool   `json:"force"`
+	}{
+		SHA:   sha,
+		Force: force,
+	}
+	return g.request(ctx, http.MethodPatch, url.URL{Path: fmt.Sprintf("/repos/%s/%s/git/refs/%s", org, repo, ref)}, body, nil)
+}
+
+func (g *GitHub) CreateRef(ctx context.Context, org, repo, ref, sha string) error {
+	body := struct {
+		Ref string `json:"ref"`
+		SHA string `json:"sha"`
+	}{
+		Ref: "refs/" + ref,
+		SHA: sha,
+	}
+	return g.request(ctx, http.MethodPost, url.URL{Path: fmt.Sprintf("/repos/%s/%s/git/refs", org, repo)}, body, nil)
 }

@@ -79,9 +79,10 @@ OpenShift PR opened: %s
 			dir := t.TempDir()
 			var output bytes.Buffer
 			args := Args{
-				Version: tc.version,
-				ForkOrg: tc.forkOrg,
-				Output:  &output,
+				GitHubToken: "some token",
+				Version:     tc.version,
+				ForkOrg:     tc.forkOrg,
+				Output:      &output,
 			}
 			if tc.csvFile {
 				args.CSVFile = filepath.Join(dir, "csv.yaml")
@@ -97,7 +98,7 @@ OpenShift PR opened: %s
 			)
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "https", r.URL.Scheme)
-				assert.Equal(t, "github.com", r.URL.Host)
+				assert.Equal(t, "api.github.com", r.URL.Host)
 				if r.Body == nil {
 					r.Body = ioutil.NopCloser(bytes.NewReader(nil))
 				}

@@ -50,10 +50,15 @@ func main() {
 }
 
 const (
-	kubernetesOperatorsOrg  = "k8s-operatorhub"
+	//kubernetesOperatorsOrg  = "k8s-operatorhub"
+	kubernetesOperatorsOrg  = "johnstarich"
 	kubernetesOperatorsRepo = "community-operators"
-	openshiftOperatorsOrg   = "redhat-openshift-ecosystem"
-	openshiftOperatorsRepo  = "community-operators-prod"
+
+	//openshiftOperatorsOrg   = "redhat-openshift-ecosystem"
+	openshiftOperatorsOrg  = "johnstarich"
+	openshiftOperatorsRepo = "community-operators-prod"
+
+	defaultBranch = "main"
 )
 
 type Deps struct {
@@ -69,6 +74,9 @@ func run(args Args, deps Deps) error {
 	if args.ForkOrg == "" {
 		return errors.New("fork org is required")
 	}
+	if args.GitHubToken == "" {
+		return errors.New("GitHub token is required")
+	}
 	version := "v" + strings.TrimPrefix(args.Version, "v")
 
 	csvContents, err := ioutil.ReadFile(args.CSVFile)
@@ -80,13 +88,14 @@ func run(args Args, deps Deps) error {
 		return errors.Wrap(err, "failed to read package file")
 	}
 
-	branchName := fmt.Sprintf("release-%s-%s", version, time.Now().Format(time.RFC3339))
-	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, branchName, version, csvContents, packageContents)
+	const timeFormat = "2006-01-02T15-04-05Z"
+	branchName := fmt.Sprintf("release-%s-%s", version, time.Now().Format(timeFormat))
+	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, csvContents, packageContents)
 	if err != nil {
 		return errors.Wrap(err, "failed to update kubernetes operator repo")
 	}
 
-	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, branchName, version, csvContents, packageContents)
+	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, csvContents, packageContents)
 	if err != nil {
 		return errors.Wrap(err, "failed to update openshift operator repo")
 	}
@@ -106,13 +115,26 @@ func run(args Args, deps Deps) error {
 	return nil
 }
 
-func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, branchName, version string, csvContents, packageContents []byte) error {
+func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version string, csvContents, packageContents []byte) error {
+	mainSHA, err := gh.GetRef(ctx, org, repo, BranchRef(defaultBranch))
+	if err != nil {
+		return err
+	}
+	err = gh.UpdateRef(ctx, forkOrg, repo, BranchRef(defaultBranch), mainSHA, true)
+	if err != nil {
+		return err
+	}
+	err = gh.CreateRef(ctx, forkOrg, repo, BranchRef(branchName), mainSHA)
+	if err != nil {
+		return err
+	}
+
 	trimmedVersion := strings.TrimPrefix(version, "v")
 	repoCSVPath := path.Join(
 		"operators", "ibmcloud-operator", trimmedVersion,
 		fmt.Sprintf("ibmcloud_operator.%s.clusterserviceversion.yaml", version))
-	err := gh.SetFileContents(ctx, SetFileContentsParams{
-		Org:         org,
+	err = gh.SetFileContents(ctx, SetFileContentsParams{
+		Org:         forkOrg,
 		Repo:        repo,
 		BranchName:  branchName,
 		FilePath:    repoCSVPath,
@@ -128,7 +150,7 @@ func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, branchName, ver
 		return errors.Wrapf(err, "failed to get old contents of file %q", packagePath)
 	}
 	err = gh.SetFileContents(ctx, SetFileContentsParams{
-		Org:            org,
+		Org:            forkOrg,
 		Repo:           repo,
 		BranchName:     branchName,
 		FilePath:       packagePath,
@@ -143,7 +165,7 @@ func openPR(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, ver
 		Org:   org,
 		Repo:  repo,
 		Head:  ForkHead(forkOrg, branchName),
-		Base:  "main",
+		Base:  defaultBranch,
 		Title: fmt.Sprintf("Update latest release of IBM Cloud Operator: %s", version),
 		Body:  fmt.Sprintf("Automated release of IBM Cloud Operator %s.", version),
 		Draft: draft,
