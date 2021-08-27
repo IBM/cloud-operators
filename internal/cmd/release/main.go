@@ -6,6 +6,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -18,16 +19,24 @@ import (
 type Args struct {
 	Version     string
 	GitHubToken string
+	ForkOrg     string
 	CSVFile     string
 	PackageFile string
+	DraftPRs    bool
+
+	Output io.Writer
 }
 
 func main() {
-	var args Args
+	args := Args{
+		Output: os.Stdout,
+	}
 	flag.StringVar(&args.Version, "version", "", "The release's version to publish.")
 	flag.StringVar(&args.GitHubToken, "gh-token", "", "The GitHub token used to open pull requests in OperatorHub repos.")
+	flag.StringVar(&args.ForkOrg, "fork-org", "", "The fork org to use for opening PRs on repos of the same name.")
 	flag.StringVar(&args.CSVFile, "csv", "", "Path to the OLM cluster service version file. e.g. out/ibmcloud_operator.vX.Y.Z.clusterserviceversion.yaml")
 	flag.StringVar(&args.PackageFile, "package", "", "Path to the OLM package file. e.g. out/ibmcloud-operator.package.yaml")
+	flag.BoolVar(&args.DraftPRs, "draft", false, "Open PRs as drafts instead of normal PRs.")
 	flag.Parse()
 
 	err := run(args, Deps{
@@ -57,6 +66,9 @@ func run(args Args, deps Deps) error {
 	if args.Version == "" {
 		return errors.New("version is required")
 	}
+	if args.ForkOrg == "" {
+		return errors.New("fork org is required")
+	}
 	version := "v" + strings.TrimPrefix(args.Version, "v")
 
 	csvContents, err := ioutil.ReadFile(args.CSVFile)
@@ -78,7 +90,20 @@ func run(args Args, deps Deps) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to update openshift operator repo")
 	}
-	return errors.New("not implemented")
+
+	kubernetesPR, err := openPR(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, args.DraftPRs)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to open kubernetes operator PR")
+	}
+	fmt.Fprintln(args.Output, "Kubernetes PR opened:", kubernetesPR)
+
+	openshiftPR, err := openPR(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, args.DraftPRs)
+	if err != nil {
+		return errors.Wrap(err, "failed to open openshift operator PR")
+	}
+	fmt.Fprintln(args.Output, "OpenShift PR opened:", openshiftPR)
+	return nil
 }
 
 func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, branchName, version string, csvContents, packageContents []byte) error {
@@ -111,4 +136,16 @@ func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, branchName, ver
 		OldContentsSHA: oldPackageFile.SHA,
 	})
 	return errors.Wrapf(err, "failed to set contents of file %q", packagePath)
+}
+
+func openPR(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version string, draft bool) (string, error) {
+	return gh.EnsurePullRequest(ctx, CreatePullRequestParams{
+		Org:   org,
+		Repo:  repo,
+		Head:  ForkHead(forkOrg, branchName),
+		Base:  "main",
+		Title: fmt.Sprintf("Update latest release of IBM Cloud Operator: %s", version),
+		Body:  fmt.Sprintf("Automated release of IBM Cloud Operator %s.", version),
+		Draft: draft,
+	})
 }

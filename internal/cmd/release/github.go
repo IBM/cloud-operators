@@ -111,3 +111,66 @@ func (g *GitHub) GetFileContents(ctx context.Context, org, repo, branchName, rep
 	err := g.request(ctx, http.MethodGet, u, nil, &resp)
 	return resp, err
 }
+
+func ForkHead(owner, branch string) string {
+	return owner + ":" + branch
+}
+
+type CreatePullRequestParams struct {
+	Org   string
+	Repo  string
+	Head  string // branch name
+	Base  string
+	Title string
+	Body  string
+	Draft bool
+}
+
+func (g *GitHub) CreatePullRequest(ctx context.Context, params CreatePullRequestParams) (prURL string, err error) {
+	body := struct {
+		Title string `json:"title"` // The title of the new pull request.
+		Head  string `json:"head"`  // Required. The name of the branch where your changes are implemented. For cross-repository pull requests in the same network, namespace head with a user like this: username:branch.
+		Base  string `json:"base"`  // Required. The name of the branch you want the changes pulled into. This should be an existing branch on the current repository. You cannot submit a pull request to one repository that requests a merge to a base of another repository.
+		Body  string `json:"body"`  // The contents of the pull request.
+		Draft bool   `json:"draft"` // Indicates whether the pull request is a draft.
+	}{
+		Title: params.Title,
+		Head:  params.Head,
+		Base:  params.Base,
+		Body:  params.Body,
+		Draft: params.Draft,
+	}
+	var resp struct {
+		URL string `json:"html_url"`
+	}
+	err = g.request(ctx, http.MethodPost, url.URL{Path: fmt.Sprintf("/repos/%s/%s/pulls", params.Org, params.Repo)}, body, &resp)
+	return resp.URL, err
+}
+
+func (g *GitHub) ListPullRequests(ctx context.Context, org, repo, head string) (prURLs []string, err error) {
+	u := url.URL{
+		Path: fmt.Sprintf("/repos/%s/%s/pulls", org, repo),
+		RawQuery: url.Values{
+			"head": []string{head},
+		}.Encode(),
+	}
+	var resp []struct {
+		URL string `json:"html_url"`
+	}
+	err = g.request(ctx, http.MethodGet, u, nil, &resp)
+	for _, r := range resp {
+		prURLs = append(prURLs, r.URL)
+	}
+	return prURLs, err
+}
+
+func (g *GitHub) EnsurePullRequest(ctx context.Context, params CreatePullRequestParams) (prURL string, err error) {
+	prs, err := g.ListPullRequests(ctx, params.Org, params.Repo, params.Head)
+	if err != nil {
+		return "", err
+	}
+	if len(prs) > 0 {
+		return prs[0], nil
+	}
+	return g.CreatePullRequest(ctx, params)
+}
