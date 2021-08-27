@@ -183,8 +183,18 @@ release-prep: kustomize manifests out
 	kustomize build config/default --output out/
 	ulimit -n 1000 && go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
 
+.PHONY: release-operatorhub
+release-operatorhub:
+	go run ./internal/cmd/release \
+		-version "${RELEASE_VERSION}" \
+		-csv "out/ibmcloud_operator.v${RELEASE_VERSION}.clusterserviceversion.yaml" \
+		-package out/ibmcloud-operator.package.yaml \
+		-draft=$${RELEASE_DRAFT:-false} \
+		-fork-org "$${RELEASE_FORK_ORG}" \
+		-gh-token "$${RELEASE_GH_TOKEN}"
+
 .PHONY: release
-release: release-prep docker-push
+release: release-prep docker-push release-operatorhub
 
 # Validates release artifacts.
 # TODO add validation for operator-courier. Currently hitting WAY too many issues with Travis CI and Python deps.
