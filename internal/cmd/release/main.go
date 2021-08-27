@@ -1,0 +1,114 @@
+// Command release publishes a new release of IBM Cloud Operator.
+// Picks up pre-generated output files and creates pull requests in the appropriate repos.
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"strings"
+	"time"
+
+	"github.com/pkg/errors"
+)
+
+type Args struct {
+	Version     string
+	GitHubToken string
+	CSVFile     string
+	PackageFile string
+}
+
+func main() {
+	var args Args
+	flag.StringVar(&args.Version, "version", "", "The release's version to publish.")
+	flag.StringVar(&args.GitHubToken, "gh-token", "", "The GitHub token used to open pull requests in OperatorHub repos.")
+	flag.StringVar(&args.CSVFile, "csv", "", "Path to the OLM cluster service version file. e.g. out/ibmcloud_operator.vX.Y.Z.clusterserviceversion.yaml")
+	flag.StringVar(&args.PackageFile, "package", "", "Path to the OLM package file. e.g. out/ibmcloud-operator.package.yaml")
+	flag.Parse()
+
+	err := run(args, Deps{
+		GitHub: newGitHub(args.GitHubToken),
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Release failed: %+v\n", err)
+		os.Exit(1)
+		return
+	}
+}
+
+const (
+	kubernetesOperatorsOrg  = "k8s-operatorhub"
+	kubernetesOperatorsRepo = "community-operators"
+	openshiftOperatorsOrg   = "redhat-openshift-ecosystem"
+	openshiftOperatorsRepo  = "community-operators-prod"
+)
+
+type Deps struct {
+	GitHub *GitHub
+}
+
+func run(args Args, deps Deps) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if args.Version == "" {
+		return errors.New("version is required")
+	}
+	version := "v" + strings.TrimPrefix(args.Version, "v")
+
+	csvContents, err := ioutil.ReadFile(args.CSVFile)
+	if err != nil {
+		return errors.Wrap(err, "failed to read cluster service version file")
+	}
+	packageContents, err := ioutil.ReadFile(args.PackageFile)
+	if err != nil {
+		return errors.Wrap(err, "failed to read package file")
+	}
+
+	branchName := fmt.Sprintf("release-%s-%s", version, time.Now().Format(time.RFC3339))
+	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, branchName, version, csvContents, packageContents)
+	if err != nil {
+		return errors.Wrap(err, "failed to update kubernetes operator repo")
+	}
+
+	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, branchName, version, csvContents, packageContents)
+	if err != nil {
+		return errors.Wrap(err, "failed to update openshift operator repo")
+	}
+	return errors.New("not implemented")
+}
+
+func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, branchName, version string, csvContents, packageContents []byte) error {
+	trimmedVersion := strings.TrimPrefix(version, "v")
+	repoCSVPath := path.Join(
+		"operators", "ibmcloud-operator", trimmedVersion,
+		fmt.Sprintf("ibmcloud_operator.%s.clusterserviceversion.yaml", version))
+	err := gh.SetFileContents(ctx, SetFileContentsParams{
+		Org:         org,
+		Repo:        repo,
+		BranchName:  branchName,
+		FilePath:    repoCSVPath,
+		NewContents: csvContents,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed to set contents of file %q", repoCSVPath)
+	}
+
+	packagePath := path.Join("operators", "ibmcloud-operator", "ibmcloud-operator.package.yaml")
+	oldPackageFile, err := gh.GetFileContents(ctx, org, repo, "", packagePath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get old contents of file %q", packagePath)
+	}
+	err = gh.SetFileContents(ctx, SetFileContentsParams{
+		Org:            org,
+		Repo:           repo,
+		BranchName:     branchName,
+		FilePath:       packagePath,
+		NewContents:    packageContents,
+		OldContentsSHA: oldPackageFile.SHA,
+	})
+	return errors.Wrapf(err, "failed to set contents of file %q", packagePath)
+}
