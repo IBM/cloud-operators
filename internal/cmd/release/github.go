@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-
-	"github.com/pkg/errors"
 )
 
 type GitHub struct {
@@ -24,6 +23,19 @@ func newGitHub(token string) *GitHub {
 		token:     token,
 		doRequest: http.DefaultClient.Do,
 	}
+}
+
+type responseError struct {
+	statusCode int
+	body       string
+}
+
+func (r *responseError) StatusCode() int {
+	return r.statusCode
+}
+
+func (r *responseError) Error() string {
+	return fmt.Sprintf("Request failed with %d: %s", r.statusCode, r.body)
 }
 
 func (g *GitHub) request(ctx context.Context, method string, url url.URL, requestBody, responseBody interface{}) error {
@@ -51,7 +63,7 @@ func (g *GitHub) request(ctx context.Context, method string, url url.URL, reques
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
 		responseBytes, _ := ioutil.ReadAll(resp.Body)
-		return errors.Errorf("Request failed with %d: %s", resp.StatusCode, string(responseBytes))
+		return &responseError{statusCode: resp.StatusCode, body: string(responseBytes)}
 	}
 	if responseBody != nil {
 		return json.NewDecoder(resp.Body).Decode(responseBody)
@@ -95,7 +107,7 @@ type FileContents struct {
 	SHA     string
 }
 
-func (g *GitHub) GetFileContents(ctx context.Context, org, repo, branchName, repoFilePath string) (FileContents, error) {
+func (g *GitHub) GetFileContents(ctx context.Context, org, repo, branchName, repoFilePath string) (FileContents, bool, error) {
 	var resp FileContents
 	u := url.URL{
 		Path: fmt.Sprintf("/repos/%s/%s/contents/%s", org, repo, repoFilePath),
@@ -106,7 +118,11 @@ func (g *GitHub) GetFileContents(ctx context.Context, org, repo, branchName, rep
 		}.Encode()
 	}
 	err := g.request(ctx, http.MethodGet, u, nil, &resp)
-	return resp, err
+	var responseErr *responseError
+	if errors.As(err, &responseErr) && responseErr.StatusCode() == http.StatusNotFound {
+		return FileContents{}, false, nil
+	}
+	return resp, err == nil, err
 }
 
 func ForkHead(owner, branch string) string {
@@ -176,14 +192,18 @@ func BranchRef(branchName string) string {
 	return "heads/" + branchName
 }
 
-func (g *GitHub) GetRef(ctx context.Context, org, repo, ref string) (sha string, err error) {
+func (g *GitHub) GetRef(ctx context.Context, org, repo, ref string) (sha string, found bool, err error) {
 	var resp struct {
 		Object struct {
 			SHA string `json:"sha"`
 		} `json:"object"`
 	}
 	err = g.request(ctx, http.MethodGet, url.URL{Path: fmt.Sprintf("/repos/%s/%s/git/ref/%s", org, repo, ref)}, nil, &resp)
-	return resp.Object.SHA, err
+	var responseErr *responseError
+	if errors.As(err, &responseErr) && responseErr.StatusCode() == http.StatusNotFound {
+		return "", false, nil
+	}
+	return resp.Object.SHA, err == nil, err
 }
 
 func (g *GitHub) UpdateRef(ctx context.Context, org, repo, ref, sha string, force bool) error {

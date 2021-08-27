@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -87,8 +86,7 @@ func run(args Args, deps Deps) error {
 		return errors.Wrap(err, "failed to read package file")
 	}
 
-	const timeFormat = "2006-01-02T15-04-05Z"
-	branchName := fmt.Sprintf("release-%s-%s", version, time.Now().Format(timeFormat))
+	branchName := fmt.Sprintf("release-%s", version)
 	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, csvContents, packageContents)
 	if err != nil {
 		return errors.Wrap(err, "failed to update kubernetes operator repo")
@@ -115,17 +113,34 @@ func run(args Args, deps Deps) error {
 }
 
 func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version string, csvContents, packageContents []byte) error {
-	mainSHA, err := gh.GetRef(ctx, org, repo, BranchRef(defaultBranch))
+	// ensure fork default branch is set to same as upstream commit (makes latest commit "available" to fork)
+	mainSHA, mainFound, err := gh.GetRef(ctx, org, repo, BranchRef(defaultBranch))
 	if err != nil {
 		return err
+	}
+	if !mainFound {
+		return errors.Errorf("Branch %q not found in upstream repo %s/%s", defaultBranch, org, repo)
 	}
 	err = gh.UpdateRef(ctx, forkOrg, repo, BranchRef(defaultBranch), mainSHA, true)
 	if err != nil {
 		return err
 	}
-	err = gh.CreateRef(ctx, forkOrg, repo, BranchRef(branchName), mainSHA)
+
+	// ensure fork branch is set to same as default branch commit
+	_, forkBranchExists, err := gh.GetRef(ctx, forkOrg, repo, BranchRef(branchName))
 	if err != nil {
 		return err
+	}
+	if forkBranchExists {
+		err = gh.UpdateRef(ctx, forkOrg, repo, BranchRef(branchName), mainSHA, true)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = gh.CreateRef(ctx, forkOrg, repo, BranchRef(branchName), mainSHA)
+		if err != nil {
+			return err
+		}
 	}
 
 	gitUserNameBytes, err := exec.CommandContext(ctx, "git", "config", "user.name").Output()
@@ -148,20 +163,25 @@ Signed-off-by: %s <%s>
 	repoCSVPath := path.Join(
 		"operators", "ibmcloud-operator", trimmedVersion,
 		fmt.Sprintf("ibmcloud_operator.%s.clusterserviceversion.yaml", version))
+	oldCSVFile, _, err := gh.GetFileContents(ctx, org, repo, "", repoCSVPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get old contents of file %q", repoCSVPath)
+	}
 	err = gh.SetFileContents(ctx, SetFileContentsParams{
-		Org:         forkOrg,
-		Repo:        repo,
-		BranchName:  branchName,
-		FilePath:    repoCSVPath,
-		NewContents: csvContents,
-		Message:     message,
+		Org:            forkOrg,
+		Repo:           repo,
+		BranchName:     branchName,
+		FilePath:       repoCSVPath,
+		NewContents:    csvContents,
+		OldContentsSHA: oldCSVFile.SHA,
+		Message:        message,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to set contents of file %q", repoCSVPath)
 	}
 
 	packagePath := path.Join("operators", "ibmcloud-operator", "ibmcloud-operator.package.yaml")
-	oldPackageFile, err := gh.GetFileContents(ctx, org, repo, "", packagePath)
+	oldPackageFile, _, err := gh.GetFileContents(ctx, org, repo, "", packagePath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get old contents of file %q", packagePath)
 	}
