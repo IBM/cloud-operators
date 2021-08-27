@@ -192,7 +192,7 @@ release-operatorhub:
 		-draft=$${RELEASE_DRAFT:-false} \
 		-fork-org "$${RELEASE_FORK_ORG}" \
 		-gh-token "$${RELEASE_GH_TOKEN}" \
-		-signoff-name "${RELEASE_GIT_NAME}" \
+		-signoff-name "$${RELEASE_GIT_NAME}" \
 		-signoff-email "$${RELEASE_GIT_EMAIL}"
 
 .PHONY: release
