@@ -51,12 +51,10 @@ func main() {
 }
 
 const (
-	//kubernetesOperatorsOrg  = "k8s-operatorhub"
-	kubernetesOperatorsOrg  = "johnstarich"
+	kubernetesOperatorsOrg  = "k8s-operatorhub"
 	kubernetesOperatorsRepo = "community-operators"
 
-	//openshiftOperatorsOrg   = "redhat-openshift-ecosystem"
-	openshiftOperatorsOrg  = "johnstarich"
+	openshiftOperatorsOrg  = "redhat-openshift-ecosystem"
 	openshiftOperatorsRepo = "community-operators-prod"
 
 	defaultBranch = "main"
