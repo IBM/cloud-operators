@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 
@@ -17,12 +16,14 @@ import (
 )
 
 type Args struct {
-	Version     string
-	GitHubToken string
-	ForkOrg     string
-	CSVFile     string
-	PackageFile string
-	DraftPRs    bool
+	Version      string
+	GitHubToken  string
+	ForkOrg      string
+	CSVFile      string
+	PackageFile  string
+	DraftPRs     bool
+	GitUserName  string
+	GitUserEmail string
 
 	Output io.Writer
 }
@@ -37,6 +38,8 @@ func main() {
 	flag.StringVar(&args.CSVFile, "csv", "", "Path to the OLM cluster service version file. e.g. out/ibmcloud_operator.vX.Y.Z.clusterserviceversion.yaml")
 	flag.StringVar(&args.PackageFile, "package", "", "Path to the OLM package file. e.g. out/ibmcloud-operator.package.yaml")
 	flag.BoolVar(&args.DraftPRs, "draft", false, "Open PRs as drafts instead of normal PRs.")
+	flag.StringVar(&args.GitUserName, "signoff-name", "", "The Git user name to use when signing off commits.")
+	flag.StringVar(&args.GitUserEmail, "signoff-email", "", "The Git email to use when signing off commits.")
 	flag.Parse()
 
 	err := run(args, Deps{
@@ -75,6 +78,12 @@ func run(args Args, deps Deps) error {
 	if args.GitHubToken == "" {
 		return errors.New("GitHub token is required")
 	}
+	if args.GitUserName == "" {
+		return errors.New("Git user name is required")
+	}
+	if args.GitUserEmail == "" {
+		return errors.New("Git user email is required")
+	}
 	version := "v" + strings.TrimPrefix(args.Version, "v")
 
 	csvContents, err := ioutil.ReadFile(args.CSVFile)
@@ -86,13 +95,14 @@ func run(args Args, deps Deps) error {
 		return errors.Wrap(err, "failed to read package file")
 	}
 
+	signoff := fmt.Sprintf("%s <%s>", args.GitUserName, args.GitUserEmail)
 	branchName := fmt.Sprintf("release-%s", version)
-	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, csvContents, packageContents)
+	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents)
 	if err != nil {
 		return errors.Wrap(err, "failed to update kubernetes operator repo")
 	}
 
-	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, csvContents, packageContents)
+	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents)
 	if err != nil {
 		return errors.Wrap(err, "failed to update openshift operator repo")
 	}
@@ -112,7 +122,7 @@ func run(args Args, deps Deps) error {
 	return nil
 }
 
-func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version string, csvContents, packageContents []byte) error {
+func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version, signoff string, csvContents, packageContents []byte) error {
 	// ensure fork default branch is set to same as upstream commit (makes latest commit "available" to fork)
 	mainSHA, mainFound, err := gh.GetRef(ctx, org, repo, BranchRef(defaultBranch))
 	if err != nil {
@@ -143,22 +153,11 @@ func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branch
 		}
 	}
 
-	gitUserNameBytes, err := exec.CommandContext(ctx, "git", "config", "user.name").Output()
-	if err != nil {
-		return err
-	}
-	gitUserName := strings.TrimSpace(string(gitUserNameBytes))
-	gitUserEmailBytes, err := exec.CommandContext(ctx, "git", "config", "user.email").Output()
-	if err != nil {
-		return err
-	}
-	gitUserEmail := strings.TrimSpace(string(gitUserEmailBytes))
-
 	message := strings.TrimSpace(fmt.Sprintf(`
 Add IBM Cloud Operator release %s
 
-Signed-off-by: %s <%s>
-`, version, gitUserName, gitUserEmail))
+Signed-off-by: %s
+`, version, signoff))
 	trimmedVersion := strings.TrimPrefix(version, "v")
 	repoCSVPath := path.Join(
 		"operators", "ibmcloud-operator", trimmedVersion,

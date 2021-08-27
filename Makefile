@@ -191,7 +191,9 @@ release-operatorhub:
 		-package out/ibmcloud-operator.package.yaml \
 		-draft=$${RELEASE_DRAFT:-false} \
 		-fork-org "$${RELEASE_FORK_ORG}" \
-		-gh-token "$${RELEASE_GH_TOKEN}"
+		-gh-token "$${RELEASE_GH_TOKEN}" \
+		-signoff-name "$${RELEASE_GIT_NAME}" \
+		-signoff-email "$${RELEASE_GIT_EMAIL}"
 
 .PHONY: release
 release: release-prep docker-push release-operatorhub
