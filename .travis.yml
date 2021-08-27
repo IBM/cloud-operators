@@ -8,6 +8,8 @@ services:
 
 jobs:
   include:
+    - name: Temp release
+      script: make -e RELEASE_VERSION="1.0.10" release
     - name: Lint
       script: make lint
     - name: Unit Tests
