@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -21,6 +22,7 @@ type Args struct {
 	ForkOrg      string
 	CSVFile      string
 	PackageFile  string
+	CRDFileGlob  string
 	DraftPRs     bool
 	GitUserName  string
 	GitUserEmail string
@@ -37,6 +39,7 @@ func main() {
 	flag.StringVar(&args.ForkOrg, "fork-org", "", "The fork org to use for opening PRs on repos of the same name.")
 	flag.StringVar(&args.CSVFile, "csv", "", "Path to the OLM cluster service version file. e.g. out/ibmcloud_operator.vX.Y.Z.clusterserviceversion.yaml")
 	flag.StringVar(&args.PackageFile, "package", "", "Path to the OLM package file. e.g. out/ibmcloud-operator.package.yaml")
+	flag.StringVar(&args.CRDFileGlob, "crd-glob", "", "Path to the OLM custom resource definition files. e.g. out/apiextensions.k8s.io_v1beta1_customresourcedefinition_*.ibmcloud.ibm.com.yaml")
 	flag.BoolVar(&args.DraftPRs, "draft", false, "Open PRs as drafts instead of normal PRs.")
 	flag.StringVar(&args.GitUserName, "signoff-name", "", "The Git user name to use when signing off commits.")
 	flag.StringVar(&args.GitUserEmail, "signoff-email", "", "The Git email to use when signing off commits.")
@@ -84,6 +87,7 @@ func run(args Args, deps Deps) error {
 	if args.GitUserEmail == "" {
 		return errors.New("Git user email is required")
 	}
+
 	version := "v" + strings.TrimPrefix(args.Version, "v")
 
 	csvContents, err := ioutil.ReadFile(args.CSVFile)
@@ -94,15 +98,27 @@ func run(args Args, deps Deps) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to read package file")
 	}
+	crds, err := filepath.Glob(args.CRDFileGlob)
+	if err != nil {
+		return errors.Wrap(err, "failed to find CRD files")
+	}
+	crdContents := make(map[string][]byte)
+	for _, crd := range crds {
+		contents, err := ioutil.ReadFile(crd)
+		if err != nil {
+			return errors.Wrap(err, "failed to read CRD file")
+		}
+		crdContents[filepath.Base(crd)] = contents
+	}
 
 	signoff := fmt.Sprintf("%s <%s>", args.GitUserName, args.GitUserEmail)
 	branchName := fmt.Sprintf("release-%s", version)
-	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents)
+	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents, crdContents)
 	if err != nil {
 		return errors.Wrap(err, "failed to update kubernetes operator repo")
 	}
 
-	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents)
+	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents, crdContents)
 	if err != nil {
 		return errors.Wrap(err, "failed to update openshift operator repo")
 	}
@@ -122,7 +138,7 @@ func run(args Args, deps Deps) error {
 	return nil
 }
 
-func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version, signoff string, csvContents, packageContents []byte) error {
+func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version, signoff string, csvContents, packageContents []byte, crdContents map[string][]byte) error {
 	// ensure fork default branch is set to same as upstream commit (makes latest commit "available" to fork)
 	mainSHA, mainFound, err := gh.GetRef(ctx, org, repo, BranchRef(defaultBranch))
 	if err != nil {
@@ -159,10 +175,30 @@ Add IBM Cloud Operator release %s
 Signed-off-by: %s
 `, version, signoff))
 	trimmedVersion := strings.TrimPrefix(version, "v")
-	repoCSVPath := path.Join(
-		"operators", "ibmcloud-operator", trimmedVersion,
-		fmt.Sprintf("ibmcloud_operator.%s.clusterserviceversion.yaml", version))
-	oldCSVFile, _, err := gh.GetFileContents(ctx, org, repo, "", repoCSVPath)
+	versionPath := path.Join("operators", "ibmcloud-operator", trimmedVersion)
+
+	for fileName, contents := range crdContents {
+		filePath := path.Join(versionPath, fileName)
+		oldCRDFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", filePath)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get old contents of CRD file %q", fileName)
+		}
+		err = gh.SetFileContents(ctx, SetFileContentsParams{
+			Org:            forkOrg,
+			Repo:           repo,
+			BranchName:     branchName,
+			FilePath:       filePath,
+			NewContents:    contents,
+			OldContentsSHA: oldCRDFile.SHA,
+			Message:        message,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to set contents of file %q", filePath)
+		}
+	}
+
+	repoCSVPath := path.Join(versionPath, fmt.Sprintf("ibmcloud_operator.%s.clusterserviceversion.yaml", version))
+	oldCSVFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", repoCSVPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get old contents of file %q", repoCSVPath)
 	}
@@ -180,7 +216,7 @@ Signed-off-by: %s
 	}
 
 	packagePath := path.Join("operators", "ibmcloud-operator", "ibmcloud-operator.package.yaml")
-	oldPackageFile, _, err := gh.GetFileContents(ctx, org, repo, "", packagePath)
+	oldPackageFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", packagePath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get old contents of file %q", packagePath)
 	}
