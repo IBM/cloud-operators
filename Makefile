@@ -189,7 +189,7 @@ release-operatorhub:
 		-version "${RELEASE_VERSION}" \
 		-csv "out/ibmcloud_operator.v${RELEASE_VERSION}.clusterserviceversion.yaml" \
 		-package out/ibmcloud-operator.package.yaml \
-		-crd-glob 'out/apiextensions.k8s.io_v1beta1_customresourcedefinition_*.ibmcloud.ibm.com.yaml' \
+		-crd-glob 'out/apiextensions.k8s.io_*_customresourcedefinition_*.ibmcloud.ibm.com.yaml' \
 		-draft=$${RELEASE_DRAFT:-false} \
 		-fork-org "$${RELEASE_FORK_ORG}" \
 		-gh-token "$${RELEASE_GH_TOKEN}" \

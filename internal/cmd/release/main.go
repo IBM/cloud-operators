@@ -26,26 +26,17 @@ type Args struct {
 	DraftPRs     bool
 	GitUserName  string
 	GitUserEmail string
-
-	Output io.Writer
 }
 
 func main() {
-	args := Args{
-		Output: os.Stdout,
+	args, err := parseArgs(os.Args, os.Stderr)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+		return
 	}
-	flag.StringVar(&args.Version, "version", "", "The release's version to publish.")
-	flag.StringVar(&args.GitHubToken, "gh-token", "", "The GitHub token used to open pull requests in OperatorHub repos.")
-	flag.StringVar(&args.ForkOrg, "fork-org", "", "The fork org to use for opening PRs on repos of the same name.")
-	flag.StringVar(&args.CSVFile, "csv", "", "Path to the OLM cluster service version file. e.g. out/ibmcloud_operator.vX.Y.Z.clusterserviceversion.yaml")
-	flag.StringVar(&args.PackageFile, "package", "", "Path to the OLM package file. e.g. out/ibmcloud-operator.package.yaml")
-	flag.StringVar(&args.CRDFileGlob, "crd-glob", "", "Path to the OLM custom resource definition files. e.g. out/apiextensions.k8s.io_v1beta1_customresourcedefinition_*.ibmcloud.ibm.com.yaml")
-	flag.BoolVar(&args.DraftPRs, "draft", false, "Open PRs as drafts instead of normal PRs.")
-	flag.StringVar(&args.GitUserName, "signoff-name", "", "The Git user name to use when signing off commits.")
-	flag.StringVar(&args.GitUserEmail, "signoff-email", "", "The Git email to use when signing off commits.")
-	flag.Parse()
-
-	err := run(args, Deps{
+	err = run(args, Deps{
+		Output: os.Stdout,
 		GitHub: newGitHub(args.GitHubToken),
 	})
 	if err != nil {
@@ -53,6 +44,52 @@ func main() {
 		os.Exit(1)
 		return
 	}
+}
+
+var optionalFlags = map[string]bool{
+	"draft": true,
+}
+
+func parseArgs(osArgs []string, output io.Writer) (args Args, err error) {
+	set := flag.NewFlagSet("release", flag.ContinueOnError)
+	set.SetOutput(output)
+	defer func() {
+		if err != nil {
+			set.Usage()
+		}
+	}()
+
+	set.StringVar(&args.Version, "version", "", "The release's version to publish.")
+	set.StringVar(&args.GitHubToken, "gh-token", "", "The GitHub token used to open pull requests in OperatorHub repos.")
+	set.StringVar(&args.ForkOrg, "fork-org", "", "The fork org to use for opening PRs on repos of the same name.")
+	set.StringVar(&args.CSVFile, "csv", "", "Path to the OLM cluster service version file. e.g. out/ibmcloud_operator.vX.Y.Z.clusterserviceversion.yaml")
+	set.StringVar(&args.PackageFile, "package", "", "Path to the OLM package file. e.g. out/ibmcloud-operator.package.yaml")
+	set.StringVar(&args.CRDFileGlob, "crd-glob", "", "Path to the OLM custom resource definition files. e.g. out/apiextensions.k8s.io_v1beta1_customresourcedefinition_*.ibmcloud.ibm.com.yaml")
+	set.BoolVar(&args.DraftPRs, "draft", false, "Open PRs as drafts instead of normal PRs.")
+	set.StringVar(&args.GitUserName, "signoff-name", "", "The Git user name to use when signing off commits.")
+	set.StringVar(&args.GitUserEmail, "signoff-email", "", "The Git email to use when signing off commits.")
+	err = set.Parse(osArgs)
+	if err != nil {
+		return Args{}, err
+	}
+	providedFlags := make(map[string]bool)
+	set.Visit(func(f *flag.Flag) {
+		switch f.Value.String() {
+		case "", "false", "0":
+		default:
+			providedFlags[f.Name] = true
+		}
+	})
+	var unsetFlagErrs []string
+	set.VisitAll(func(f *flag.Flag) {
+		if !providedFlags[f.Name] && !optionalFlags[f.Name] {
+			unsetFlagErrs = append(unsetFlagErrs, "    -"+f.Name)
+		}
+	})
+	if len(unsetFlagErrs) > 0 {
+		return Args{}, errors.Errorf("Missing required flags:\n%s", strings.Join(unsetFlagErrs, "\n"))
+	}
+	return args, nil
 }
 
 const (
@@ -66,27 +103,13 @@ const (
 )
 
 type Deps struct {
+	Output io.Writer
 	GitHub *GitHub
 }
 
 func run(args Args, deps Deps) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if args.Version == "" {
-		return errors.New("version is required")
-	}
-	if args.ForkOrg == "" {
-		return errors.New("fork org is required")
-	}
-	if args.GitHubToken == "" {
-		return errors.New("GitHub token is required")
-	}
-	if args.GitUserName == "" {
-		return errors.New("Git user name is required")
-	}
-	if args.GitUserEmail == "" {
-		return errors.New("Git user email is required")
-	}
 
 	version := "v" + strings.TrimPrefix(args.Version, "v")
 
@@ -128,13 +151,13 @@ func run(args Args, deps Deps) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to open kubernetes operator PR")
 	}
-	fmt.Fprintln(args.Output, "Kubernetes PR opened:", kubernetesPR)
+	fmt.Fprintln(deps.Output, "Kubernetes PR opened:", kubernetesPR)
 
 	openshiftPR, err := openPR(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, args.DraftPRs)
 	if err != nil {
 		return errors.Wrap(err, "failed to open openshift operator PR")
 	}
-	fmt.Fprintln(args.Output, "OpenShift PR opened:", openshiftPR)
+	fmt.Fprintln(deps.Output, "OpenShift PR opened:", openshiftPR)
 	return nil
 }
 
