@@ -183,7 +183,6 @@ Add IBM Cloud Operator release %s
 
 Signed-off-by: %s
 `, version, signoff))
-	versionPath := path.Join("operators", "ibmcloud-operator", strings.TrimPrefix(version, "v"))
 	return pipe.Chain([]pipe.Op{
 		func() error {
 			mainSHA, mainFound, err = gh.GetRef(ctx, org, repo, BranchRef(defaultBranch))
@@ -208,75 +207,13 @@ Signed-off-by: %s
 			return gh.CreateRef(ctx, forkOrg, repo, BranchRef(branchName), mainSHA)
 		},
 		func() error {
-			var ops []pipe.Op
-			for fileName, contents := range crdContents {
-				fileName, contents := fileName, contents // loop-local copy for closure
-				filePath := path.Join(versionPath, fileName)
-				var oldSHA string
-				ops = append(ops, func() error {
-					oldCRDFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", filePath)
-					oldSHA = oldCRDFile.SHA
-					return errors.Wrapf(err, "failed to get old contents of CRD file %q", fileName)
-				}, func() error {
-					err := gh.SetFileContents(ctx, SetFileContentsParams{
-						Org:            forkOrg,
-						Repo:           repo,
-						BranchName:     branchName,
-						FilePath:       filePath,
-						NewContents:    contents,
-						OldContentsSHA: oldSHA,
-						Message:        message,
-					})
-					return errors.Wrapf(err, "failed to set contents of file %q", filePath)
-				})
-			}
-			return pipe.Chain(ops)
+			return setCRDFiles(ctx, gh, forkOrg, repo, branchName, version, message, crdContents)
 		},
 		func() error {
-			repoCSVPath := path.Join(versionPath, fmt.Sprintf("ibmcloud_operator.%s.clusterserviceversion.yaml", version))
-			var oldSHA string
-			return pipe.Chain([]pipe.Op{
-				func() error {
-					oldCSVFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", repoCSVPath)
-					oldSHA = oldCSVFile.SHA
-					return errors.Wrapf(err, "failed to get old contents of file %q", repoCSVPath)
-				},
-				func() error {
-					err := gh.SetFileContents(ctx, SetFileContentsParams{
-						Org:            forkOrg,
-						Repo:           repo,
-						BranchName:     branchName,
-						FilePath:       repoCSVPath,
-						NewContents:    csvContents,
-						OldContentsSHA: oldSHA,
-						Message:        message,
-					})
-					return errors.Wrapf(err, "failed to set contents of file %q", repoCSVPath)
-				},
-			})
+			return setCSVFile(ctx, gh, forkOrg, repo, branchName, version, message, csvContents)
 		},
 		func() error {
-			packagePath := path.Join("operators", "ibmcloud-operator", "ibmcloud-operator.package.yaml")
-			var oldSHA string
-			return pipe.Chain([]pipe.Op{
-				func() error {
-					oldPackageFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", packagePath)
-					oldSHA = oldPackageFile.SHA
-					return errors.Wrapf(err, "failed to get old contents of file %q", packagePath)
-				},
-				func() error {
-					err := gh.SetFileContents(ctx, SetFileContentsParams{
-						Org:            forkOrg,
-						Repo:           repo,
-						BranchName:     branchName,
-						FilePath:       packagePath,
-						NewContents:    packageContents,
-						OldContentsSHA: oldSHA,
-						Message:        message,
-					})
-					return errors.Wrapf(err, "failed to set contents of file %q", packagePath)
-				},
-			})
+			return setPackageFile(ctx, gh, forkOrg, repo, branchName, version, message, packageContents)
 		},
 	})
 }
@@ -290,5 +227,85 @@ func openPR(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, ver
 		Title: fmt.Sprintf("Update latest release of IBM Cloud Operator: %s", version),
 		Body:  fmt.Sprintf("Automated release of IBM Cloud Operator %s.", version),
 		Draft: draft,
+	})
+}
+
+func versionBasePath(version string) string {
+	return path.Join("operators", "ibmcloud-operator", strings.TrimPrefix(version, "v"))
+}
+
+func setCRDFiles(ctx context.Context, gh *GitHub, forkOrg, repo, branchName, version, message string, crdContents map[string][]byte) error {
+	var ops []pipe.Op
+	for fileName, contents := range crdContents {
+		fileName, contents := fileName, contents // loop-local copy for closure
+		filePath := path.Join(versionBasePath(version), fileName)
+		var oldSHA string
+		ops = append(ops,
+			func() error {
+				oldCRDFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", filePath)
+				oldSHA = oldCRDFile.SHA
+				return errors.Wrapf(err, "failed to get old contents of CRD file %q", fileName)
+			},
+			func() error {
+				err := gh.SetFileContents(ctx, SetFileContentsParams{
+					Org:            forkOrg,
+					Repo:           repo,
+					BranchName:     branchName,
+					FilePath:       filePath,
+					NewContents:    contents,
+					OldContentsSHA: oldSHA,
+					Message:        message,
+				})
+				return errors.Wrapf(err, "failed to set contents of file %q", filePath)
+			})
+	}
+	return pipe.Chain(ops)
+}
+
+func setCSVFile(ctx context.Context, gh *GitHub, forkOrg, repo, branchName, version, message string, csvContents []byte) error {
+	repoCSVPath := path.Join(versionBasePath(version), fmt.Sprintf("ibmcloud_operator.%s.clusterserviceversion.yaml", version))
+	var oldSHA string
+	return pipe.Chain([]pipe.Op{
+		func() error {
+			oldCSVFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", repoCSVPath)
+			oldSHA = oldCSVFile.SHA
+			return errors.Wrapf(err, "failed to get old contents of file %q", repoCSVPath)
+		},
+		func() error {
+			err := gh.SetFileContents(ctx, SetFileContentsParams{
+				Org:            forkOrg,
+				Repo:           repo,
+				BranchName:     branchName,
+				FilePath:       repoCSVPath,
+				NewContents:    csvContents,
+				OldContentsSHA: oldSHA,
+				Message:        message,
+			})
+			return errors.Wrapf(err, "failed to set contents of file %q", repoCSVPath)
+		},
+	})
+}
+
+func setPackageFile(ctx context.Context, gh *GitHub, forkOrg, repo, branchName, version, message string, packageContents []byte) error {
+	packagePath := path.Join("operators", "ibmcloud-operator", "ibmcloud-operator.package.yaml")
+	var oldSHA string
+	return pipe.Chain([]pipe.Op{
+		func() error {
+			oldPackageFile, _, err := gh.GetFileContents(ctx, forkOrg, repo, "", packagePath)
+			oldSHA = oldPackageFile.SHA
+			return errors.Wrapf(err, "failed to get old contents of file %q", packagePath)
+		},
+		func() error {
+			err := gh.SetFileContents(ctx, SetFileContentsParams{
+				Org:            forkOrg,
+				Repo:           repo,
+				BranchName:     branchName,
+				FilePath:       packagePath,
+				NewContents:    packageContents,
+				OldContentsSHA: oldSHA,
+				Message:        message,
+			})
+			return errors.Wrapf(err, "failed to set contents of file %q", packagePath)
+		},
 	})
 }
