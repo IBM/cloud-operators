@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ibm/cloud-operators/internal/pipe"
 	"github.com/pkg/errors"
 )
 
@@ -31,21 +32,25 @@ type Args struct {
 }
 
 func main() {
-	args, err := parseArgs(os.Args, os.Stderr)
+	exitCode := runMain(os.Args[1:], os.Stdout, os.Stderr)
+	os.Exit(exitCode)
+}
+
+func runMain(osArgs []string, stdout, stderr io.Writer) int {
+	args, err := parseArgs(osArgs, stderr)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-		return
+		fmt.Fprintln(stderr, err)
+		return 2
 	}
 	err = run(args, Deps{
-		Output: os.Stdout,
+		Output: stdout,
 		GitHub: newGitHub(args.GitHubToken),
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Release failed: %+v\n", err)
-		os.Exit(1)
-		return
+		fmt.Fprintf(stderr, "Release failed: %+v\n", err)
+		return 1
 	}
+	return 0
 }
 
 var optionalFlags = map[string]bool{
@@ -113,54 +118,58 @@ func run(args Args, deps Deps) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var err error
+	var csvContents, packageContents []byte
+	var crds []string
+	var crdContents map[string][]byte
+
 	version := "v" + strings.TrimPrefix(args.Version, "v")
-
-	csvContents, err := ioutil.ReadFile(args.CSVFile)
-	if err != nil {
-		return errors.Wrap(err, "failed to read cluster service version file")
-	}
-	packageContents, err := ioutil.ReadFile(args.PackageFile)
-	if err != nil {
-		return errors.Wrap(err, "failed to read package file")
-	}
-	crds, err := filepath.Glob(args.CRDFileGlob)
-	if err != nil {
-		return errors.Wrap(err, "failed to find CRD files")
-	}
-	crdContents := make(map[string][]byte)
-	for _, crd := range crds {
-		contents, err := ioutil.ReadFile(crd)
-		if err != nil {
-			return errors.Wrap(err, "failed to read CRD file")
-		}
-		crdContents[filepath.Base(crd)] = contents
-	}
-
 	signoff := fmt.Sprintf("%s <%s>", args.GitUserName, args.GitUserEmail)
 	branchName := fmt.Sprintf("release-%s", version)
-	err = setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents, crdContents)
-	if err != nil {
-		return errors.Wrap(err, "failed to update kubernetes operator repo")
-	}
-
-	err = setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents, crdContents)
-	if err != nil {
-		return errors.Wrap(err, "failed to update openshift operator repo")
-	}
-
-	kubernetesPR, err := openPR(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, args.DraftPRs)
-
-	if err != nil {
-		return errors.Wrap(err, "failed to open kubernetes operator PR")
-	}
-	fmt.Fprintln(deps.Output, "Kubernetes PR opened:", kubernetesPR)
-
-	openshiftPR, err := openPR(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, args.DraftPRs)
-	if err != nil {
-		return errors.Wrap(err, "failed to open openshift operator PR")
-	}
-	fmt.Fprintln(deps.Output, "OpenShift PR opened:", openshiftPR)
-	return nil
+	return pipe.Chain([]pipe.Op{
+		func() error {
+			csvContents, err = ioutil.ReadFile(args.CSVFile)
+			return errors.Wrap(err, "failed to read cluster service version file")
+		},
+		func() error {
+			packageContents, err = ioutil.ReadFile(args.PackageFile)
+			return errors.Wrap(err, "failed to read package file")
+		},
+		func() error {
+			crds, err = filepath.Glob(args.CRDFileGlob)
+			return errors.Wrap(err, "failed to find CRD files")
+		},
+		func() error {
+			var ops []pipe.Op
+			crdContents = make(map[string][]byte)
+			for _, crd := range crds {
+				ops = append(ops, func() error {
+					contents, err := ioutil.ReadFile(crd)
+					crdContents[filepath.Base(crd)] = contents
+					return errors.Wrap(err, "failed to read CRD file")
+				})
+			}
+			return pipe.Chain(ops)
+		},
+		func() error {
+			err := setReleaseFiles(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents, crdContents)
+			return errors.Wrap(err, "failed to update kubernetes operator repo")
+		},
+		func() error {
+			err := setReleaseFiles(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, signoff, csvContents, packageContents, crdContents)
+			return errors.Wrap(err, "failed to update openshift operator repo")
+		},
+		func() error {
+			kubernetesPR, err := openPR(ctx, deps.GitHub, kubernetesOperatorsOrg, kubernetesOperatorsRepo, args.ForkOrg, branchName, version, args.DraftPRs)
+			fmt.Fprintln(deps.Output, "Kubernetes PR:", kubernetesPR)
+			return errors.Wrap(err, "failed to open kubernetes operator PR")
+		},
+		func() error {
+			openshiftPR, err := openPR(ctx, deps.GitHub, openshiftOperatorsOrg, openshiftOperatorsRepo, args.ForkOrg, branchName, version, args.DraftPRs)
+			fmt.Fprintln(deps.Output, "OpenShift PR:", openshiftPR)
+			return errors.Wrap(err, "failed to open openshift operator PR")
+		},
+	})
 }
 
 func setReleaseFiles(ctx context.Context, gh *GitHub, org, repo, forkOrg, branchName, version, signoff string, csvContents, packageContents []byte, crdContents map[string][]byte) error {

@@ -15,6 +15,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMainRun(t *testing.T) {
+	t.Run("missing args", func(t *testing.T) {
+		var out bytes.Buffer
+		exitCode := runMain(nil, &out, &out)
+		assert.Equal(t, 2, exitCode)
+		assert.Contains(t, out.String(), `Missing required flags:`)
+	})
+
+	t.Run("failed run", func(t *testing.T) {
+		var out bytes.Buffer
+		exitCode := runMain([]string{
+			"-crd-glob=.",
+			"-csv=.",
+			"-fork-org=.",
+			"-gh-token=.",
+			"-package=.",
+			"-signoff-email=.",
+			"-signoff-name=.",
+			"-version=.",
+		}, &out, &out)
+		assert.Equal(t, 1, exitCode)
+		assert.Contains(t, out.String(), `Release failed:`)
+	})
+}
+
 func TestRun(t *testing.T) {
 	const (
 		someFork      = "some-fork"
@@ -73,8 +98,8 @@ func TestRun(t *testing.T) {
 				"-version", someVersion,
 			},
 			expectOut: fmt.Sprintf(`
-Kubernetes PR opened: %s
-OpenShift PR opened: %s
+Kubernetes PR: %s
+OpenShift PR: %s
 `, existingK8sPR, newOpenShiftPR),
 		},
 	} {
