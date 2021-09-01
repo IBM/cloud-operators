@@ -199,9 +199,6 @@ release-operatorhub:
 .PHONY: release
 release: release-prep docker-push release-operatorhub
 
-.PHONY: tmp
-tmp: release-prep release-operatorhub
-
 # Validates release artifacts.
 # TODO add validation for operator-courier. Currently hitting WAY too many issues with Travis CI and Python deps.
 .PHONY: validate-release
