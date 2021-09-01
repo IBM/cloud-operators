@@ -84,8 +84,9 @@ type SetFileContentsParams struct {
 //
 // Reference for updating a file (proposing changes via commit) reference: https://docs.github.com/en/rest/reference/repos#create-or-update-file-contents
 func (g *GitHub) SetFileContents(ctx context.Context, params SetFileContentsParams) error {
-	if params.Message == "" {
-		params.Message = "Update " + params.FilePath
+	message := "Update " + params.FilePath
+	if params.Message != "" {
+		message = params.Message
 	}
 	body := struct {
 		Message string `json:"message"` // Required. The commit message.
@@ -93,7 +94,7 @@ func (g *GitHub) SetFileContents(ctx context.Context, params SetFileContentsPara
 		SHA     string `json:"sha"`     // Required if you are updating a file. The blob SHA of the file being replaced.
 		Branch  string `json:"branch"`  // The branch name. Default: the repository’s default branch (usually master)
 	}{
-		Message: params.Message,
+		Message: message,
 		Content: params.NewContents,
 		SHA:     params.OldContentsSHA,
 		Branch:  params.BranchName,
