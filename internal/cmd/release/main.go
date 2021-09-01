@@ -1,5 +1,7 @@
-// Command release publishes a new release of IBM Cloud Operator.
+// Command release publishes a new release of IBM Cloud Operator on Operator Hub by opening PRs.
+//
 // Picks up pre-generated output files and creates pull requests in the appropriate repos.
+// See: https://operatorhub.io/operator/ibmcloud-operator
 package main
 
 import (

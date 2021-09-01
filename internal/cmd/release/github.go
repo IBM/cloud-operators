@@ -13,8 +13,7 @@ import (
 )
 
 type GitHub struct {
-	token string
-
+	token     string
 	doRequest func(*http.Request) (*http.Response, error)
 }
 
