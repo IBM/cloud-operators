@@ -54,7 +54,7 @@ cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
 		rm -rf cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 		mkdir -p cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 		set -o pipefail; \
-		curl -L https://go.kubebuilder.io/dl/${KUBEBUILDER_VERSION}/$(shell go env GOOS)/$(shell go env GOARCH) | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}; \
+		curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_$(shell go env GOOS)_$(shell go env GOARCH).tar.gz | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 	fi
 
 .PHONY: kustomize
