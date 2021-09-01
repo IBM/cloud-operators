@@ -18,7 +18,7 @@ jobs:
     #- name: Test End-to-end  # TODO Re-enable once an e2e env is set up.
     #  script: make test-e2e
     - name: Release Validation
-      script: make validate-release RELEASE_VERSION=0.3.0  # Fake version, just used for quick validation
+      script: make validate-release RELEASE_VERSION=1000.0.0  # Arbitrarily high version, just used for quick validation
     - name: Release
       stage: release
       script: make -e RELEASE_VERSION="${TRAVIS_TAG/v}" release
