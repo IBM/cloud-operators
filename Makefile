@@ -54,7 +54,7 @@ cache/kubebuilder_${KUBEBUILDER_VERSION}/bin: cache
 		rm -rf cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 		mkdir -p cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 		set -o pipefail; \
-		curl -L https://go.kubebuilder.io/dl/${KUBEBUILDER_VERSION}/$(shell go env GOOS)/$(shell go env GOARCH) | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}; \
+		curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_$(shell go env GOOS)_$(shell go env GOARCH).tar.gz | tar --strip-components=1 -xz -C ./cache/kubebuilder_${KUBEBUILDER_VERSION}; \
 	fi
 
 .PHONY: kustomize
@@ -183,8 +183,21 @@ release-prep: kustomize manifests out
 	kustomize build config/default --output out/
 	ulimit -n 1000 && go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
 
+.PHONY: release-operatorhub
+release-operatorhub:
+	go run ./internal/cmd/release \
+		-version "${RELEASE_VERSION}" \
+		-csv "out/ibmcloud_operator.v${RELEASE_VERSION}.clusterserviceversion.yaml" \
+		-package out/ibmcloud-operator.package.yaml \
+		-crd-glob 'out/apiextensions.k8s.io_*_customresourcedefinition_*.ibmcloud.ibm.com.yaml' \
+		-draft=$${RELEASE_DRAFT:-false} \
+		-fork-org "$${RELEASE_FORK_ORG}" \
+		-gh-token "$${RELEASE_GH_TOKEN}" \
+		-signoff-name "$${RELEASE_GIT_NAME}" \
+		-signoff-email "$${RELEASE_GIT_EMAIL}"
+
 .PHONY: release
-release: release-prep docker-push
+release: release-prep docker-push release-operatorhub
 
 # Validates release artifacts.
 # TODO add validation for operator-courier. Currently hitting WAY too many issues with Travis CI and Python deps.
