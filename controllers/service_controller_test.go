@@ -2326,10 +2326,6 @@ func TestServiceUpdateStatusFailed(t *testing.T) {
 		),
 		Log:    testLogger(t),
 		Scheme: scheme,
-
-		DeleteResourceServiceInstance: func(session *session.Session, instanceID string, logt logr.Logger) error {
-			return fmt.Errorf("failed to delete") // only gets logged, no error handling
-		},
 	}
 
 	result, err := r.updateStatus(nil, r.Log, instance, ibmcloudv1.ResourceContext{}, "myinstanceid", "state", "")

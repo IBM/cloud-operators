@@ -529,11 +529,6 @@ func (r *ServiceReconciler) updateStatus(session *session.Session, logt logr.Log
 		setStatusFieldsFromSpec(instance, resourceContext)
 		err := r.Status().Update(context.Background(), instance)
 		if err != nil {
-			r.Log.Info("Failed to update online status, will delete external resource ", instance.ObjectMeta.Name, err.Error())
-			errD := r.deleteService(session, logt, instance, serviceClassType)
-			if errD != nil {
-				r.Log.Info("Failed to delete external resource, operator state and external resource might be in an inconsistent state", instance.ObjectMeta.Name, errD.Error())
-			}
 			return ctrl.Result{}, err
 		}
 	}
