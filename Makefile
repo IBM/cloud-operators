@@ -82,7 +82,8 @@ test: generate manifests kubebuilder
 
 .PHONY: coverage-unit
 coverage-unit: test-unit
-	bash <(curl -s https://codecov.io/bash)
+	go install github.com/mattn/goveralls@v0.0.11
+	$(GOBIN)/goveralls -coverprofile="cover.out" -service=travis-ci
 
 # Build manager binary
 .PHONY: manager
