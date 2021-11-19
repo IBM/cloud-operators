@@ -7,5 +7,4 @@ linters:
     # Default linters plus these:
     - golint
     - gofmt
-    - gosec
     - goimports

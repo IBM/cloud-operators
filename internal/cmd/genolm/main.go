@@ -85,11 +85,13 @@ func run(output, repoRoot, versionStr string) error {
 		return err
 	}
 
-	readmeFile, err := os.Open(filepath.Join(repoRoot, "README.md"))
+	readmeFile, err := os.Open(filepath.Join(repoRoot, "README.md")) // #nosec G304 repo root comes from user input
 	if err != nil {
 		return err
 	}
-	defer readmeFile.Close()
+	defer func() {
+		_ = readmeFile.Close()
+	}() // #nosec G307 we cannot handle this error in other way then just simply ignore it
 	readme := prepREADME(readmeFile)
 
 	samples, err := getSamples(repoRoot)
@@ -149,7 +151,9 @@ func writeFile(path string, tmpl *template.Template, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}() // #nosec G307 we cannot handle this error in other way then just simply ignore it
 
 	return tmpl.Execute(f, data)
 }
@@ -196,7 +200,7 @@ func getRBAC(output string) (clusterRoles, roles roleRules, err error) {
 		return roleRules{}, roleRules{}, err
 	}
 	for _, path := range rbacFiles {
-		buf, err := ioutil.ReadFile(path)
+		buf, err := ioutil.ReadFile(path) // #nosec G304 output path defined as user input
 		if err != nil {
 			return roleRules{}, roleRules{}, err
 		}
@@ -255,7 +259,7 @@ func getRBAC(output string) (clusterRoles, roles roleRules, err error) {
 func getSamples(repoRoot string) ([]runtime.RawExtension, error) {
 	var samples []runtime.RawExtension
 	for _, name := range []string{"translator.yaml", "translator-binding.yaml"} {
-		sample, err := ioutil.ReadFile(filepath.Join(repoRoot, "config/samples", name))
+		sample, err := ioutil.ReadFile(filepath.Join(repoRoot, "config/samples", name)) // #nosec G304 points to hardcoded yaml file located in a directory specified by user as input parameter
 		if err != nil {
 			return nil, err
 		}

@@ -3,6 +3,7 @@ export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.2.5
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
 LINT_VERSION = 1.28.3
+GOSEC_VERSION="v2.9.2"
 KUBEVAL_VERSION= 0.15.0
 KUBEVAL_KUBE_VERSION=1.18.1
 # Set PATH to pick up cached tools. The additional 'sed' is required for cross-platform support of quoting the args to 'env'
@@ -129,10 +130,15 @@ lint-deps:
 		set -ex; curl -fsSL https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.$$(uname).x86_64.tar.xz | tar -xJv --strip-components=1 shellcheck-stable/shellcheck; \
 		mv shellcheck $(shell go env GOPATH)/bin/shellcheck; chmod +x $(shell go env GOPATH)/bin/shellcheck; \
 	fi
+	@if ! which gosec >/dev/null || [[ "$$(gosec --version)" != *${GOSEC_VERSION}* ]]; then \
+		set -o pipefail; \
+		go install github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}; \
+	fi
 
 .PHONY: lint
 lint: lint-deps
 	golangci-lint run
+	gosec -conf .gosec.json ./...
 	find . -name '*.*sh' | xargs shellcheck --color
 	go list -json -m all | docker run --rm -i sonatypecommunity/nancy:latest sleuth
 

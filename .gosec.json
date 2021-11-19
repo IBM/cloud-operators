@@ -1,0 +1,6 @@
+{
+  "G101": {
+    "_justification": "Too many false positives with default 'hard-coded secret' configuration.",
+    "entropy_threshold": "80.0"
+  }
+}
