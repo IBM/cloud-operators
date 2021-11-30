@@ -28,17 +28,19 @@ func run(args []string) error {
 	}
 
 	for _, arg := range args {
-		f, err := os.Open(arg)
+		f, err := os.Open(arg) // #nosec G304 comes from user input
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}() // #nosec G307 we cannot handle this error in other way then just simply ignore it
 		var buf bytes.Buffer
 		err = mutateYaml(f, &buf)
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(arg, buf.Bytes(), 0644) // nolint:gosec // mimics original file permissions from kubebuilder
+		err = ioutil.WriteFile(arg, buf.Bytes(), 0644) // #nosec mimics original file permissions from kubebuilder
 		if err != nil {
 			return err
 		}

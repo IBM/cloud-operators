@@ -145,7 +145,7 @@ func run(args Args, deps Deps) error {
 			for _, crd := range crds {
 				crd := crd // loop-local copy for closure
 				ops = append(ops, func() error {
-					contents, err := ioutil.ReadFile(crd)
+					contents, err := ioutil.ReadFile(crd) // #nosec G304 comes from user input points to a concrete CRD
 					crdContents[filepath.Base(crd)] = contents
 					return errors.Wrap(err, "failed to read CRD file")
 				})

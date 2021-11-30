@@ -42,7 +42,7 @@ type Descriptor struct {
 func getCRDs(repoRoot string) ([]CRD, error) {
 	var crds []CRD
 	var bindingCRD apiextensionsv1beta1.CustomResourceDefinition
-	bindingCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_bindings.ibmcloud.ibm.com.yaml"))
+	bindingCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_bindings.ibmcloud.ibm.com.yaml")) // #nosec G304 repoRoot comes from user input
 	if err != nil {
 		return nil, errors.Wrap(err, "Error reading generated CRD file. Did kustomize run yet?")
 	}
@@ -64,7 +64,7 @@ func getCRDs(repoRoot string) ([]CRD, error) {
 	))
 
 	var serviceCRD apiextensionsv1beta1.CustomResourceDefinition
-	serviceCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_services.ibmcloud.ibm.com.yaml"))
+	serviceCRDBytes, err := ioutil.ReadFile(filepath.Join(repoRoot, "out/apiextensions.k8s.io_v1beta1_customresourcedefinition_services.ibmcloud.ibm.com.yaml")) // #nosec G304 repoRoot comes from user input
 	if err != nil {
 		return nil, errors.Wrap(err, "Error reading generated CRD file. Did kustomize run yet?")
 	}

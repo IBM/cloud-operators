@@ -94,7 +94,7 @@ func readBluemixConfig() (config bluemixConfig, ok bool, err error) {
 	if err != nil {
 		return config, false, err
 	}
-	buf, err := ioutil.ReadFile(filepath.Join(bxHome, "config.json"))
+	buf, err := ioutil.ReadFile(filepath.Join(bxHome, "config.json")) // #nosec G304 user home relative path of config file
 	if os.IsNotExist(err) {
 		return config, false, nil
 	}
@@ -137,7 +137,7 @@ func readCFConfig() (config cfConfig, ok bool, err error) {
 	if err != nil {
 		return config, false, err
 	}
-	buf, err := ioutil.ReadFile(filepath.Join(bxHome, ".cf", "config.json"))
+	buf, err := ioutil.ReadFile(filepath.Join(bxHome, ".cf", "config.json")) // #nosec G304 user home relative path of config file
 	if os.IsNotExist(err) {
 		return config, false, nil
 	}
