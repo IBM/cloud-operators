@@ -4,10 +4,6 @@ metadata:
   name: {{.Name}}.v{{.Version}}
   namespace: placeholder
   annotations:
-    # Prevent cluster upgrades to OpenShift Version 4.9 when this bundle is installed on the cluster.
-    # Remove once Kubernetes v1.22 is supported by removing deprecated kind versions.
-    olm.properties: |-
-      [{"type": "olm.maxOpenShiftVersion", "value": "4.8"}]
     alm-examples: |-
       {{.Examples | json | indent 6 | trimSpace}}
     capabilities: Basic Install
@@ -31,6 +27,7 @@ spec:
   maturity: alpha
   maintainers:
   {{.Maintainers | yaml | indent 2 | trimSpace}}
+  minKubeVersion: 1.16.0
   provider:
     name: IBM
   links:
