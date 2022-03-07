@@ -78,6 +78,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      type: object
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
@@ -192,6 +193,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      type: object
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
@@ -327,6 +329,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      type: object
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
@@ -441,6 +444,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      type: object
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
@@ -575,6 +579,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      type: object
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
@@ -681,6 +686,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      type: object
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.

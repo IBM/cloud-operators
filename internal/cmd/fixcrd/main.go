@@ -89,7 +89,7 @@ func removeValueType(v interface{}, inValue bool) (remove bool) {
 		return false
 	case yaml.MapItem:
 		if inValue && d.Key == "type" && d.Value == "object" {
-			return true
+			return false
 		}
 		b := removeValueType(&d.Value, inValue || d.Key == "value")
 		set(d)
