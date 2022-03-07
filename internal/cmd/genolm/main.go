@@ -147,7 +147,7 @@ func run(output, repoRoot, versionStr string) error {
 }
 
 func writeFile(path string, tmpl *template.Template, data interface{}) error {
-	f, err := os.Create(path) // #nosec G304
+	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
