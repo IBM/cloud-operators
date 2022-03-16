@@ -19,6 +19,7 @@ type Param struct {
 
 	// Defaults to null.
 	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
 	Value *ParamValue `json:"value,omitempty"`
 

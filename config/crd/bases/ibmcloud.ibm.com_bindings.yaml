@@ -61,6 +61,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      x-kubernetes-preserve-unknown-fields: true
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
@@ -197,6 +198,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      x-kubernetes-preserve-unknown-fields: true
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
@@ -330,6 +332,7 @@ spec:
                       type: string
                     value:
                       description: Defaults to null.
+                      x-kubernetes-preserve-unknown-fields: true
                     valueFrom:
                       description: Source for the value. Cannot be used if value is
                         not empty.
