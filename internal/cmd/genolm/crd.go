@@ -92,7 +92,7 @@ func NewCRD(src apiextensionsv1.CustomResourceDefinition, ownedResources []TypeM
 		panic(fmt.Sprintf("Versions section is empty: %#v", src.Spec))
 	}
 
-	latestVersion := src.Spec.Versions[len(src.Spec.Versions)-1]
+	latestVersion := src.Spec.Versions[0]
 	return CRD{
 		DisplayName:       src.Spec.Names.Kind,
 		Description:       latestVersion.Schema.OpenAPIV3Schema.Description,
