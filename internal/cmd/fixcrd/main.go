@@ -55,48 +55,10 @@ func mutateYaml(r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	removeValueType(&yamlData, false)
 	versions := getVersions(yamlData)
 	setVersion(&yamlData, versions[len(versions)-1], 0)
 	reorderVersions(&yamlData, versions, false)
 	return yaml.NewEncoder(w).Encode(yamlData)
-}
-
-func removeValueType(v interface{}, inValue bool) (remove bool) {
-	d, set := ptrSetter(v)
-	switch d := d.(type) {
-	case []interface{}:
-		newSlice := make([]interface{}, 0, len(d))
-		for ix := range d {
-			item := d[ix]
-			shouldRemove := removeValueType(&item, inValue)
-			if !shouldRemove {
-				newSlice = append(newSlice, item)
-			}
-		}
-		set(newSlice)
-		return false
-	case yaml.MapSlice:
-		newSlice := make(yaml.MapSlice, 0, len(d))
-		for ix := range d {
-			item := d[ix]
-			shouldRemove := removeValueType(&item, inValue)
-			if !shouldRemove {
-				newSlice = append(newSlice, item)
-			}
-		}
-		set(newSlice)
-		return false
-	case yaml.MapItem:
-		if inValue && d.Key == "type" && d.Value == "object" {
-			return false
-		}
-		b := removeValueType(&d.Value, inValue || d.Key == "value")
-		set(d)
-		return b
-	default:
-		return false
-	}
 }
 
 func ptrSetter(v interface{}) (value interface{}, setPtr func(interface{})) {

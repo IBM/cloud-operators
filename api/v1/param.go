@@ -19,6 +19,7 @@ type Param struct {
 
 	// Defaults to null.
 	// +optional
+	// +kubebuilder:validation:Schemaless
 	Value *ParamValue `json:"value,omitempty"`
 
 	// Source for the value. Cannot be used if value is not empty.
