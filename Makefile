@@ -16,6 +16,9 @@ IMG ?= cloudoperators/ibmcloud-operator:${RELEASE_VERSION}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"
 
+# https://github.ibm.com/alchemy-registry/base/
+BUILDER_IMAGE_VERSION = 1.18.9-20230324
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -152,7 +155,7 @@ generate: controller-gen
 
 .PHONY: docker-build
 docker-build:
-	docker build . -t ${IMG}
+	docker build --build-arg BUILDER_IMAGE_VERSION=${BUILDER_IMAGE_VERSION} . -t ${IMG}
 
 .PHONY: docker-push
 docker-push: docker-build
