@@ -2,8 +2,11 @@ KUBEBUILDER_VERSION = 2.3.1
 export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
 CONTROLLER_GEN_VERSION = 0.8.0
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
+
+GO_VERSION = 1.17
 LINT_VERSION = 1.28.3
-GOSEC_VERSION="v2.9.2"
+GOSEC_VERSION= v2.9.2
+
 KUBEVAL_VERSION= 0.15.0
 KUBEVAL_KUBE_VERSION=1.18.1
 # Set PATH to pick up cached tools. The additional 'sed' is required for cross-platform support of quoting the args to 'env'
@@ -137,7 +140,7 @@ lint-deps:
 
 .PHONY: lint
 lint: lint-deps
-	golangci-lint run
+	golangci-lint run --timeout 3m
 	gosec -conf .gosec.json ./...
 	find . -name '*.*sh' | xargs shellcheck --color
 	go list -json -m all | docker run --rm -i sonatypecommunity/nancy:latest sleuth
@@ -152,7 +155,10 @@ generate: controller-gen
 
 .PHONY: docker-build
 docker-build:
-	docker build . -t ${IMG}
+	docker build \
+		--build-arg GO_VERSION=${GO_VERSION} \
+		-t ${IMG} \
+		.
 
 .PHONY: docker-push
 docker-push: docker-build
@@ -177,7 +183,7 @@ cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
 		trap "rm -rf $$CONTROLLER_GEN_TMP_DIR" EXIT ;\
 		cd $$CONTROLLER_GEN_TMP_DIR ;\
 		go mod init tmp ;\
-		GOBIN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION} go get sigs.k8s.io/controller-tools/cmd/controller-gen@v${CONTROLLER_GEN_VERSION} ;\
+		GOBIN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION} go install sigs.k8s.io/controller-tools/cmd/controller-gen@v${CONTROLLER_GEN_VERSION} ;\
 	fi
 
 out:

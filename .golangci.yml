@@ -1,10 +1,20 @@
-run:
-  # Extend default timeout for running in single-core CI
-  timeout: 2m
-
 linters:
   enable:
     # Default linters plus these:
     - golint
+    - revive
     - gofmt
+    - exhaustive
     - goimports
+    - gci
+    - nakedret
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+
+run:
+  timeout: 2m
+
