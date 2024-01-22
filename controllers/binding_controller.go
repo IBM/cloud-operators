@@ -503,10 +503,7 @@ func (r *BindingReconciler) createSecret(instance *ibmcloudv1.Binding, keyConten
 	if err := r.SetControllerReference(instance, secret, r.Scheme); err != nil {
 		return err
 	}
-	if err := r.Create(context.Background(), secret); err != nil {
-		return err
-	}
-	return nil
+	return r.Create(context.Background(), secret)
 }
 
 func (r *BindingReconciler) updateStatusOnline(instance *ibmcloudv1.Binding) (ctrl.Result, error) {
@@ -571,10 +568,7 @@ func (r *BindingReconciler) deleteSecret(instance *ibmcloudv1.Binding) error {
 		}
 		return err
 	}
-	if err = r.Delete(context.Background(), secret); err != nil {
-		return err
-	}
-	return nil
+	return r.Delete(context.Background(), secret)
 }
 
 func (r *BindingReconciler) getCFCredentials(logt logr.Logger, session *session.Session, instance *ibmcloudv1.Binding, name string) (string, map[string]interface{}, error) {
