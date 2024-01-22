@@ -25,17 +25,16 @@ import (
 
 	"github.com/IBM-Cloud/bluemix-go/session"
 	"github.com/go-logr/logr"
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
+	"github.com/ibm/cloud-operators/internal/config"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
+	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 	"github.com/pkg/errors"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-
-	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
-	"github.com/ibm/cloud-operators/internal/config"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/cfservice"
-	"github.com/ibm/cloud-operators/internal/ibmcloud/resource"
 )
 
 const (
@@ -247,7 +246,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 					logt.Error(err, "Instance ", instance.ObjectMeta.Name, " with `Alias` plan does not exists")
 					return r.updateStatusError(instance, serviceStateFailed, err)
 				}
-				return r.updateStatus(session, logt, instance, resourceContext, instanceID, serviceStateOnline, serviceClassType)
+				return r.updateStatus(instance, resourceContext, instanceID, serviceStateOnline)
 			}
 			// Service is not Alias
 			logt.Info("Creating", "instance", instance.ObjectMeta.Name, "service class", instance.Spec.ServiceClass)
@@ -255,7 +254,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, err)
 			}
-			return r.updateStatus(session, logt, instance, resourceContext, guid, state, serviceClassType)
+			return r.updateStatus(instance, resourceContext, guid, state)
 		}
 		// ServiceInstance was previously created, verify that it is still there
 		logt.Info("CF ServiceInstance ", "should already exists, verifying", instance.ObjectMeta.Name)
@@ -268,7 +267,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 				if err != nil {
 					return r.updateStatusError(instance, serviceStateFailed, err)
 				}
-				return r.updateStatus(session, logt, instance, resourceContext, guid, state, serviceClassType)
+				return r.updateStatus(instance, resourceContext, guid, state)
 			}
 			return r.updateStatusError(instance, serviceStateFailed, err)
 		} else if err != nil && isAlias(instance) {
@@ -280,7 +279,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		logt.Info("ServiceInstance ", "exists", instance.ObjectMeta.Name)
 
 		// Verification was successful, service exists, update the status if necessary
-		return r.updateStatus(session, logt, instance, resourceContext, instance.Status.InstanceID, state, serviceClassType)
+		return r.updateStatus(instance, resourceContext, instance.Status.InstanceID, state)
 
 	}
 
@@ -305,7 +304,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, errors.Wrapf(err, "failed to resolve Alias plan instance %s", instance.ObjectMeta.Name))
 			}
-			return r.updateStatus(session, logt, instance, resourceContext, id, state, serviceClassType)
+			return r.updateStatus(instance, resourceContext, id, state)
 		}
 
 		// Create the instance, service is not alias
@@ -320,7 +319,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 		if err != nil {
 			return r.updateStatusError(instance, serviceStateFailed, err)
 		}
-		return r.updateStatus(session, logt, instance, resourceContext, id, state, serviceClassType)
+		return r.updateStatus(instance, resourceContext, id, state)
 	}
 
 	// ServiceInstance was previously created, verify that it is still there
@@ -339,7 +338,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 			if err != nil {
 				return r.updateStatusError(instance, serviceStateFailed, err)
 			}
-			return r.updateStatus(session, logt, instance, resourceContext, id, state, serviceClassType)
+			return r.updateStatus(instance, resourceContext, id, state)
 		}
 		instance.Status.InstanceID = ""
 		return r.updateStatusError(instance, serviceStatePending, fmt.Errorf("aliased service instance no longer exists"))
@@ -361,7 +360,7 @@ func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Verification was successful, service exists, update the status if necessary
-	return r.updateStatus(session, logt, instance, resourceContext, instance.Status.InstanceID, state, serviceClassType)
+	return r.updateStatus(instance, resourceContext, instance.Status.InstanceID, state)
 }
 
 func specChanged(instance *ibmcloudv1.Service) bool {
@@ -518,7 +517,7 @@ func isAlias(instance *ibmcloudv1.Service) bool {
 	return strings.ToLower(instance.Spec.Plan) == aliasPlan
 }
 
-func (r *ServiceReconciler) updateStatus(session *session.Session, logt logr.Logger, instance *ibmcloudv1.Service, resourceContext ibmcloudv1.ResourceContext, instanceID, instanceState, serviceClassType string) (ctrl.Result, error) {
+func (r *ServiceReconciler) updateStatus(instance *ibmcloudv1.Service, resourceContext ibmcloudv1.ResourceContext, instanceID, instanceState string) (ctrl.Result, error) {
 	r.Log.Info("the instance state", "is:", instanceState)
 	state := getState(instanceState)
 	if instance.Status.State != state || instance.Status.InstanceID != instanceID || tagsOrParamsChanged(instance) {

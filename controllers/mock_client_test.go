@@ -58,7 +58,7 @@ func newMockClient(client client.Client, config MockConfig) MockClient {
 	return m
 }
 
-func (m *mockClient) Create(ctx context.Context, obj runtime.Object, opts ...client.CreateOption) error {
+func (m *mockClient) Create(_ context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 	m.lastCreate = obj.DeepCopyObject()
 	return m.CreateErr
 }
@@ -67,7 +67,7 @@ func (m *mockClient) LastCreate() runtime.Object {
 	return m.lastCreate
 }
 
-func (m *mockClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
+func (m *mockClient) Delete(_ context.Context, obj runtime.Object, _ ...client.DeleteOption) error {
 	m.lastDelete = obj.DeepCopyObject()
 	return m.DeleteErr
 }
@@ -76,7 +76,7 @@ func (m *mockClient) LastDelete() runtime.Object {
 	return m.lastDelete
 }
 
-func (m *mockClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+func (m *mockClient) Update(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 	m.lastUpdate = obj.DeepCopyObject()
 	return m.UpdateErr
 }
@@ -85,7 +85,7 @@ func (m *mockClient) LastUpdate() runtime.Object {
 	return m.lastUpdate
 }
 
-func (m *mockClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (m *mockClient) Patch(_ context.Context, obj runtime.Object, _ client.Patch, _ ...client.PatchOption) error {
 	m.lastPatch = obj.DeepCopyObject()
 	return m.PatchErr
 }
@@ -94,7 +94,7 @@ func (m *mockClient) LastPatch() runtime.Object {
 	return m.lastPatch
 }
 
-func (m *mockClient) DeleteAllOf(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error {
+func (m *mockClient) DeleteAllOf(_ context.Context, obj runtime.Object, _ ...client.DeleteAllOfOption) error {
 	m.lastDeleteAllOf = obj.DeepCopyObject()
 	return m.DeleteAllOfErr
 }
@@ -107,7 +107,7 @@ func (m *mockClient) Status() client.StatusWriter {
 	return m.statusWriter
 }
 
-func (s *mockStatusWriter) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+func (s *mockStatusWriter) Update(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 	s.lastStatusUpdate = obj.DeepCopyObject()
 	if s.ErrChan != nil {
 		err := <-s.ErrChan
@@ -121,7 +121,7 @@ func (m *mockClient) LastStatusUpdate() runtime.Object {
 	return m.lastStatusUpdate
 }
 
-func (s *mockStatusWriter) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (s *mockStatusWriter) Patch(_ context.Context, obj runtime.Object, _ client.Patch, _ ...client.PatchOption) error {
 	s.lastStatusPatch = obj.DeepCopyObject()
 	return s.StatusPatchErr
 }

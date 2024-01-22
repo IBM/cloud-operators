@@ -58,7 +58,7 @@ func MustGetIBMCloud() IBMCloud {
 		"Space":   config.Space,
 	} {
 		if s == "" {
-			panic(errors.Errorf("IBM Cloud config missing value for %q.\n\nTry setting the ibmcloud CLI target or using the environment variable.", name))
+			panic(errors.Errorf("missing IBM Cloud config value for %q.\n\nTry setting the ibmcloud CLI target or using the environment variable", name))
 		}
 	}
 	return config

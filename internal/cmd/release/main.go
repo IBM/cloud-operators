@@ -213,7 +213,7 @@ Signed-off-by: %s
 			return setCSVFile(ctx, gh, forkOrg, repo, branchName, version, message, csvContents)
 		},
 		func() error {
-			return setPackageFile(ctx, gh, forkOrg, repo, branchName, version, message, packageContents)
+			return setPackageFile(ctx, gh, forkOrg, repo, branchName, message, packageContents)
 		},
 	})
 }
@@ -286,7 +286,7 @@ func setCSVFile(ctx context.Context, gh *GitHub, forkOrg, repo, branchName, vers
 	})
 }
 
-func setPackageFile(ctx context.Context, gh *GitHub, forkOrg, repo, branchName, version, message string, packageContents []byte) error {
+func setPackageFile(ctx context.Context, gh *GitHub, forkOrg, repo, branchName, message string, packageContents []byte) error {
 	packagePath := path.Join("operators", "ibmcloud-operator", "ibmcloud-operator.package.yaml")
 	var oldSHA string
 	return pipe.Chain([]pipe.Op{
