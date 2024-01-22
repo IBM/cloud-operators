@@ -1,7 +1,6 @@
 linters:
   enable:
     # Default linters plus these:
-    - golint
     - revive
     - gofmt
     - exhaustive
@@ -14,7 +13,12 @@ linters-settings:
     sections:
       - standard
       - default
+  exhaustive:
+    # Presence of "default" case in switch statements satisfies exhaustiveness,
+    # even if all enum members are not listed.
+    # Default: false in initial versions of golangci integration
+    default-signifies-exhaustive: true
 
 run:
-  timeout: 2m
+  timeout: 3m
 

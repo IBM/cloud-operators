@@ -2323,7 +2323,7 @@ func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 	//It return conflict error at first so retry will be triggered and succeed with no error and the function will succeed
 	errChan <- &conflictErr
 	errChan <- nil
-	result, err := r.updateStatusOnline(nil, binding)
+	result, err := r.updateStatusOnline(binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue:      true,
 		RequeueAfter: config.Get().SyncPeriod,
@@ -2335,7 +2335,7 @@ func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 		errChan <- &conflictErr
 
 	}
-	result, err = r.updateStatusOnline(nil, binding)
+	result, err = r.updateStatusOnline(binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue: true,
 	}, result)
@@ -2367,7 +2367,7 @@ func TestBindingUpdateStatusOnlineFailedWithOtherUpdateErrror(t *testing.T) {
 		Scheme: scheme,
 	}
 
-	result, err := r.updateStatusOnline(nil, binding)
+	result, err := r.updateStatusOnline(binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue: true,
 	}, result)
@@ -2395,7 +2395,7 @@ func TestBindingUpdateStatusOnlineFailedWithGetError(t *testing.T) {
 		Scheme: scheme,
 	}
 
-	result, err := r.updateStatusOnline(nil, binding)
+	result, err := r.updateStatusOnline(binding)
 	assert.Equal(t, ctrl.Result{
 		Requeue: true,
 	}, result)

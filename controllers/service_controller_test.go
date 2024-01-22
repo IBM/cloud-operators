@@ -2328,7 +2328,7 @@ func TestServiceUpdateStatusFailed(t *testing.T) {
 		Scheme: scheme,
 	}
 
-	result, err := r.updateStatus(nil, r.Log, instance, ibmcloudv1.ResourceContext{}, "myinstanceid", "state", "")
+	result, err := r.updateStatus(instance, ibmcloudv1.ResourceContext{}, "myinstanceid", "state")
 	assert.Equal(t, ctrl.Result{}, result)
 	assert.EqualError(t, err, "failed")
 	assert.Equal(t, &ibmcloudv1.Service{

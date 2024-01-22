@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	"github.com/ibm/cloud-operators/internal/ibmcloud/auth"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -39,9 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	runtimeZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
-	// +kubebuilder:scaffold:imports
 )
 
 var (

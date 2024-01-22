@@ -20,6 +20,9 @@ import (
 	"flag"
 	"os"
 
+	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
+	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
+	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
 	"github.com/ibm/cloud-operators/controllers"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,11 +30,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	ctrl "sigs.k8s.io/controller-runtime"
 	zapLog "sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
-	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
-	ibmcloudv1beta1 "github.com/ibm/cloud-operators/api/v1beta1"
-	// +kubebuilder:scaffold:imports
 )
 
 var (
