@@ -9,19 +9,15 @@ KUBEVAL_KUBE_VERSION=1.18.1
 # Set PATH to pick up cached tools. The additional 'sed' is required for cross-platform support of quoting the args to 'env'
 SHELL := /usr/bin/env PATH=$(shell echo ${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:${PATH} | sed 's/ /\\ /g') bash
 
-# Version to create release. Value is set in .travis.yml's release job
+# Version to create release. Value is set by the release job
 RELEASE_VERSION ?= 0.0.0
 # Image URL to use all building/pushing image targets
 IMG ?= cloudoperators/ibmcloud-operator:${RELEASE_VERSION}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"
 
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
+# Use the configured GOBIN, falling back to GOPATH/bin.
+GOBIN := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
 
 .PHONY: all
 all: manager
@@ -140,7 +136,6 @@ lint: lint-deps
 	golangci-lint run
 	gosec -conf .gosec.json ./...
 	find . -name '*.*sh' | xargs shellcheck --color
-	go list -json -m all | docker run --rm -i sonatypecommunity/nancy:latest sleuth
 
 .PHONY: lint-fix
 lint-fix: lint-deps
