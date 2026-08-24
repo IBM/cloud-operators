@@ -16,7 +16,7 @@ IMG ?= cloudoperators/ibmcloud-operator:${RELEASE_VERSION}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"
 
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+# Use the configured GOBIN, falling back to GOPATH/bin.
 GOBIN := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
 
 .PHONY: all
