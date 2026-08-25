@@ -64,7 +64,7 @@ const (
 type BindingReconciler struct {
 	client.Client
 	Log    logr.Logger
-	Scheme *runtime.Scheme
+	scheme *runtime.Scheme
 
 	CreateResourceServiceKey   resource.KeyCreator
 	CreateCFServiceKey         cfservice.KeyCreator
@@ -91,6 +91,10 @@ func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager, options controlle
 		Complete(r)
 }
 
+func (r *BindingReconciler) Scheme() *runtime.Scheme {
+	return r.scheme
+}
+
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ibmcloud.ibm.com,resources=bindings/finalizers,verbs=get;list;watch;create;update;patch;delete
@@ -102,8 +106,7 @@ func (r *BindingReconciler) SetupWithManager(mgr ctrl.Manager, options controlle
 // Reconcile reads the state of the cluster for a Binding object and makes changes based on the state read
 // and what is in the Binding.Spec.
 // Automatically generates RBAC rules to allow the Controller to read and write Deployments.
-func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *BindingReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	logt := r.Log.WithValues("binding", request.NamespacedName)
 
 	// Fetch the Binding instance
@@ -158,7 +161,7 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 
 	// Set an owner reference if service and binding are in the same namespace
 	if serviceInstance.Namespace == instance.Namespace {
-		if err := r.SetOwnerReference(serviceInstance, instance, r.Scheme); err != nil {
+		if err := r.SetOwnerReference(serviceInstance, instance, r.Scheme()); err != nil {
 			logt.Info("Binding could not update owner reference", instance.Name, err.Error())
 			return ctrl.Result{}, err
 		}
@@ -500,7 +503,7 @@ func (r *BindingReconciler) createSecret(instance *ibmcloudv1.Binding, keyConten
 		},
 		Data: datamap,
 	}
-	if err := r.SetControllerReference(instance, secret, r.Scheme); err != nil {
+	if err := r.SetControllerReference(instance, secret, r.Scheme()); err != nil {
 		return err
 	}
 	if err := r.Create(context.Background(), secret); err != nil {

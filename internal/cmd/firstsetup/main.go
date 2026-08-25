@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -26,9 +27,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	ctx := context.Background()
 
-	_, secretErr := k8sClient.CoreV1().Secrets(namespace).Get("ibmcloud-operator-secret", metav1.GetOptions{})
-	_, configMapErr := k8sClient.CoreV1().ConfigMaps(namespace).Get("ibmcloud-operator-defaults", metav1.GetOptions{})
+	_, secretErr := k8sClient.CoreV1().Secrets(namespace).Get(ctx, "ibmcloud-operator-secret", metav1.GetOptions{})
+	_, configMapErr := k8sClient.CoreV1().ConfigMaps(namespace).Get(ctx, "ibmcloud-operator-defaults", metav1.GetOptions{})
 	if secretErr == nil && configMapErr == nil {
 		fmt.Println("IBM Cloud Operators configmap and secret already set up. Skipping...")
 		return nil
@@ -36,7 +38,7 @@ func run() error {
 
 	config := config.MustGetIBMCloud()
 
-	_, err = k8sClient.CoreV1().Secrets(namespace).Create(&v1.Secret{
+	_, err = k8sClient.CoreV1().Secrets(namespace).Create(ctx, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ibmcloud-operator-secret",
 			Namespace: namespace,
@@ -48,12 +50,12 @@ func run() error {
 			"api-key": []byte(config.APIKey),
 			"region":  []byte(config.Region),
 		},
-	})
+	}, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 
-	_, err = k8sClient.CoreV1().ConfigMaps(namespace).Create(&v1.ConfigMap{
+	_, err = k8sClient.CoreV1().ConfigMaps(namespace).Create(ctx, &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ibmcloud-operator-defaults",
 			Namespace: namespace,
@@ -69,7 +71,7 @@ func run() error {
 			"space":           config.Space,
 			"user":            config.UserDisplayName,
 		},
-	})
+	}, metav1.CreateOptions{})
 	return err
 }
 

@@ -259,14 +259,14 @@ func TestServiceLoadServiceFailed(t *testing.T) {
 
 	t.Run("not found error", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{}
+		objects := []client.Object{}
 		r := &ServiceReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
-
-		result, err := r.Reconcile(ctrl.Request{
+		context.Background()
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -275,14 +275,14 @@ func TestServiceLoadServiceFailed(t *testing.T) {
 
 	t.Run("other error", func(t *testing.T) {
 		scheme := runtime.NewScheme()
-		objects := []runtime.Object{}
+		objects := []client.Object{}
 		r := &ServiceReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -299,7 +299,7 @@ func TestServiceSpecChangedAndUpdateFailed(t *testing.T) {
 	)
 
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 			Status: ibmcloudv1.ServiceStatus{
@@ -309,14 +309,14 @@ func TestServiceSpecChangedAndUpdateFailed(t *testing.T) {
 	}
 	r := &ServiceReconciler{
 		Client: newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{UpdateErr: fmt.Errorf("failed")},
 		),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{}, result)
@@ -332,7 +332,7 @@ func TestServiceGetIBMCloudInfoFailed(t *testing.T) {
 
 	now := metav1Now(t)
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              serviceName,
@@ -348,18 +348,18 @@ func TestServiceGetIBMCloudInfoFailed(t *testing.T) {
 	t.Run("not found error", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{UpdateErr: fmt.Errorf("failed")},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return nil, errors.NewNotFound(ctrl.GroupResource{Group: "ibmcloud.ibm.com", Resource: "secret"}, "ibmcloud-operator-secret")
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -383,20 +383,20 @@ func TestServiceGetIBMCloudInfoFailed(t *testing.T) {
 
 	t.Run("other error", func(t *testing.T) {
 		fakeClient := newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{},
 		)
 		r := &ServiceReconciler{
 			Client: fakeClient,
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return nil, fmt.Errorf("failed")
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -430,7 +430,7 @@ func TestServiceFirstStatusFailed(t *testing.T) {
 	)
 
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 			Status:     ibmcloudv1.ServiceStatus{},
@@ -438,18 +438,18 @@ func TestServiceFirstStatusFailed(t *testing.T) {
 	}
 	r := &ServiceReconciler{
 		Client: newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
 		),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			return &ibmcloud.Info{}, nil
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{}, result)
@@ -464,7 +464,7 @@ func TestServiceEnsureFinalizerFailed(t *testing.T) {
 	)
 
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              serviceName,
@@ -478,20 +478,20 @@ func TestServiceEnsureFinalizerFailed(t *testing.T) {
 	}
 	var r *ServiceReconciler
 	r = &ServiceReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			r.Client = newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{UpdateErr: fmt.Errorf("failed")},
 			)
 			return &ibmcloud.Info{}, nil
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{}, result)
@@ -520,7 +520,7 @@ func TestServiceDeletingFailed(t *testing.T) {
 	t.Run("service delete failed", func(t *testing.T) {
 		scheme := schemas(t)
 		now := metav1Now(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              serviceName,
@@ -535,13 +535,13 @@ func TestServiceDeletingFailed(t *testing.T) {
 
 		var r *ServiceReconciler
 		r = &ServiceReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				r.Client = newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{},
 				)
 				return &ibmcloud.Info{}, nil
@@ -551,7 +551,7 @@ func TestServiceDeletingFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -564,7 +564,7 @@ func TestServiceDeletingFailed(t *testing.T) {
 	t.Run("update failed", func(t *testing.T) {
 		scheme := schemas(t)
 		now := metav1Now(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              serviceName,
@@ -579,20 +579,20 @@ func TestServiceDeletingFailed(t *testing.T) {
 
 		var r *ServiceReconciler
 		r = &ServiceReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				r.Client = newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{UpdateErr: fmt.Errorf("failed")},
 				)
 				return &ibmcloud.Info{}, nil
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -621,7 +621,7 @@ func TestServiceGetParamsFailed(t *testing.T) {
 	)
 
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 			Status: ibmcloudv1.ServiceStatus{
@@ -648,18 +648,18 @@ func TestServiceGetParamsFailed(t *testing.T) {
 	}
 	r := &ServiceReconciler{
 		Client: newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{},
 		),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			return &ibmcloud.Info{}, nil
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{
@@ -708,7 +708,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 	t.Run("create - empty service ID", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status:     ibmcloudv1.ServiceStatus{Plan: "Lite", ServiceClass: "service-name"},
@@ -718,11 +718,11 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 		var createErr error
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{
@@ -736,7 +736,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 		t.Run("success", func(t *testing.T) {
 			createErr = nil
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -765,7 +765,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 		t.Run("failed", func(t *testing.T) {
 			createErr = fmt.Errorf("failed")
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -793,7 +793,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 	t.Run("create alias success", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -809,11 +809,11 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 		}
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{
@@ -828,7 +828,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -860,7 +860,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 	t.Run("ensure alias - empty instance ID", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -877,11 +877,11 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 		var getInstanceErr error
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{
@@ -895,7 +895,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 		t.Run("success", func(t *testing.T) {
 			getInstanceErr = nil
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -927,7 +927,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 		t.Run("failed", func(t *testing.T) {
 			getInstanceErr = fmt.Errorf("failed")
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -959,7 +959,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 	t.Run("get instance failed - not found", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -975,11 +975,11 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 		}
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{
@@ -994,7 +994,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1023,7 +1023,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 	t.Run("get instance failed - not found, create failed", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -1039,11 +1039,11 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 		}
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{
@@ -1058,7 +1058,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1086,7 +1086,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 	t.Run("get instance failed - other error", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -1102,11 +1102,11 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 		}
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{
@@ -1118,7 +1118,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1146,7 +1146,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 
 	t.Run("ensure alias - instance does not exist", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -1162,11 +1162,11 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 		}
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{
@@ -1178,7 +1178,7 @@ func TestServiceEnsureCFServiceExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1217,7 +1217,7 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 
 	t.Run("alias", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -1234,11 +1234,11 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 		t.Run("success", func(t *testing.T) {
 			r := &ServiceReconciler{
 				Client: newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{},
 				),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
@@ -1247,7 +1247,7 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 					return "guid", "state", nil
 				},
 			}
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 
@@ -1281,11 +1281,11 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 		t.Run("not found", func(t *testing.T) {
 			r := &ServiceReconciler{
 				Client: newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{},
 				),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
@@ -1297,7 +1297,7 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 					panic("Must not re-create an alias service") // https://github.com/IBM/cloud-operators/issues/71
 				},
 			}
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 
@@ -1329,11 +1329,11 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 		t.Run("other error", func(t *testing.T) {
 			r := &ServiceReconciler{
 				Client: newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{},
 				),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
@@ -1345,7 +1345,7 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 					panic("Must not re-create an alias service") // https://github.com/IBM/cloud-operators/issues/71
 				},
 			}
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 
@@ -1377,7 +1377,7 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 
 	t.Run("non-alias", func(t *testing.T) {
 		scheme := schemas(t)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Service{
 				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 				Status: ibmcloudv1.ServiceStatus{
@@ -1394,11 +1394,11 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 		t.Run("success", func(t *testing.T) {
 			r := &ServiceReconciler{
 				Client: newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{},
 				),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
@@ -1408,7 +1408,7 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 				},
 			}
 
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -1441,18 +1441,18 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 		t.Run("update status failed", func(t *testing.T) {
 			r := &ServiceReconciler{
 				Client: newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
 				),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
 				},
 			}
 
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{}, result)
@@ -1481,11 +1481,11 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 		t.Run("create failed", func(t *testing.T) {
 			r := &ServiceReconciler{
 				Client: newMockClient(
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{},
 				),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
@@ -1495,7 +1495,7 @@ func TestServiceEnsureResourceServiceInstance(t *testing.T) {
 				},
 			}
 
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -1533,7 +1533,7 @@ func TestServiceVerifyExists(t *testing.T) {
 		serviceName = "myservice"
 	)
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 			Status: ibmcloudv1.ServiceStatus{
@@ -1547,7 +1547,7 @@ func TestServiceVerifyExists(t *testing.T) {
 			},
 		},
 	}
-	aliasObjects := []runtime.Object{
+	aliasObjects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 			Status: ibmcloudv1.ServiceStatus{
@@ -1565,11 +1565,11 @@ func TestServiceVerifyExists(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1579,7 +1579,7 @@ func TestServiceVerifyExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1613,11 +1613,11 @@ func TestServiceVerifyExists(t *testing.T) {
 		var createErr error
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1632,7 +1632,7 @@ func TestServiceVerifyExists(t *testing.T) {
 
 		t.Run("success", func(t *testing.T) {
 			createErr = nil
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -1664,7 +1664,7 @@ func TestServiceVerifyExists(t *testing.T) {
 
 		t.Run("create error", func(t *testing.T) {
 			createErr = fmt.Errorf("failed")
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 			})
 			assert.Equal(t, ctrl.Result{
@@ -1697,11 +1697,11 @@ func TestServiceVerifyExists(t *testing.T) {
 	t.Run("not found non-alias - status update failed", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1711,7 +1711,7 @@ func TestServiceVerifyExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -1740,11 +1740,11 @@ func TestServiceVerifyExists(t *testing.T) {
 	t.Run("not found alias", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, aliasObjects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(aliasObjects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1757,7 +1757,7 @@ func TestServiceVerifyExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1789,11 +1789,11 @@ func TestServiceVerifyExists(t *testing.T) {
 	t.Run("other error alias", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, aliasObjects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(aliasObjects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1806,7 +1806,7 @@ func TestServiceVerifyExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1838,11 +1838,11 @@ func TestServiceVerifyExists(t *testing.T) {
 	t.Run("other error", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1852,7 +1852,7 @@ func TestServiceVerifyExists(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1889,7 +1889,7 @@ func TestServiceUpdateTagsOrParamsFailed(t *testing.T) {
 		serviceName = "myservice"
 	)
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
 			Status: ibmcloudv1.ServiceStatus{
@@ -1907,11 +1907,11 @@ func TestServiceUpdateTagsOrParamsFailed(t *testing.T) {
 
 	r := &ServiceReconciler{
 		Client: newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{},
 		),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			return &ibmcloud.Info{}, nil
@@ -1924,7 +1924,7 @@ func TestServiceUpdateTagsOrParamsFailed(t *testing.T) {
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: serviceName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{
@@ -2182,7 +2182,7 @@ func TestServiceParamValueToJSON(t *testing.T) {
 		namespace      = "mynamespace"
 	)
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
 			Data: map[string][]byte{
@@ -2283,9 +2283,9 @@ func TestServiceParamValueToJSON(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			scheme := schemas(t)
 			r := &ServiceReconciler{
-				Client: fake.NewFakeClientWithScheme(scheme, objects...),
+				Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 			}
 
 			j, err := r.paramValueToJSON(context.TODO(), tc.valueFrom, namespace)
@@ -2321,11 +2321,11 @@ func TestServiceUpdateStatusFailed(t *testing.T) {
 
 	r := &ServiceReconciler{
 		Client: newMockClient(
-			fake.NewFakeClientWithScheme(scheme, instance),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(),
 			MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
 		),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 	}
 
 	result, err := r.updateStatus(nil, r.Log, instance, ibmcloudv1.ResourceContext{}, "myinstanceid", "state", "")
@@ -2374,11 +2374,11 @@ func TestServiceUpdateStatusError(t *testing.T) {
 	t.Run("no such host", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, instance),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
 		result, err := r.updateStatusError(instance, "state", fmt.Errorf("no such host"))
@@ -2392,11 +2392,11 @@ func TestServiceUpdateStatusError(t *testing.T) {
 	t.Run("status update failed", func(t *testing.T) {
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, instance),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(),
 				MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
 		result, err := r.updateStatusError(instance, "state", fmt.Errorf("some error"))
@@ -2457,11 +2457,11 @@ func TestDeleteService(t *testing.T) {
 		instanceCopy.Status.Plan = aliasPlan
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, &instanceCopy),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(&instanceCopy).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
 		err := r.deleteService(nil, r.Log, &instanceCopy, "")
@@ -2473,11 +2473,11 @@ func TestDeleteService(t *testing.T) {
 		instanceCopy.Status.InstanceID = ""
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, &instanceCopy),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(&instanceCopy).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
 		err := r.deleteService(nil, r.Log, &instanceCopy, "")
@@ -2488,11 +2488,11 @@ func TestDeleteService(t *testing.T) {
 		someErr := fmt.Errorf("some error")
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, instance),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			DeleteCFServiceInstance: func(session *session.Session, instanceID string, logt logr.Logger) error {
 				return someErr
@@ -2507,11 +2507,11 @@ func TestDeleteService(t *testing.T) {
 		someErr := fmt.Errorf("some error")
 		r := &ServiceReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, instance),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			DeleteResourceServiceInstance: func(session *session.Session, instanceID string, logt logr.Logger) error {
 				return someErr

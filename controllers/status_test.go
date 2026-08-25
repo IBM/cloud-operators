@@ -2,14 +2,14 @@ package controllers
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func getObject(ctx context.Context, meta metav1.ObjectMeta, v runtime.Object) error {
+func getObject(ctx context.Context, meta metav1.ObjectMeta, v client.Object) error {
 	return k8sClient.Get(ctx, types.NamespacedName{
 		Name:      meta.Name,
 		Namespace: meta.Namespace,
@@ -17,7 +17,7 @@ func getObject(ctx context.Context, meta metav1.ObjectMeta, v runtime.Object) er
 }
 
 type statuser interface {
-	runtime.Object
+	client.Object
 	GetState() string
 }
 

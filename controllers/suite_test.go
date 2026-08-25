@@ -147,7 +147,7 @@ func mainSetup(ctx context.Context) error {
 	}
 
 	go func() {
-		err = k8sManager.Start(ctx.Done())
+		err = k8sManager.Start(ctx)
 		if err != nil {
 			panic("Failed to start manager: " + err.Error())
 		}

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"k8s.io/apiserver/pkg/storage/testresource"
 	"testing"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -83,7 +83,7 @@ func TestToken(t *testing.T) {
 func TestTokenFailedAuth(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
@@ -92,7 +92,7 @@ func TestTokenFailedAuth(t *testing.T) {
 		},
 	}
 	r := &TokenReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:    testLogger(t),
 		Scheme: scheme,
 		Authenticate: func(apiKey, region string) (auth.Credentials, error) {
@@ -100,7 +100,7 @@ func TestTokenFailedAuth(t *testing.T) {
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.EqualError(t, err, "failure")
@@ -111,23 +111,23 @@ func TestTokenFailedSecretLookup(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
 	r := &TokenReconciler{
-		Client:       fake.NewFakeClientWithScheme(scheme),
+		Client:       fake.NewClientBuilder().WithScheme(scheme).Build(),
 		Log:          testLogger(t),
 		Scheme:       scheme,
 		Authenticate: nil, // should not be called
 	}
 
 	t.Run("not found", func(t *testing.T) {
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 		})
 		assert.NoError(t, err, "Don't retry (return err) if secret no longer exists")
 		assert.Equal(t, ctrl.Result{}, result)
 	})
 
-	r.Client = fake.NewFakeClientWithScheme(runtime.NewScheme()) // fail to read the type Secret
+	r.Client = fake.NewClientBuilder().Build() // fail to read the type Secret
 	t.Run("failed to read secret", func(t *testing.T) {
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 		})
 		assert.Error(t, err)
@@ -140,7 +140,7 @@ func TestTokenSecretIsDeleting(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
 	now := metav1Now(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "ibmcloud-operator-secret",
@@ -149,13 +149,13 @@ func TestTokenSecretIsDeleting(t *testing.T) {
 		},
 	}
 	r := &TokenReconciler{
-		Client:       fake.NewFakeClientWithScheme(scheme, objects...),
+		Client:       fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:          testLogger(t),
 		Scheme:       scheme,
 		Authenticate: nil, // should not be called
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.NoError(t, err, "Don't retry (return err) if secret is deleting")
@@ -165,20 +165,20 @@ func TestTokenSecretIsDeleting(t *testing.T) {
 func TestTokenAPIKeyIsMissing(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data:       nil, // no API key
 		},
 	}
 	r := &TokenReconciler{
-		Client:       fake.NewFakeClientWithScheme(scheme, objects...),
+		Client:       fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:          testLogger(t),
 		Scheme:       scheme,
 		Authenticate: nil, // should not be called
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.NoError(t, err, "Don't retry (return err) if secret does not contain an api-key entry")
@@ -192,7 +192,7 @@ func TestTokenAuthInvalidConfig(t *testing.T) {
 		apiKey = "some API key"
 		region = "some invalid region"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
@@ -202,7 +202,7 @@ func TestTokenAuthInvalidConfig(t *testing.T) {
 		},
 	}
 	r := &TokenReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:    testLogger(t),
 		Scheme: scheme,
 		Authenticate: func(actualAPIKey, actualRegion string) (auth.Credentials, error) {
@@ -212,7 +212,7 @@ func TestTokenAuthInvalidConfig(t *testing.T) {
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.NoError(t, err, "Don't retry (return err) if secret region is invalid")
@@ -227,7 +227,7 @@ func TestTokenDeleteFailed(t *testing.T) {
 		region      = "some invalid region"
 		accessToken = "some access token"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
@@ -238,20 +238,21 @@ func TestTokenDeleteFailed(t *testing.T) {
 	}
 	var r *TokenReconciler
 	r = &TokenReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
+
 		Log:    testLogger(t),
 		Scheme: scheme,
 		Authenticate: func(actualAPIKey, actualRegion string) (auth.Credentials, error) {
 			assert.Equal(t, apiKey, actualAPIKey)
 			assert.Equal(t, region, actualRegion)
-			r.Client = fake.NewFakeClientWithScheme(runtime.NewScheme()) // trigger later failure of r.Client.Delete
+			r.Client = fake.NewClientBuilder().Build() // trigger later failure of r.Client.Delete
 			return auth.Credentials{
 				IAMAccessToken: accessToken,
 			}, nil
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 	})
 	assert.Error(t, err)
@@ -273,7 +274,7 @@ func TestTokenRaceCreateFailed(t *testing.T) {
 			"access_token": []byte("old " + accessToken),
 		},
 	}
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "ibmcloud-operator-secret"},
 			Data: map[string][]byte{
@@ -284,7 +285,7 @@ func TestTokenRaceCreateFailed(t *testing.T) {
 		tokensSecret,
 	}
 	r := &TokenReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:    testLogger(t),
 		Scheme: scheme,
 		Authenticate: func(actualAPIKey, actualRegion string) (auth.Credentials, error) {
@@ -313,7 +314,7 @@ func TestTokenRaceCreateFailed(t *testing.T) {
 	var result ctrl.Result
 	var err error
 	require.Eventually(t, func() bool {
-		result, err = r.Reconcile(ctrl.Request{
+		result, err = r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "ibmcloud-operator-secret"},
 		})
 		return err != nil
@@ -348,12 +349,13 @@ func TestTokenEventsFilter(t *testing.T) {
 	t.Parallel()
 
 	filter := eventsFilter()
-	shouldProcessEvent := &metav1.ObjectMeta{Name: icoSecretName}
-	shouldNotProcessEvent := &metav1.ObjectMeta{}
-	assert.True(t, filter.CreateFunc(event.CreateEvent{Meta: shouldProcessEvent}))
-	assert.False(t, filter.CreateFunc(event.CreateEvent{Meta: shouldNotProcessEvent}))
-	assert.True(t, filter.DeleteFunc(event.DeleteEvent{Meta: shouldProcessEvent}))
-	assert.False(t, filter.DeleteFunc(event.DeleteEvent{Meta: shouldNotProcessEvent}))
-	assert.True(t, filter.UpdateFunc(event.UpdateEvent{MetaNew: shouldProcessEvent}))
-	assert.False(t, filter.UpdateFunc(event.UpdateEvent{MetaNew: shouldNotProcessEvent}))
+	//shouldProcessEvent := &metav1.ObjectMeta{Name: icoSecretName}
+	shouldProcessEvent := &testresource.TestResource{ObjectMeta: metav1.ObjectMeta{Name: icoSecretName}}
+	shouldNotProcessEvent := &testresource.TestResource{ObjectMeta: metav1.ObjectMeta{}}
+	assert.True(t, filter.CreateFunc(event.CreateEvent{shouldProcessEvent}))
+	assert.False(t, filter.CreateFunc(event.CreateEvent{shouldNotProcessEvent}))
+	assert.True(t, filter.DeleteFunc(event.DeleteEvent{shouldProcessEvent, true}))
+	assert.False(t, filter.DeleteFunc(event.DeleteEvent{shouldNotProcessEvent, false}))
+	assert.True(t, filter.UpdateFunc(event.UpdateEvent{shouldProcessEvent, shouldProcessEvent}))
+	assert.False(t, filter.UpdateFunc(event.UpdateEvent{shouldNotProcessEvent, shouldNotProcessEvent}))
 }

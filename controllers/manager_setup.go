@@ -59,7 +59,7 @@ func setUpControllerDependencies(mgr ctrl.Manager) *Controllers {
 		BindingReconciler: &BindingReconciler{
 			Client: mgr.GetClient(),
 			Log:    ctrl.Log.WithName("controllers").WithName("Binding"),
-			Scheme: mgr.GetScheme(),
+			scheme: mgr.GetScheme(),
 
 			CreateCFServiceKey:         cfservice.CreateKey,
 			CreateResourceServiceKey:   resource.CreateKey,
@@ -77,7 +77,7 @@ func setUpControllerDependencies(mgr ctrl.Manager) *Controllers {
 		ServiceReconciler: &ServiceReconciler{
 			Client: mgr.GetClient(),
 			Log:    ctrl.Log.WithName("controllers").WithName("Service"),
-			Scheme: mgr.GetScheme(),
+			scheme: mgr.GetScheme(),
 
 			CreateCFServiceInstance:         cfservice.CreateInstance,
 			CreateResourceServiceInstance:   resource.CreateServiceInstance,

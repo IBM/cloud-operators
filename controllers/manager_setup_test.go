@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake" // nolint: staticcheck
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
 )
 
 func TestSetUpControllers(t *testing.T) {
@@ -193,5 +192,7 @@ func (m *mockManager) GetEventRecorderFor(string) record.EventRecorder {
 }
 
 func (m *mockManager) Add(c manager.Runnable) error {
-	return c.(inject.Injector).InjectFunc(m.SetFields)
+	panic("BELA")
+
+// return c.(inject.Injector).InjectFunc(m.SetFields)
 }

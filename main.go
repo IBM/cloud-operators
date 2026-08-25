@@ -18,15 +18,15 @@ package main
 
 import (
 	"flag"
-	"os"
-
 	"github.com/ibm/cloud-operators/controllers"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	zapLog "sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	ibmcloudv1 "github.com/ibm/cloud-operators/api/v1"
 	ibmcloudv1alpha1 "github.com/ibm/cloud-operators/api/v1alpha1"
@@ -45,7 +45,7 @@ func init() {
 	_ = ibmcloudv1alpha1.AddToScheme(scheme)
 	_ = ibmcloudv1beta1.AddToScheme(scheme)
 	_ = ibmcloudv1.AddToScheme(scheme)
-	// +kubebuilder:scaffold:scheme
+	// +kubebuil	der:scaffold:scheme
 }
 
 func main() {
@@ -60,11 +60,12 @@ func main() {
 	ctrl.SetLogger(zapLog.New(zapLog.UseDevMode(true), zapLog.RawZapOpts(zap.AddCaller())))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "7c16769a.ibm.com",
+		Scheme: scheme,
+		Metrics: metrics.Options{
+			BindAddress: metricsAddr,
+		},
+		LeaderElection:   enableLeaderElection,
+		LeaderElectionID: "7c16769a.ibm.com",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

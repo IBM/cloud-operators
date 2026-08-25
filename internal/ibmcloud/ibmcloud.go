@@ -20,7 +20,6 @@ import (
 	"github.com/ibm/cloud-operators/internal/config"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -293,7 +292,7 @@ func getIamToken(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service
 	return string(secret.Data["access_token"]), string(secret.Data["refresh_token"]), string(secret.Data["uaa_refresh_token"]), string(secret.Data["uaa_token"]), nil
 }
 
-func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace string, objName string, obj runtime.Object) error {
+func getConfigOrSecret(logt logr.Logger, r client.Client, instanceNamespace string, objName string, obj client.Object) error {
 	defaultNamespace, isManagement := getDefaultNamespace(logt, r)
 	if isManagement {
 		objName = instanceNamespace + "-" + objName

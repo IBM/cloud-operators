@@ -123,23 +123,24 @@ func TestBinding(t *testing.T) {
 func TestBindingFailedLookup(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
+	fake.NewClientBuilder().WithScheme(scheme)
 	r := &BindingReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme),
+		Client: fake.NewClientBuilder().WithScheme(scheme).Build(),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 	}
 
 	t.Run("not found", func(t *testing.T) {
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "mybinding"},
 		})
 		assert.NoError(t, err, "Don't retry (return err) if binding does not exist")
 		assert.Equal(t, ctrl.Result{}, result)
 	})
 
-	r.Client = fake.NewFakeClientWithScheme(runtime.NewScheme()) // fail to read the type Binding
+	r.Client = fake.NewClientBuilder().WithScheme(scheme).Build() // fail to read the type Binding
 	t.Run("failed to read binding", func(t *testing.T) {
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "mybinding"},
 		})
 		assert.Error(t, err)
@@ -151,23 +152,23 @@ func TestBindingFailedLookup(t *testing.T) {
 func TestBindingFailInitialStatus(t *testing.T) {
 	t.Parallel()
 	scheme := schemas(t)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			ObjectMeta: metav1.ObjectMeta{Name: "mybinding"},
 			Status:     ibmcloudv1.BindingStatus{}, // empty
 		},
 	}
-	client := fake.NewFakeClientWithScheme(scheme, objects...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 	client = newMockClient(client, MockConfig{
 		StatusUpdateErr: fmt.Errorf("failed"),
 	})
 	r := &BindingReconciler{
 		Client: client,
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: "mybinding"},
 	})
 	assert.NoError(t, err, "Don't retry (return err) if binding does not exist")
@@ -295,15 +296,15 @@ func TestBindingFailGetServiceInstance(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			scheme := schemas(t)
 			r := &BindingReconciler{
-				Client: fake.NewFakeClientWithScheme(scheme, tc.binding),
+				Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(tc.binding).Build(),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 			}
 			if tc.fakeClient != nil {
 				r.Client = newMockClient(r.Client, *tc.fakeClient)
 			}
 
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: "mybinding"},
 			})
 			assert.NoError(t, err)
@@ -323,7 +324,7 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 	t.Run("setting owner reference failed", func(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Binding{
 				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
@@ -337,16 +338,16 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 			},
 		}
 		r := &BindingReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return fmt.Errorf("failed")
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "mybinding", Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -356,7 +357,7 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 	t.Run("binding update failed", func(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Binding{
 				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
@@ -373,21 +374,21 @@ func TestBindingSetOwnerReferenceFailed(t *testing.T) {
 			},
 		}
 		client := newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{
 				UpdateErr: fmt.Errorf("failed"),
 			})
 		r := &BindingReconciler{
 			Client: client,
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "mybinding", Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -410,7 +411,7 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 	t.Run("empty instance ID", func(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Binding{
 				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
@@ -427,16 +428,16 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 			},
 		}
 		r := &BindingReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "mybinding", Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -449,7 +450,7 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 	t.Run("status instance ID is in progress", func(t *testing.T) {
 		scheme := schemas(t)
 		const namespace = "mynamespace"
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Binding{
 				TypeMeta:   metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "mybinding", Namespace: namespace},
@@ -466,16 +467,16 @@ func TestBindingServiceIsNotReady(t *testing.T) {
 			},
 		}
 		r := &BindingReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: "mybinding", Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -496,7 +497,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 		serviceName    = "myservice"
 		someInstanceID = "some-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -520,23 +521,23 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 	t.Run("not found error", func(t *testing.T) {
 		var r *BindingReconciler
 		r = &BindingReconciler{
-			Client: newMockClient(fake.NewFakeClientWithScheme(scheme, objects...), MockConfig{}),
+			Client: newMockClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(), MockConfig{}),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
 			},
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				r.Client = newMockClient( // swap out client so next update fails
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{UpdateErr: fmt.Errorf("failed")},
 				)
 				return nil, errors.NewNotFound(ctrl.GroupResource{Group: "ibmcloud.ibm.com", Resource: "secret"}, "ibmcloud-operator-secret")
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -557,9 +558,9 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 
 	t.Run("other error", func(t *testing.T) {
 		r := &BindingReconciler{
-			Client: newMockClient(fake.NewFakeClientWithScheme(scheme, objects...), MockConfig{}),
+			Client: newMockClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(), MockConfig{}),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
 				return nil
@@ -569,7 +570,7 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -607,7 +608,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			serviceName    = "myservice"
 			someInstanceID = "some-instance-id"
 		)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Binding{
 				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
@@ -634,13 +635,13 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			},
 		}
 		fakeClient := newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{DeleteErr: fmt.Errorf("failed")},
 		)
 		r := &BindingReconciler{
 			Client: fakeClient,
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -650,7 +651,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -673,7 +674,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			serviceName    = "myservice"
 			someInstanceID = "some-instance-id"
 		)
-		objects := []runtime.Object{
+		objects := []client.Object{
 			&ibmcloudv1.Binding{
 				TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 				ObjectMeta: metav1.ObjectMeta{
@@ -702,13 +703,13 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 		}
 		var r *BindingReconciler
 		r = &BindingReconciler{
-			Client: fake.NewFakeClientWithScheme(scheme, objects...),
+			Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				r.Client = newMockClient( // swap out client so next update fails
-					fake.NewFakeClientWithScheme(scheme, objects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 					MockConfig{UpdateErr: fmt.Errorf("failed")},
 				)
 				return &ibmcloud.Info{}, nil
@@ -718,7 +719,7 @@ func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{}, result)
@@ -752,7 +753,7 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 		serviceName    = "myservice"
 		someInstanceID = "some-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -774,13 +775,13 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 	}
 	var r *BindingReconciler
 	r = &BindingReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			r.Client = newMockClient( // swap out client so next update fails
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{UpdateErr: fmt.Errorf("failed")},
 			)
 			return &ibmcloud.Info{}, nil
@@ -790,7 +791,7 @@ func TestBindingDeletesMissingFinalizerFailed(t *testing.T) {
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{}, result)
@@ -818,7 +819,7 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 		serviceName    = "myservice"
 		someInstanceID = "some-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -850,13 +851,13 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 	}
 	var r *BindingReconciler
 	r = &BindingReconciler{
-		Client: fake.NewFakeClientWithScheme(scheme, objects...),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			r.Client = newMockClient( // swap out client so next delete fails
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{DeleteErr: fmt.Errorf("failed")},
 			)
 			return &ibmcloud.Info{}, nil
@@ -866,7 +867,7 @@ func TestBindingDeleteMismatchedServiceIDsSecretFailed(t *testing.T) {
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{
@@ -912,7 +913,7 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 		serviceName     = "myservice"
 		someInstanceID  = "some-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -1040,7 +1041,7 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 		},
 	} {
 		t.Run(tc.description, func(t *testing.T) {
-			var testObjects []runtime.Object
+			var testObjects []client.Object
 			for _, obj := range objects {
 				if binding, ok := obj.(*ibmcloudv1.Binding); ok && binding.Name != aliasTargetName {
 					binding = binding.DeepCopy()
@@ -1057,11 +1058,11 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 
 			r := &BindingReconciler{
 				Client: newMockClient(
-					fake.NewFakeClientWithScheme(scheme, testObjects...),
+					fake.NewClientBuilder().WithScheme(scheme).WithObjects(testObjects...).Build(),
 					tc.fakeClient,
 				),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 					return &ibmcloud.Info{}, nil
@@ -1089,7 +1090,7 @@ func TestBindingSetKeyInstanceFailed(t *testing.T) {
 				},
 			}
 
-			result, err := r.Reconcile(ctrl.Request{
+			result, err := r.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 			})
 			assert.Equal(t, tc.expectResult, result)
@@ -1115,7 +1116,7 @@ func TestBindingEnsureCredentialsFailed(t *testing.T) {
 		someInstanceID    = "some-instance-id"
 		someKeyInstanceID = "some-key-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -1148,11 +1149,11 @@ func TestBindingEnsureCredentialsFailed(t *testing.T) {
 
 	r := &BindingReconciler{
 		Client: newMockClient(
-			fake.NewFakeClientWithScheme(scheme, objects...),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 			MockConfig{},
 		),
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 			return &ibmcloud.Info{}, nil
@@ -1177,7 +1178,7 @@ func TestBindingEnsureCredentialsFailed(t *testing.T) {
 		},
 	}
 
-	result, err := r.Reconcile(ctrl.Request{
+	result, err := r.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 	})
 	assert.Equal(t, ctrl.Result{
@@ -1203,7 +1204,7 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 		someInstanceID    = "some-instance-id"
 		someKeyInstanceID = "some-key-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -1258,11 +1259,11 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 		scheme := schemas(t)
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1275,7 +1276,7 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1294,11 +1295,11 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 		scheme := schemas(t)
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1323,7 +1324,7 @@ func TestBindingEnsureAliasCredentialsFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1350,7 +1351,7 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 		someInstanceID    = "some-instance-id"
 		someKeyInstanceID = "some-key-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -1381,11 +1382,11 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 	t.Run("recreate secret success", func(t *testing.T) {
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1401,7 +1402,7 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1432,11 +1433,11 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 	t.Run("recreate secret failure", func(t *testing.T) {
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{CreateErr: fmt.Errorf("failed")},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1452,7 +1453,7 @@ func TestBindingEnsureSecretFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1492,7 +1493,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		someInstanceID    = "some-instance-id"
 		someKeyInstanceID = "some-key-instance-id"
 	)
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&ibmcloudv1.Binding{
 			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
 			ObjectMeta: metav1.ObjectMeta{
@@ -1541,11 +1542,11 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		)
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(testObjects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1561,7 +1562,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1613,11 +1614,11 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		)
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(testObjects...).Build(),
 				MockConfig{},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1630,7 +1631,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1660,11 +1661,11 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		)
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(testObjects...).Build(),
 				MockConfig{DeleteErr: fmt.Errorf("failed")},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1677,7 +1678,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1710,11 +1711,11 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 		)
 		r := &BindingReconciler{
 			Client: newMockClient(
-				fake.NewFakeClientWithScheme(scheme, testObjects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(testObjects...).Build(),
 				MockConfig{CreateErr: fmt.Errorf("failed")},
 			),
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 
 			GetIBMCloudInfo: func(logt logr.Logger, _ client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
 				return &ibmcloud.Info{}, nil
@@ -1730,7 +1731,7 @@ func TestBindingEnsureKeyContentsFailed(t *testing.T) {
 			},
 		}
 
-		result, err := r.Reconcile(ctrl.Request{
+		result, err := r.Reconcile(context.Background(), ctrl.Request{
 			NamespacedName: types.NamespacedName{Name: bindingName, Namespace: namespace},
 		})
 		assert.Equal(t, ctrl.Result{
@@ -1782,13 +1783,13 @@ func TestBindingResetResource(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		client := newMockClient(
-			fake.NewFakeClientWithScheme(scheme, binding, secret),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, secret).Build(),
 			MockConfig{},
 		)
 		r := &BindingReconciler{
 			Client: client,
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
 		result, err := r.resetResource(binding)
@@ -1803,13 +1804,13 @@ func TestBindingResetResource(t *testing.T) {
 
 	t.Run("fail delete secret", func(t *testing.T) {
 		client := newMockClient(
-			fake.NewFakeClientWithScheme(scheme, binding, secret),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, secret).Build(),
 			MockConfig{DeleteErr: fmt.Errorf("failed")},
 		)
 		r := &BindingReconciler{
 			Client: client,
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
 		result, err := r.resetResource(binding)
@@ -1823,13 +1824,13 @@ func TestBindingResetResource(t *testing.T) {
 
 	t.Run("fail update status", func(t *testing.T) {
 		client := newMockClient(
-			fake.NewFakeClientWithScheme(scheme, binding, secret),
+			fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, secret).Build(),
 			MockConfig{StatusUpdateErr: fmt.Errorf("failed")},
 		)
 		r := &BindingReconciler{
 			Client: client,
 			Log:    testLogger(t),
-			Scheme: scheme,
+			scheme: scheme,
 		}
 
 		result, err := r.resetResource(binding)
@@ -1904,13 +1905,13 @@ func TestBindingUpdateStatusError(t *testing.T) {
 				},
 			}
 			client := newMockClient(
-				fake.NewFakeClientWithScheme(scheme),
+				fake.NewClientBuilder().WithScheme(scheme).Build(),
 				MockConfig{StatusUpdateErr: tc.updateStatusError},
 			)
 			r := &BindingReconciler{
 				Client: client,
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 			}
 
 			result, err := r.updateStatusError(binding, tc.state, tc.err)
@@ -2014,7 +2015,7 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		namespace      = "mynamespace"
 	)
 
-	objects := []runtime.Object{
+	objects := []client.Object{
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
 			Data: map[string][]byte{
@@ -2115,9 +2116,9 @@ func TestBindingParamValueToJSON(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			scheme := schemas(t)
 			r := &BindingReconciler{
-				Client: fake.NewFakeClientWithScheme(scheme, objects...),
+				Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 			}
 
 			j, err := r.paramValueToJSON(context.TODO(), tc.valueFrom, namespace)
@@ -2209,7 +2210,7 @@ func TestBindingDeleteCredentials(t *testing.T) {
 		TypeMeta:   metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
 	}
-	objects := []runtime.Object{
+	objects := []client.Object{
 		binding,
 		&ibmcloudv1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: "myservice", Namespace: "mynamespace"},
@@ -2258,13 +2259,13 @@ func TestBindingDeleteCredentials(t *testing.T) {
 	} {
 		t.Run(tc.description, func(t *testing.T) {
 			client := newMockClient(
-				fake.NewFakeClientWithScheme(scheme, objects...),
+				fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build(),
 				MockConfig{DeleteErr: tc.deleteErr},
 			)
 			r := &BindingReconciler{
 				Client: client,
 				Log:    testLogger(t),
-				Scheme: scheme,
+				scheme: scheme,
 
 				DeleteCFServiceKey: func(session *session.Session, serviceKeyGUID string) error {
 					return tc.cfErr
@@ -2307,13 +2308,13 @@ func TestBindingUpdateStatusOnlineFailedWithConflictError(t *testing.T) {
 	}
 
 	client := newMockClient(
-		fake.NewFakeClientWithScheme(scheme, binding, service),
+		fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, service).Build(),
 		MockConfig{ErrChan: errChan},
 	)
 	r := &BindingReconciler{
 		Client: client,
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 
 		DeleteResourceServiceKey: func(session *session.Session, keyID string) error {
 			return fmt.Errorf("failed")
@@ -2358,13 +2359,13 @@ func TestBindingUpdateStatusOnlineFailedWithOtherUpdateErrror(t *testing.T) {
 
 	errChan <- fmt.Errorf("status failed")
 	client := newMockClient(
-		fake.NewFakeClientWithScheme(scheme, binding, service),
+		fake.NewClientBuilder().WithScheme(scheme).WithObjects(binding, service).Build(),
 		MockConfig{ErrChan: errChan},
 	)
 	r := &BindingReconciler{
 		Client: client,
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 	}
 
 	result, err := r.updateStatusOnline(nil, binding)
@@ -2386,13 +2387,13 @@ func TestBindingUpdateStatusOnlineFailedWithGetError(t *testing.T) {
 	errChan <- nil
 	client := newMockClient(
 		// the service and binding does not add so Get will return error
-		fake.NewFakeClientWithScheme(scheme),
+		fake.NewClientBuilder().WithScheme(scheme).Build(),
 		MockConfig{ErrChan: errChan},
 	)
 	r := &BindingReconciler{
 		Client: client,
 		Log:    testLogger(t),
-		Scheme: scheme,
+		scheme: scheme,
 	}
 
 	result, err := r.updateStatusOnline(nil, binding)

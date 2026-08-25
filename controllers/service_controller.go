@@ -57,7 +57,7 @@ const (
 type ServiceReconciler struct {
 	client.Client
 	Log    logr.Logger
-	Scheme *runtime.Scheme
+	scheme *runtime.Scheme
 
 	CreateCFServiceInstance         cfservice.InstanceCreator
 	CreateResourceServiceInstance   resource.ServiceInstanceCreator
@@ -68,6 +68,10 @@ type ServiceReconciler struct {
 	GetResourceServiceAliasInstance resource.ServiceAliasInstanceGetter
 	GetResourceServiceInstanceState resource.ServiceInstanceStatusGetter
 	UpdateResourceServiceInstance   resource.ServiceInstanceUpdater
+}
+
+func (s ServiceReconciler) Scheme() *runtime.Scheme {
+	return s.scheme
 }
 
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
@@ -83,8 +87,7 @@ func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager, options controlle
 // Reconcile reads the state of the cluster for a Service object and makes changes based on the state read
 // and what is in the Service.Spec.
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments.
-func (r *ServiceReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *ServiceReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	logt := r.Log.WithValues("service", request.NamespacedName)
 
 	// Fetch the Service instance

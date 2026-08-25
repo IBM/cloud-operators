@@ -48,8 +48,7 @@ type TokenReconciler struct {
 }
 
 // Reconcile computes IAM and UAA tokens
-func (r *TokenReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *TokenReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	logt := r.Log.WithValues("token", request.NamespacedName)
 
 	logt.Info("reconciling IBM cloud IAM tokens", "secretRef", request.Name)
@@ -134,9 +133,9 @@ func (r *TokenReconciler) SetupWithManager(mgr ctrl.Manager, options controller.
 
 func eventsFilter() predicate.Funcs {
 	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return shouldProcessSecret(e.Meta) },
-		DeleteFunc: func(e event.DeleteEvent) bool { return shouldProcessSecret(e.Meta) },
-		UpdateFunc: func(e event.UpdateEvent) bool { return shouldProcessSecret(e.MetaNew) },
+		CreateFunc: func(e event.CreateEvent) bool { return shouldProcessSecret(e.Object) },
+		DeleteFunc: func(e event.DeleteEvent) bool { return shouldProcessSecret(e.Object) },
+		UpdateFunc: func(e event.UpdateEvent) bool { return shouldProcessSecret(e.ObjectNew) },
 	}
 }
 
