@@ -42,3 +42,8 @@ jobs:
 
       - name: Validate release artifacts
         run: make validate-release RELEASE_VERSION=1000.0.0
+
+# missing:
+# - e2e (was disabled in Travis)
+# - int-test (called coverage-unit in the Makefile and unit-tests in Travis) (cannot run on forks, is this needed even?)
+# - release
