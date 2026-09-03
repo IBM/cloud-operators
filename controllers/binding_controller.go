@@ -179,7 +179,9 @@ func (r *BindingReconciler) Reconcile(request ctrl.Request) (ctrl.Result, error)
 	var serviceClassType string
 	var session *session.Session
 	{
-		ibmCloudInfo, err := r.GetIBMCloudInfo(logt, r.Client, serviceInstance)
+		serviceInstanceInBindingNamespace := serviceInstance.DeepCopy()
+		serviceInstanceInBindingNamespace.Namespace = instance.Namespace
+		ibmCloudInfo, err := r.GetIBMCloudInfo(logt, r.Client, serviceInstanceInBindingNamespace)
 		if err != nil {
 			logt.Info("Unable to get IBM Cloud info", "ibmcloudInfo", instance.Name)
 			if errors.IsNotFound(err) && containsBindingFinalizer(instance) &&
