@@ -18,8 +18,7 @@ With the IBM Cloud Operator, you can provision and bind [IBM public cloud servic
 *   [Prerequisites](#prerequisites)
 *   [Setting up the operator](#setting-up-the-operator)
     *   [Using a service ID](#using-a-service-id)
-    *   [Installing the operator for OpenShift clusters](#installing-the-operator-for-openshift-clusters)
-    *   [Installing the operator for Kubernetes clusters](#installing-the-operator-for-kubernetes-clusters)
+    *   [Legacy installation methods](#legacy-installation-methods)
     *   [Uninstalling the operator](#uninstalling-the-operator)
 *   [Using the IBM Cloud Operator](#using-the-ibm-cloud-operator)
 *   [Using separate IBM Cloud accounts](#using-separate-ibm-cloud-accounts)
@@ -48,30 +47,16 @@ With the IBM Cloud Operator, you can provision and bind [IBM public cloud servic
 
 <!-- END SHOW operator hub -->
 
-Follow the instructions for the kind of installation you used: OperatorHub or the `curl` [installation command](README.md#setting-up-the-operator).
+Helm is the supported installation and upgrade method for version 2.0.0 and later:
 
-### `curl` installation command
+```bash
+helm upgrade ibmcloud-operator \
+  oci://ghcr.io/ibm/ibmcloud-operator \
+  --version 2.0.0 \
+  --namespace ibmcloud-operator-system
+```
 
-To upgrade existing `curl` installs, you can reinstall the operator with the `curl` [installation command](README.md#setting-up-the-operator).
-If your current installation is version 0.1.x or 0.2.x, then follow these steps to complete a successful upgrade.
-
-1. [Copy your secrets and configmaps](#upgrading-to-version-v03-or-v10) to use the new names.
-2. Re-run the `curl` [installation command](#setting-up-the-operator) to install the latest version.
-3. Verify the new operator is running.
-
-    ```bash
-    kubectl get pods -n ibmcloud-operator-system
-    ```
-
-4. Verify `ibmcloud.ibm.com/v1` `Service` versions provision correctly.
-5. Delete the old version with `kubectl delete ns ibmcloud-operators`.
-6. Delete the secrets and configmaps using the old names from step 1.
-
-### OperatorHub
-
-<!-- SHOW operator hub -->
-
-To upgrade an OperatorHub installation, use the OpenShift web console to perform the upgrade. If upgrading from the `alpha` channel subscription to `stable`, follow the additional upgrade instructions below.
+OperatorHub and the `curl` installer are deprecated and will not publish version 2.0.0. See the [installation guide](docs/install.md) for migration instructions and the cross-namespace Binding credential change.
 
 ### Upgrading to version v0.3 or v1.0
 **IMPORTANT NOTICE:** v0.1 and v0.2 used a different naming scheme for secrets and configmaps. Before you update the IBM Cloud Operator, create secret and configmap resources with these names and copy the contents of your previous resources to the new resources. Then, the upgraded operator recognizes and continues to update the resources.
@@ -89,8 +74,7 @@ Existing `Service` and `Binding` resources **do not** need modification for the 
 **Tip:** Forgot to update the secret and configmap names before upgrading? The operator will not take action on Service and Binding resources until the new secrets and configmaps have been created. Creating these after the upgrade will also work.
 
 
-### OperatorHub stable channel
-Continuous updates and bug fixes are provided in the latest stable channel. Subscribing to the `stable` channel in OperatorHub means you automatically get the latest updates without breaking backward compatibility.
+The OperatorHub catalog entry is deprecated, does not receive releases after version 1.x, and is scheduled for removal. Existing installations must migrate to Helm.
 
 ### Changelog
 
@@ -103,10 +87,11 @@ For a list of recent changes, see the [releases page](https://github.com/IBM/clo
 ## Prerequisites
 
 1.  Have an [IBM Cloud account](https://cloud.ibm.com/registration).
-2.  Have a cluster that runs Kubernetes version 1.11 or later (OpenShift 3.11 or later).
+2.  Have a cluster that runs Kubernetes version 1.16 or later.
 3.  Install the required command line tools.
     *   [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started) (`ibmcloud`)
     *   [Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (`kubectl`)
+    *   [Helm](https://helm.sh/docs/intro/install/) 3 or later (`helm`)
 4.  Log in to your IBM Cloud account from the CLI.
 
     ```bash
@@ -146,23 +131,21 @@ kubectl config current-context
 
 ## Setting up the operator
 
-You can use an installation script to set up the IBM Cloud Operator.
-By default, the installation script stores an API key in a Kubernetes secret in your cluster that can be accessed by the IBM Cloud Operator.
-Next, the script sets default values that are used to provision IBM Cloud services, like the resource group and region to provision the services in. Later, you can override any default value in the `Service` custom resource. Finally, the script deploys the operator in your cluster.
-
-To use your own API key, set the `IBMCLOUD_API_KEY` environment variable to the key before running the installation script:
+Install IBM Cloud Operator 2.0.0 and later with Helm:
 
 ```bash
-export IBMCLOUD_API_KEY="CUSTOM_API_KEY"
+helm install ibmcloud-operator \
+  oci://ghcr.io/ibm/ibmcloud-operator \
+  --version 2.0.0 \
+  --namespace ibmcloud-operator-system \
+  --create-namespace
 ```
 
-If installed with Operator Hub, the operator will run in the `openshift-operators` namespace. Otherwise, it will run in the `ibmcloud-operator-system` namespace.
-
-Prefer to create the secrets and defaults yourself? See the [IBM Cloud Operator installation guide](docs/install.md).
+The chart does not accept or store IBM Cloud API keys. Create the account Secret and defaults ConfigMap in each workload namespace after installing the chart. See the [IBM Cloud Operator installation guide](docs/install.md) for complete installation and migration instructions.
 
 ### Using a service ID
 
-By default, the installation script creates an IBM Cloud API key that impersonates your user credentials, to use to set up the IBM Cloud Operator. However, you might want to create a service ID in IBM Cloud Identity and Access Managment (IAM). By using a service ID, you can control access for the IBM Cloud Operator without having the permissions tied to a particular user, such as if that user leaves the company. For more information, see the [IBM Cloud docs](https://cloud.ibm.com/docs/account?topic=account-serviceids).
+Use a service ID API key to control the operator's IBM Cloud permissions independently from a particular user. For more information, see the [IBM Cloud docs](https://cloud.ibm.com/docs/account?topic=account-serviceids).
 
 1.  Create a service ID in IBM Cloud IAM. If possible, do not use spaces in the names for your IAM credentials. When you use the operator binding feature, any spaces are replaced with underscores.
 
@@ -182,7 +165,7 @@ By default, the installation script creates an IBM Cloud API key that impersonat
     ibmcloud iam service-api-key-create apikey-ico serviceid-ico -d api-key-for-ibm-cloud-operator
     ```
 
-4.  Set the API key of the service ID as your CLI environment variable. Now, when you run the installation script, the script uses the service ID's API key. The following command is an example for macOS.
+4.  Set the API key of the service ID as your CLI environment variable. Use this value when creating the namespace's `ibmcloud-operator-secret`, as described in the [installation guide](docs/install.md).
 
     ```bash
     export IBMCLOUD_API_KEY=<apikey-ico-value>
@@ -200,55 +183,24 @@ By default, the installation script creates an IBM Cloud API key that impersonat
 [Back to top](#ibm-cloud-operator)
 <!-- SHOW operator hub -->
 
-### Installing the operator for OpenShift clusters
+### Legacy installation methods
 
-Before you begin, complete the [prerequisite steps](README.md#prerequisites) to log in to IBM Cloud and your cluster, and optionally set up a [service ID API key](README.md#using-a-service-id).
-
-To configure the latest release for OpenShift before installing via the OperatorHub, run the following script:
-
-*   **Latest release**:
-
-    ```bash
-    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash
-    ```
-
-*   **Specific release**: Replace `-v 0.0.0` with the specific version that you want to install.
-
-    ```bash
-    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0 store-creds
-    ```
+The OperatorHub catalog entry and `hack/configure-operator.sh` installer are deprecated and do not receive version 2.0.0 or later. The catalog entry is scheduled for removal. Migrate existing installations by following the [installation guide](docs/install.md#migrate-from-operatorhub).
 
 <!-- END SHOW operator hub -->
 [Back to top](#ibm-cloud-operator)
 
-### Installing the operator for Kubernetes clusters
-
-Before you begin, complete the [prerequisite steps](#prerequisites) to log in to IBM Cloud and your cluster, and optionally set up a [service ID API key](#using-a-service-id).
-
-*   **Latest release**: To install the latest stable release of the operator, run the following script.
-
-    ```bash
-    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- install
-    ```
-
-*   **Specific release**: Replace `-v 0.0.0` with the specific version that you want to install.
-
-    ```bash
-    curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- -v 0.0.0 install
-    ```
-
-[Back to top](#ibm-cloud-operator)
-
 ### Uninstalling the operator
-**WARNING:** This is a destructive operation. The uninstaller deletes the `Service` and `Binding` CRDs, which deletes the custom resources of those types. If you only want to upgrade to a newer version, only delete the operator's Deployment.
 
-Before you begin, complete the [prerequisite steps](#prerequisites) to log in to IBM Cloud and your cluster.
+Removing the Helm release leaves the `Service` and `Binding` CRDs and their custom resources in place. The deprecated legacy uninstaller is destructive because it deletes those CRDs.
 
-To remove the operator and all of the associated custom resources, run the following script:
+Remove the Helm release:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/IBM/cloud-operators/master/hack/configure-operator.sh | bash -s -- remove
+helm uninstall ibmcloud-operator --namespace ibmcloud-operator-system
 ```
+
+Helm leaves the IBM Cloud Operator CRDs and custom resources in place. See the [installation guide](docs/install.md#uninstall) for explicit CRD removal instructions.
 
 [Back to top](#ibm-cloud-operator)
 

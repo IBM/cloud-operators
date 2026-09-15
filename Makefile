@@ -1,8 +1,8 @@
-KUBEBUILDER_VERSION = 2.3.1
-export KUBEBUILDER_ASSETS = ${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
-CONTROLLER_GEN_VERSION = 0.8.0
+KUBEBUILDER_VERSION=2.3.1
+export KUBEBUILDER_ASSETS=${PWD}/cache/kubebuilder_${KUBEBUILDER_VERSION}/bin
+CONTROLLER_GEN_VERSION=0.8.0
 CONTROLLER_GEN=${PWD}/cache/controller-gen_${CONTROLLER_GEN_VERSION}/controller-gen
-LINT_VERSION = 1.28.3
+export LINT_VERSION=1.28.3
 GOSEC_VERSION="v2.9.2"
 KUBEVAL_VERSION= 0.15.0
 KUBEVAL_KUBE_VERSION=1.18.1
@@ -13,6 +13,10 @@ SHELL := /usr/bin/env PATH=$(shell echo ${PWD}/cache/bin:${KUBEBUILDER_ASSETS}:$
 RELEASE_VERSION ?= 0.0.0
 # Image URL to use all building/pushing image targets
 IMG ?= cloudoperators/ibmcloud-operator:${RELEASE_VERSION}
+HELM ?= helm
+HELM_CHART ?= charts/ibmcloud-operator
+HELM_REGISTRY ?= oci://ghcr.io/ibm
+export HELM_PACKAGE=out/ibmcloud-operator-${RELEASE_VERSION}.tgz
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd"
 
@@ -178,15 +182,58 @@ cache/controller-gen_${CONTROLLER_GEN_VERSION}: cache
 out:
 	mkdir -p out
 
-# Prepares Kubernetes yaml files for release. Useful for testing against your own cluster.
+.PHONY: helm-crds
+helm-crds:
+	cmp config/crd/bases/ibmcloud.ibm.com_bindings.yaml $(HELM_CHART)/crds/ibmcloud.ibm.com_bindings.yaml
+	cmp config/crd/bases/ibmcloud.ibm.com_services.yaml $(HELM_CHART)/crds/ibmcloud.ibm.com_services.yaml
+
+.PHONY: helm-lint
+helm-lint: helm-crds
+	$(HELM) lint $(HELM_CHART) --strict \
+		--set-string image.tag=${RELEASE_VERSION}
+
+.PHONY: helm-template
+helm-template:
+	@manifest="$$(mktemp)"; trap 'rm -f "$$manifest"' EXIT; \
+	$(HELM) template ibmcloud-operator $(HELM_CHART) \
+		--namespace ibmcloud-operator-system \
+		--include-crds \
+		--set-string image.tag=${RELEASE_VERSION} >"$$manifest"; \
+	for kind in CustomResourceDefinition ServiceAccount ClusterRole ClusterRoleBinding Role RoleBinding Service Deployment; do \
+		grep -q "^kind: $$kind$$" "$$manifest" || { echo "Helm chart did not render $$kind" >&2; exit 1; }; \
+	done
+
+.PHONY: helm-package
+helm-package: helm-lint out
+	$(HELM) package $(HELM_CHART) \
+		--destination out \
+		--version ${RELEASE_VERSION} \
+		--app-version ${RELEASE_VERSION}
+
+.PHONY: release-helm
+release-helm: helm-package
+	@if [[ -n "$${HELM_REGISTRY_USERNAME}" ]]; then \
+		echo "$${HELM_REGISTRY_PASSWORD}" | $(HELM) registry login ghcr.io \
+			--username "$${HELM_REGISTRY_USERNAME}" --password-stdin; \
+	fi
+	$(HELM) push $(HELM_PACKAGE) $(HELM_REGISTRY)
+
+.PHONY: release
+release: docker-push release-helm
+
+.PHONY: validate-release
+validate-release: helm-lint helm-template helm-package docker-build
+
+# Deprecated OperatorHub release targets. Helm is the supported release path.
 .PHONY: release-prep
-release-prep: kustomize manifests out 
+release-prep: kustomize manifests out
 	cd config/manager && kustomize edit set image controller=${IMG}
 	kustomize build config/default --output out/
 	ulimit -n 1000 && go run ./internal/cmd/genolm --version ${RELEASE_VERSION}
 
 .PHONY: release-operatorhub
 release-operatorhub:
+	@echo "WARNING: OperatorHub publishing is deprecated; use release-helm." >&2
 	go run ./internal/cmd/release \
 		-version "${RELEASE_VERSION}" \
 		-csv "out/ibmcloud_operator.v${RELEASE_VERSION}.clusterserviceversion.yaml" \
@@ -198,13 +245,9 @@ release-operatorhub:
 		-signoff-name "$${RELEASE_GIT_NAME}" \
 		-signoff-email "$${RELEASE_GIT_EMAIL}"
 
-.PHONY: release
-release: release-prep docker-push release-operatorhub
-
-# Validates release artifacts.
-# TODO add validation for operator-courier. Currently hitting WAY too many issues with Travis CI and Python deps.
-.PHONY: validate-release
-validate-release: kubeval release-prep docker-build
+# Validates deprecated OperatorHub release artifacts.
+.PHONY: validate-operatorhub-release
+validate-operatorhub-release: kubeval release-prep docker-build
 	kubeval -d out --kubernetes-version "${KUBEVAL_KUBE_VERSION}" --ignored-filename-patterns package.yaml --ignore-missing-schemas
 
 .PHONY: operator-courier
@@ -226,7 +269,7 @@ operator-push-test: verify-operator-meta docker-build
 	# QUAY_REPO=ibmcloud-operator-image
 	# QUAY_APP=ibmcloud-operator  NOTE: Must have a repository AND a quay "application". They aren't the same thing.
 	# QUAY_USER=myuser+mybot      NOTE: Bot users are best, so you can manage permissions better.
-	# QUAY_TOKEN=abcdef1234567
+	# QUAY_TOKEN=<token>
 	@for v in "${QUAY_NAMESPACE}" "${QUAY_APP}" "${QUAY_REPO}" "${RELEASE_VERSION}" "${QUAY_USER}" "${QUAY_TOKEN}"; do \
 		if [[ -z "$$v" ]]; then \
 			echo 'Not all Quay variables set. See the make target for details.'; \

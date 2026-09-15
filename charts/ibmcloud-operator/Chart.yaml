@@ -1,0 +1,14 @@
+apiVersion: v2
+name: ibmcloud-operator
+description: Provision and bind IBM Cloud services with Kubernetes custom resources.
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+kubeVersion: ">=1.16.0-0"
+home: https://github.com/IBM/cloud-operators
+sources:
+  - https://github.com/IBM/cloud-operators
+keywords:
+  - ibm-cloud
+  - operator
+  - services
