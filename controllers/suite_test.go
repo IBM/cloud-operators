@@ -64,6 +64,15 @@ func TestMain(m *testing.M) {
 
 func run(m *testing.M) int {
 	flag.Parse() // required to check for '-short' flag setting
+	if !testing.Short() && !envtestAvailable() {
+		written, err := fmt.Fprintln(os.Stderr, "envtest binaries not found; running short tests")
+		if err != nil || written == 0 {
+			return 1
+		}
+		if err := flag.Set("test.short", "true"); err != nil {
+			return 1
+		}
+	}
 	if testing.Short() {
 		return m.Run()
 	}
@@ -81,6 +90,19 @@ func run(m *testing.M) int {
 		panic(err)
 	}
 	return m.Run()
+}
+
+func envtestAvailable() bool {
+	assets := os.Getenv("KUBEBUILDER_ASSETS")
+	if assets == "" {
+		assets = "/usr/local/kubebuilder/bin"
+	}
+	for _, binary := range []string{"etcd", "kube-apiserver"} {
+		if _, err := os.Stat(filepath.Join(assets, binary)); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func zapEncoderConfig() zapcore.EncoderConfig {
