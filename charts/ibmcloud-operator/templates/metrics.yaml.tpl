@@ -33,6 +33,10 @@ spec:
   endpoints:
     - path: /metrics
       port: https
+      scheme: https
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tlsConfig:
+        insecureSkipVerify: true
   selector:
     matchLabels:
       {{- include "ibmcloud-operator.selectorLabels" . | nindent 6 }}

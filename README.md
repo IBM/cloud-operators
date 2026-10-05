@@ -92,7 +92,7 @@ For a list of recent changes, see the [releases page](https://github.com/IBM/clo
 3. Install the required command line tools.
     * [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started) (`ibmcloud`)
     * [Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (`kubectl`)
-    * [Helm](https://helm.sh/docs/intro/install/) 3 or later (`helm`)
+    * [Helm](https://helm.sh/docs/intro/install/) 3.8 or later (`helm`)
 4. Log in to your IBM Cloud account from the CLI.
 
     ```bash

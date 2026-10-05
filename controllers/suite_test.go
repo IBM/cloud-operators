@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -98,11 +99,33 @@ func envtestAvailable() bool {
 		assets = "/usr/local/kubebuilder/bin"
 	}
 	for _, binary := range []string{"etcd", "kube-apiserver"} {
-		if _, err := os.Stat(filepath.Join(assets, binary)); err != nil {
+		if _, err := exec.LookPath(filepath.Join(assets, binary)); err != nil {
 			return false
 		}
 	}
 	return true
+}
+
+func TestEnvtestAvailable(t *testing.T) {
+	assets := t.TempDir()
+	t.Setenv("KUBEBUILDER_ASSETS", assets)
+
+	for _, binary := range []string{"etcd", "kube-apiserver"} {
+		path := filepath.Join(assets, binary)
+		if err := os.WriteFile(path, nil, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !envtestAvailable() {
+		t.Fatal("expected executable envtest binaries to be available")
+	}
+
+	if err := os.Chmod(filepath.Join(assets, "etcd"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if envtestAvailable() {
+		t.Fatal("expected non-executable envtest binary to be unavailable")
+	}
 }
 
 func zapEncoderConfig() zapcore.EncoderConfig {

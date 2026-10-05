@@ -5,7 +5,7 @@ Helm is the supported installation method for IBM Cloud Operator 2.0.0 and later
 ## Prerequisites
 
 - Kubernetes 1.16 or later
-- Helm 3 or later
+- Helm 3.8 or later
 - An IBM Cloud API key with access to the services the operator will manage
 
 ## Install the operator
