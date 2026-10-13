@@ -594,6 +594,63 @@ func TestBindingGetIBMCloudInfoFailed(t *testing.T) {
 	})
 }
 
+func TestBindingIBMCloudInfoUsesBindingNamespace(t *testing.T) {
+	t.Parallel()
+	scheme := schemas(t)
+	const (
+		bindingNamespace = "binding-namespace"
+		bindingName      = "mybinding"
+		serviceNamespace = "service-namespace"
+		serviceName      = "myservice"
+		instanceID       = "some-instance-id"
+	)
+	objects := []runtime.Object{
+		&ibmcloudv1.Binding{
+			TypeMeta: metav1.TypeMeta{Kind: "Binding", APIVersion: "ibmcloud.ibm.com/v1"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      bindingName,
+				Namespace: bindingNamespace,
+			},
+			Spec: ibmcloudv1.BindingSpec{
+				ServiceName:      serviceName,
+				ServiceNamespace: serviceNamespace,
+			},
+			Status: ibmcloudv1.BindingStatus{State: bindingStatePending},
+		},
+		&ibmcloudv1.Service{
+			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "ibmcloud.ibm.com/v1"},
+			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: serviceNamespace},
+			Status: ibmcloudv1.ServiceStatus{
+				InstanceID: instanceID,
+			},
+		},
+	}
+
+	var cloudInfoService *ibmcloudv1.Service
+	r := &BindingReconciler{
+		Client: newMockClient(fake.NewFakeClientWithScheme(scheme, objects...), MockConfig{}),
+		Log:    testLogger(t),
+		Scheme: scheme,
+		SetOwnerReference: func(owner, controlled metav1.Object, scheme *runtime.Scheme) error {
+			return nil
+		},
+		GetIBMCloudInfo: func(logt logr.Logger, r client.Client, instance *ibmcloudv1.Service) (*ibmcloud.Info, error) {
+			cloudInfoService = instance.DeepCopy()
+			return nil, fmt.Errorf("stop after recording service")
+		},
+	}
+
+	result, err := r.Reconcile(ctrl.Request{
+		NamespacedName: types.NamespacedName{Name: bindingName, Namespace: bindingNamespace},
+	})
+	assert.Equal(t, ctrl.Result{Requeue: true, RequeueAfter: config.Get().SyncPeriod}, result)
+	assert.NoError(t, err)
+	require.NotNil(t, cloudInfoService)
+	assert.Equal(t, bindingNamespace, cloudInfoService.Namespace)
+	assert.Equal(t, serviceName, cloudInfoService.Name)
+	assert.Equal(t, instanceID, cloudInfoService.Status.InstanceID)
+}
+
 func TestBindingDeletesWithFinalizerFailed(t *testing.T) {
 	t.Parallel()
 	now := metav1Now(t)
