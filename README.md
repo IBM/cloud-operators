@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/IBM/cloud-operators.svg?branch=master)](https://travis-ci.com/IBM/cloud-operators)
+[![CI](https://github.com/IBM/cloud-operators/actions/workflows/ci.yml/badge.svg)](https://github.com/IBM/cloud-operators/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/IBM/cloud-operators)](https://goreportcard.com/report/github.com/IBM/cloud-operators)
 [![Coverage Status](https://coveralls.io/repos/github/IBM/cloud-operators/badge.svg)](https://coveralls.io/github/IBM/cloud-operators)
 ![Docker Pulls](https://img.shields.io/docker/pulls/cloudoperators/ibmcloud-operator)
@@ -440,8 +440,8 @@ You can override the account context in the `Service` configuration file with th
 | org              | No       | `string` | The Cloud Foundry org. To list orgs, run `ibmcloud account orgs`. |
 | space            | No       | `string` | The Cloud Foundry space. To list spaces, run `ibmcloud account spaces`. |
 | region           | No       | `string` | The IBM Cloud region. To list regions, run `ibmcloud regions`. |
-| resourceGroupID  | No       | `string` | The IBM Cloud resource group ID. To list resource groups, run `ibmcloud resource groups`. |
-| resourceLocation | No       | `string` | The location of the resource.|
+| resourcegroupid  | No       | `string` | The IBM Cloud resource group ID. To list resource groups, run `ibmcloud resource groups`. |
+| resourcelocation | No       | `string` | The location of the resource.|
 
 [Back to top](#ibm-cloud-operator)
 
