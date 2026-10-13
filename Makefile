@@ -184,8 +184,8 @@ out:
 
 .PHONY: helm-crds
 helm-crds:
-	cmp config/crd/bases/ibmcloud.ibm.com_bindings.yaml $(HELM_CHART)/crds/ibmcloud.ibm.com_bindings.yaml
-	cmp config/crd/bases/ibmcloud.ibm.com_services.yaml $(HELM_CHART)/crds/ibmcloud.ibm.com_services.yaml
+	go run ./internal/cmd/yamlcmp config/crd/bases/ibmcloud.ibm.com_bindings.yaml $(HELM_CHART)/crds/ibmcloud.ibm.com_bindings.yaml
+	go run ./internal/cmd/yamlcmp config/crd/bases/ibmcloud.ibm.com_services.yaml $(HELM_CHART)/crds/ibmcloud.ibm.com_services.yaml
 
 .PHONY: helm-lint
 helm-lint: helm-crds
