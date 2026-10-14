@@ -1,0 +1,42 @@
+replicaCount: 1
+
+image:
+  repository: cloudoperators/ibmcloud-operator
+  pullPolicy: IfNotPresent
+  # Defaults to the chart appVersion when empty.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+maxConcurrentReconciles: 1
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 175Mi
+  requests:
+    cpu: 100m
+    memory: 20Mi
+
+metrics:
+  proxy:
+    image:
+      repository: gcr.io/kubebuilder/kube-rbac-proxy
+      tag: v0.5.0
+      pullPolicy: IfNotPresent
+  service:
+    annotations: {}
+  serviceMonitor:
+    enabled: false
+    additionalLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
