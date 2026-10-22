@@ -28,7 +28,7 @@ resources:
 metrics:
   proxy:
     image:
-      repository: gcr.io/kubebuilder/kube-rbac-proxy
+      repository: quay.io/brancz/kube-rbac-proxy
       tag: v0.5.0
       pullPolicy: IfNotPresent
   service:
