@@ -1,0 +1,8 @@
+IBM Cloud Operator {{ .Chart.AppVersion }} is installed in namespace {{ .Release.Namespace }}.
+
+Before creating Service or Binding resources, create the IBM Cloud account
+configuration in each workload namespace. See:
+https://github.com/IBM/cloud-operators/blob/master/docs/install.md
+
+Check the controller:
+  kubectl get deployment -n {{ .Release.Namespace }} {{ include "ibmcloud-operator.fullname" . }}
